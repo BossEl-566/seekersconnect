@@ -1,0 +1,1276 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Check,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  MapPin,
+  Package,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+import { UNIVERSITIES } from "@/constants/universities";
+import { REQUEST_SERVICES } from "@/constants/request-services";
+import { REQUEST_FIELDS } from "@/constants/request-fields";
+import { COMPANY } from "@/constants/company";
+
+import type {
+  RequestDraft,
+  RequestField,
+  RequestService,
+} from "@/types/request";
+
+const STORAGE_KEY = "seekers-connect-request-draft";
+
+const steps = [
+  {
+    number: 1,
+    label: "University",
+    icon: Building2,
+  },
+  {
+    number: 2,
+    label: "Service",
+    icon: FileText,
+  },
+  {
+    number: 3,
+    label: "Details",
+    icon: UserRound,
+  },
+  {
+    number: 4,
+    label: "Delivery",
+    icon: Package,
+  },
+  {
+    number: 5,
+    label: "Payment",
+    icon: CreditCard,
+  },
+  {
+    number: 6,
+    label: "Review",
+    icon: ShieldCheck,
+  },
+];
+
+const initialDraft: RequestDraft = {
+  universityId: "",
+  serviceId: "",
+
+  applicant: {
+    firstName: "",
+    otherNames: "",
+    surname: "",
+    gender: "",
+    phone: "",
+    email: "",
+  },
+
+  responses: {},
+
+  delivery: {
+    required: true,
+    fullName: "",
+    houseNumber: "",
+    areaTown: "",
+    cityDistrict: "",
+    region: "",
+    digitalAddress: "",
+    phone: "",
+    email: "",
+    itemType: "Academic Document",
+    emergencyContact: "",
+  },
+
+  paymentMethod: "",
+
+  notes: "",
+};
+
+export function RequestWizard() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [draft, setDraft] = useState<RequestDraft>(initialDraft);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setDraft(JSON.parse(saved));
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }, [draft, hydrated]);
+
+  const selectedUniversity = useMemo(
+    () =>
+      UNIVERSITIES.find(
+        (university) => university.id === draft.universityId,
+      ),
+    [draft.universityId],
+  );
+
+  const availableServices = useMemo(
+    () =>
+      REQUEST_SERVICES.filter(
+        (service) =>
+          service.universityId === draft.universityId && service.active,
+      ),
+    [draft.universityId],
+  );
+
+  const selectedService = useMemo<RequestService | undefined>(
+    () =>
+      REQUEST_SERVICES.find(
+        (service) => service.id === draft.serviceId,
+      ),
+    [draft.serviceId],
+  );
+
+  const dynamicFields = useMemo<RequestField[]>(() => {
+    if (!selectedService) return [];
+
+    return REQUEST_FIELDS[selectedService.formType];
+  }, [selectedService]);
+
+  function updateApplicant(
+    key: keyof RequestDraft["applicant"],
+    value: string,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      applicant: {
+        ...current.applicant,
+        [key]: value,
+      },
+    }));
+  }
+
+  function updateResponse(key: string, value: string) {
+    setDraft((current) => ({
+      ...current,
+      responses: {
+        ...current.responses,
+        [key]: value,
+      },
+    }));
+  }
+
+  function updateDelivery(
+    key: keyof RequestDraft["delivery"],
+    value: string | boolean,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      delivery: {
+        ...current.delivery,
+        [key]: value,
+      },
+    }));
+  }
+
+  function selectUniversity(universityId: string) {
+    setDraft((current) => ({
+      ...current,
+      universityId,
+      serviceId: "",
+      responses: {},
+    }));
+  }
+
+  function selectService(serviceId: string) {
+    setDraft((current) => ({
+      ...current,
+      serviceId,
+      responses: {},
+    }));
+  }
+
+  function canContinue() {
+    if (currentStep === 1) {
+      return Boolean(draft.universityId);
+    }
+
+    if (currentStep === 2) {
+      return Boolean(draft.serviceId);
+    }
+
+    if (currentStep === 3) {
+      const applicantComplete =
+        draft.applicant.firstName.trim() &&
+        draft.applicant.surname.trim() &&
+        draft.applicant.gender.trim() &&
+        draft.applicant.phone.trim() &&
+        draft.applicant.email.trim();
+
+      const requiredDynamicFieldsComplete = dynamicFields
+        .filter((field) => field.required)
+        .every((field) =>
+          Boolean(draft.responses[field.key]?.trim()),
+        );
+
+      return Boolean(
+        applicantComplete && requiredDynamicFieldsComplete,
+      );
+    }
+
+    if (currentStep === 4) {
+      if (!draft.delivery.required) {
+        return true;
+      }
+
+      return Boolean(
+        draft.delivery.fullName.trim() &&
+          draft.delivery.areaTown.trim() &&
+          draft.delivery.cityDistrict.trim() &&
+          draft.delivery.region.trim() &&
+          draft.delivery.phone.trim() &&
+          draft.delivery.emergencyContact.trim(),
+      );
+    }
+
+    if (currentStep === 5) {
+      return Boolean(draft.paymentMethod);
+    }
+
+    return true;
+  }
+
+  function nextStep() {
+    if (!canContinue()) return;
+
+    setCurrentStep((step) => Math.min(step + 1, steps.length));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function previousStep() {
+    setCurrentStep((step) => Math.max(step - 1, 1));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function clearDraft() {
+    setDraft(initialDraft);
+    setCurrentStep(1);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-[500px] items-center justify-center">
+        <div className="text-sm text-slate-500">
+          Preparing your request...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl">
+      <div className="grid gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
+        {/* SIDEBAR */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-28 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="px-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+              Your progress
+            </p>
+
+            <div className="mt-4 space-y-1">
+              {steps.map((step) => {
+                const Icon = step.icon;
+                const active = currentStep === step.number;
+                const completed = currentStep > step.number;
+
+                return (
+                  <div
+                    key={step.number}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
+                      active
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        completed
+                          ? "bg-blue-600 text-white"
+                          : active
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-slate-100"
+                      }`}
+                    >
+                      {completed ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Icon className="h-4 w-4" />
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-slate-400">
+                        Step {step.number}
+                      </p>
+
+                      <p
+                        className={`text-sm font-medium ${
+                          active
+                            ? "text-blue-700"
+                            : completed
+                              ? "text-slate-700"
+                              : ""
+                        }`}
+                      >
+                        {step.label}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <div>
+          <MobileProgress
+            currentStep={currentStep}
+            totalSteps={steps.length}
+          />
+
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+            {currentStep === 1 && (
+              <UniversityStep
+                selectedId={draft.universityId}
+                onSelect={selectUniversity}
+              />
+            )}
+
+            {currentStep === 2 && (
+              <ServiceStep
+                universityName={selectedUniversity?.name}
+                services={availableServices}
+                selectedId={draft.serviceId}
+                onSelect={selectService}
+              />
+            )}
+
+            {currentStep === 3 && (
+              <DetailsStep
+                draft={draft}
+                dynamicFields={dynamicFields}
+                selectedService={selectedService}
+                updateApplicant={updateApplicant}
+                updateResponse={updateResponse}
+              />
+            )}
+
+            {currentStep === 4 && (
+              <DeliveryStep
+                draft={draft}
+                updateDelivery={updateDelivery}
+              />
+            )}
+
+            {currentStep === 5 && (
+              <PaymentStep
+                draft={draft}
+                setDraft={setDraft}
+              />
+            )}
+
+            {currentStep === 6 && (
+              <ReviewStep
+                draft={draft}
+                universityName={selectedUniversity?.name}
+                serviceName={selectedService?.name}
+                dynamicFields={dynamicFields}
+              />
+            )}
+
+            <div className="mt-9 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {currentStep > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full rounded-xl sm:w-auto"
+                    onClick={previousStep}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                )}
+              </div>
+
+              {currentStep < steps.length ? (
+                <Button
+                  type="button"
+                  className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
+                  disabled={!canContinue()}
+                  onClick={nextStep}
+                >
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
+                >
+                  Submit Request
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="text-xs text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline"
+            >
+              Clear saved form and start again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileProgress({
+  currentStep,
+  totalSteps,
+}: {
+  currentStep: number;
+  totalSteps: number;
+}) {
+  const progress = (currentStep / totalSteps) * 100;
+
+  return (
+    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 lg:hidden">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">
+          Step {currentStep} of {totalSteps}
+        </p>
+
+        <p className="text-xs text-slate-500">
+          {steps[currentStep - 1].label}
+        </p>
+      </div>
+
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-blue-600 transition-all"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function UniversityStep({
+  selectedId,
+  onSelect,
+}: {
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="University"
+        title="Which university are you requesting from?"
+        description="Select the institution that holds the academic record you want us to process."
+      />
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        {UNIVERSITIES.map((university) => {
+          const selected = selectedId === university.id;
+
+          return (
+            <button
+              key={university.id}
+              type="button"
+              onClick={() => onSelect(university.id)}
+              className={`relative rounded-2xl border p-5 text-left transition ${
+                selected
+                  ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                  : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
+              }`}
+            >
+              {selected && (
+                <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+              )}
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <Building2 className="h-5 w-5" />
+              </div>
+
+              <h3 className="mt-5 text-lg font-semibold">
+                {university.shortName}
+              </h3>
+
+              <p className="mt-1 pr-6 text-sm leading-6 text-slate-500">
+                {university.name}
+              </p>
+
+              <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                <MapPin className="h-3.5 w-3.5" />
+                {university.location}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function ServiceStep({
+  universityName,
+  services,
+  selectedId,
+  onSelect,
+}: {
+  universityName?: string;
+  services: RequestService[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Service"
+        title="What document do you need?"
+        description={`Choose the academic request you want us to process${
+          universityName ? ` for ${universityName}` : ""
+        }.`}
+      />
+
+      <div className="mt-8 space-y-3">
+        {services.map((service) => {
+          const selected = selectedId === service.id;
+
+          return (
+            <button
+              key={service.id}
+              type="button"
+              onClick={() => onSelect(service.id)}
+              className={`flex w-full items-start gap-4 rounded-2xl border p-5 text-left transition ${
+                selected
+                  ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                  : "border-slate-200 hover:border-blue-200 hover:shadow-sm"
+              }`}
+            >
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                  selected
+                    ? "bg-blue-600 text-white"
+                    : "bg-blue-50 text-blue-600"
+                }`}
+              >
+                <FileText className="h-5 w-5" />
+              </div>
+
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-950">
+                  {service.name}
+                </h3>
+
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {service.description}
+                </p>
+              </div>
+
+              <div
+                className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+                  selected
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-slate-300"
+                }`}
+              >
+                {selected && <Check className="h-3.5 w-3.5" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function DetailsStep({
+  draft,
+  dynamicFields,
+  selectedService,
+  updateApplicant,
+  updateResponse,
+}: {
+  draft: RequestDraft;
+  dynamicFields: RequestField[];
+  selectedService?: RequestService;
+  updateApplicant: (
+    key: keyof RequestDraft["applicant"],
+    value: string,
+  ) => void;
+  updateResponse: (key: string, value: string) => void;
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Applicant Information"
+        title="Tell us about the applicant."
+        description={`Enter the information carefully. ${
+          selectedService
+            ? `These fields are required for ${selectedService.shortName}.`
+            : ""
+        }`}
+      />
+
+      <div className="mt-8">
+        <SectionHeading title="Personal Details" />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <FormInput
+            label="First Name"
+            required
+            value={draft.applicant.firstName}
+            onChange={(value) =>
+              updateApplicant("firstName", value)
+            }
+          />
+
+          <FormInput
+            label="Other Names"
+            value={draft.applicant.otherNames}
+            onChange={(value) =>
+              updateApplicant("otherNames", value)
+            }
+          />
+
+          <FormInput
+            label="Surname"
+            required
+            value={draft.applicant.surname}
+            onChange={(value) =>
+              updateApplicant("surname", value)
+            }
+          />
+
+          <div className="space-y-2">
+            <Label>
+              Gender <span className="text-red-500">*</span>
+            </Label>
+
+            <select
+              className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+              value={draft.applicant.gender}
+              onChange={(event) =>
+                updateApplicant("gender", event.target.value)
+              }
+            >
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+
+          <FormInput
+            label="Active Mobile Number"
+            required
+            type="tel"
+            value={draft.applicant.phone}
+            onChange={(value) =>
+              updateApplicant("phone", value)
+            }
+          />
+
+          <FormInput
+            label="Email Address"
+            required
+            type="email"
+            value={draft.applicant.email}
+            onChange={(value) =>
+              updateApplicant("email", value)
+            }
+          />
+        </div>
+
+        <div className="my-8 border-t border-slate-200" />
+
+        <SectionHeading title="Academic Information" />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          {dynamicFields.map((field) => (
+            <DynamicField
+              key={field.key}
+              field={field}
+              value={draft.responses[field.key] ?? ""}
+              onChange={(value) =>
+                updateResponse(field.key, value)
+              }
+            />
+          ))}
+        </div>
+
+        {selectedService?.formType === "ucc-college" && (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            <strong>Important:</strong> This form is not applicable to
+            four-year post applicants. Ensure all academic information is
+            entered correctly.
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function DeliveryStep({
+  draft,
+  updateDelivery,
+}: {
+  draft: RequestDraft;
+  updateDelivery: (
+    key: keyof RequestDraft["delivery"],
+    value: string | boolean,
+  ) => void;
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Delivery"
+        title="How should the document be delivered?"
+        description="If physical EMS delivery is required, provide complete and accurate delivery details."
+      />
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => updateDelivery("required", true)}
+          className={`rounded-2xl border p-5 text-left ${
+            draft.delivery.required
+              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+              : "border-slate-200"
+          }`}
+        >
+          <Package className="h-5 w-5 text-blue-600" />
+
+          <p className="mt-4 font-semibold">EMS Delivery</p>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Deliver the physical academic document through EMS.
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => updateDelivery("required", false)}
+          className={`rounded-2xl border p-5 text-left ${
+            !draft.delivery.required
+              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+              : "border-slate-200"
+          }`}
+        >
+          <FileText className="h-5 w-5 text-blue-600" />
+
+          <p className="mt-4 font-semibold">No Physical Delivery</p>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Select this when EMS delivery is not required.
+          </p>
+        </button>
+      </div>
+
+      {draft.delivery.required && (
+        <div className="mt-8">
+          <SectionHeading title="EMS Delivery Information" />
+
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <FormInput
+              label="Full Name"
+              required
+              value={draft.delivery.fullName}
+              onChange={(value) =>
+                updateDelivery("fullName", value)
+              }
+            />
+
+            <FormInput
+              label="House Number"
+              value={draft.delivery.houseNumber}
+              onChange={(value) =>
+                updateDelivery("houseNumber", value)
+              }
+            />
+
+            <FormInput
+              label="Area / Town"
+              required
+              value={draft.delivery.areaTown}
+              onChange={(value) =>
+                updateDelivery("areaTown", value)
+              }
+            />
+
+            <FormInput
+              label="City / District"
+              required
+              value={draft.delivery.cityDistrict}
+              onChange={(value) =>
+                updateDelivery("cityDistrict", value)
+              }
+            />
+
+            <FormInput
+              label="Region"
+              required
+              value={draft.delivery.region}
+              onChange={(value) =>
+                updateDelivery("region", value)
+              }
+            />
+
+            <FormInput
+              label="Digital Address"
+              placeholder="e.g. GA-123-4567"
+              value={draft.delivery.digitalAddress}
+              onChange={(value) =>
+                updateDelivery("digitalAddress", value)
+              }
+            />
+
+            <FormInput
+              label="Phone Number"
+              required
+              type="tel"
+              value={draft.delivery.phone}
+              onChange={(value) =>
+                updateDelivery("phone", value)
+              }
+            />
+
+            <FormInput
+              label="Email"
+              type="email"
+              value={draft.delivery.email}
+              onChange={(value) =>
+                updateDelivery("email", value)
+              }
+            />
+
+            <FormInput
+              label="Item Type"
+              value={draft.delivery.itemType}
+              onChange={(value) =>
+                updateDelivery("itemType", value)
+              }
+            />
+
+            <FormInput
+              label="Emergency Contact"
+              required
+              type="tel"
+              value={draft.delivery.emergencyContact}
+              onChange={(value) =>
+                updateDelivery("emergencyContact", value)
+              }
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function PaymentStep({
+  draft,
+  setDraft,
+}: {
+  draft: RequestDraft;
+  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Payment"
+        title="Choose how you will make payment."
+        description="After payment, you will upload proof of payment before submitting the request."
+      />
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() =>
+            setDraft((current) => ({
+              ...current,
+              paymentMethod: "momo",
+            }))
+          }
+          className={`rounded-2xl border p-5 text-left ${
+            draft.paymentMethod === "momo"
+              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+              : "border-slate-200"
+          }`}
+        >
+          <CreditCard className="h-5 w-5 text-blue-600" />
+
+          <h3 className="mt-4 font-semibold">Mobile Money</h3>
+
+          <p className="mt-3 text-sm text-slate-500">
+            Number
+          </p>
+
+          <p className="mt-1 font-semibold">
+            {COMPANY.momo.number}
+          </p>
+
+          <p className="mt-3 text-sm text-slate-500">
+            Account Name
+          </p>
+
+          <p className="mt-1 font-semibold">
+            {COMPANY.momo.accountName}
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            setDraft((current) => ({
+              ...current,
+              paymentMethod: "bank",
+            }))
+          }
+          className={`rounded-2xl border p-5 text-left ${
+            draft.paymentMethod === "bank"
+              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+              : "border-slate-200"
+          }`}
+        >
+          <Building2 className="h-5 w-5 text-blue-600" />
+
+          <h3 className="mt-4 font-semibold">
+            {COMPANY.bank.name}
+          </h3>
+
+          <p className="mt-3 text-sm text-slate-500">
+            Account Number
+          </p>
+
+          <p className="mt-1 font-semibold">
+            {COMPANY.bank.accountNumber}
+          </p>
+
+          <p className="mt-3 text-sm text-slate-500">
+            Account Name
+          </p>
+
+          <p className="mt-1 font-semibold">
+            {COMPANY.bank.accountName}
+          </p>
+        </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+        <p className="font-semibold text-blue-950">
+          Proof of payment
+        </p>
+
+        <p className="mt-2 text-sm leading-6 text-blue-800">
+          Screenshot upload will be connected when we integrate Supabase
+          Storage. For now, select the payment method and continue.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function ReviewStep({
+  draft,
+  universityName,
+  serviceName,
+  dynamicFields,
+}: {
+  draft: RequestDraft;
+  universityName?: string;
+  serviceName?: string;
+  dynamicFields: RequestField[];
+}) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Review"
+        title="Review your request before submitting."
+        description="Please confirm that every detail is correct. Academic document requests may be delayed when incorrect information is supplied."
+      />
+
+      <div className="mt-8 space-y-5">
+        <ReviewCard
+          title="Request"
+          rows={[
+            ["University", universityName ?? "—"],
+            ["Service", serviceName ?? "—"],
+          ]}
+        />
+
+        <ReviewCard
+          title="Applicant"
+          rows={[
+            [
+              "Name",
+              [
+                draft.applicant.firstName,
+                draft.applicant.otherNames,
+                draft.applicant.surname,
+              ]
+                .filter(Boolean)
+                .join(" "),
+            ],
+            ["Gender", draft.applicant.gender],
+            ["Phone", draft.applicant.phone],
+            ["Email", draft.applicant.email],
+          ]}
+        />
+
+        <ReviewCard
+          title="Academic Information"
+          rows={dynamicFields.map((field) => [
+            field.label,
+            draft.responses[field.key] || "—",
+          ])}
+        />
+
+        {draft.delivery.required && (
+          <ReviewCard
+            title="Delivery"
+            rows={[
+              ["Recipient", draft.delivery.fullName],
+              ["Area / Town", draft.delivery.areaTown],
+              ["City / District", draft.delivery.cityDistrict],
+              ["Region", draft.delivery.region],
+              ["Digital Address", draft.delivery.digitalAddress || "—"],
+              ["Phone", draft.delivery.phone],
+              [
+                "Emergency Contact",
+                draft.delivery.emergencyContact,
+              ],
+            ]}
+          />
+        )}
+
+        <ReviewCard
+          title="Payment"
+          rows={[
+            [
+              "Method",
+              draft.paymentMethod === "momo"
+                ? "Mobile Money"
+                : "Bank Transfer",
+            ],
+          ]}
+        />
+
+        <div className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+
+          <div>
+            <p className="text-sm font-semibold text-emerald-950">
+              Ready for submission
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-emerald-800">
+              The actual database submission and payment screenshot upload
+              will be connected in the next backend phase.
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function StepHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
+        {eyebrow}
+      </p>
+
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+        {title}
+      </h1>
+
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+      {title}
+    </h2>
+  );
+}
+
+function FormInput({
+  label,
+  required,
+  type = "text",
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>
+        {label}
+        {required && <span className="ml-1 text-red-500">*</span>}
+      </Label>
+
+      <Input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
+  );
+}
+
+function DynamicField({
+  field,
+  value,
+  onChange,
+}: {
+  field: RequestField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const fullWidth = field.type === "textarea";
+
+  return (
+    <div
+      className={`space-y-2 ${
+        fullWidth ? "sm:col-span-2" : ""
+      }`}
+    >
+      <Label>
+        {field.label}
+        {field.required && (
+          <span className="ml-1 text-red-500">*</span>
+        )}
+      </Label>
+
+      {field.type === "textarea" ? (
+        <Textarea
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-h-28"
+        />
+      ) : field.type === "select" ? (
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+        >
+          <option value="">Select option</option>
+
+          {field.options?.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <Input
+          type={field.type}
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReviewCard({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: string[][];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 p-5">
+      <h2 className="font-semibold">{title}</h2>
+
+      <div className="mt-4 divide-y divide-slate-100">
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid gap-1 py-3 text-sm sm:grid-cols-[190px_1fr]"
+          >
+            <span className="text-slate-500">{label}</span>
+            <span className="font-medium text-slate-800">
+              {value || "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
