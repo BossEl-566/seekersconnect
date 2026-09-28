@@ -3,6 +3,7 @@ import type { RequestService } from "@/types/request";
 export const REQUEST_SERVICES: RequestService[] = [
   {
     id: "ucc-degree-transcript",
+    slug: "degree-transcript",
     universityId: "ucc",
     name: "Degree / Regular / Sandwich Transcript",
     shortName: "Degree Transcript",
@@ -15,6 +16,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-distance-transcript",
+    slug: "distance-transcript",
     universityId: "ucc",
     name: "Distance Transcript",
     shortName: "Distance Transcript",
@@ -27,6 +29,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-distance-proficiency",
+    slug: "distance-proficiency",
     universityId: "ucc",
     name: "Distance English Proficiency Letter",
     shortName: "English Proficiency",
@@ -39,6 +42,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-distance-attestation",
+    slug: "distance-attestation",
     universityId: "ucc",
     name: "Distance Attestation",
     shortName: "Attestation",
@@ -51,6 +55,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-college-transcript",
+    slug: "college-transcript",
     universityId: "ucc",
     name: "College of Education Transcript",
     shortName: "College Transcript",
@@ -63,6 +68,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-college-proficiency",
+    slug: "college-proficiency",
     universityId: "ucc",
     name: "College of Education English Proficiency Letter",
     shortName: "English Proficiency",
@@ -75,6 +81,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ucc-college-attestation",
+    slug: "college-attestation",
     universityId: "ucc",
     name: "College of Education Attestation",
     shortName: "Attestation",
@@ -87,6 +94,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "uew-transcript",
+    slug: "academic-transcript",
     universityId: "uew",
     name: "Academic Transcript",
     shortName: "Transcript",
@@ -98,10 +106,12 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "ug-transcript",
+    slug: "academic-transcript",
     universityId: "ug",
     name: "Academic Transcript",
     shortName: "Transcript",
-    description: "Academic transcript request for University of Ghana applicants.",
+    description:
+      "Academic transcript request for University of Ghana applicants.",
     category: "transcript",
     formType: "generic",
     active: true,
@@ -109,6 +119,7 @@ export const REQUEST_SERVICES: RequestService[] = [
 
   {
     id: "knust-transcript",
+    slug: "academic-transcript",
     universityId: "knust",
     name: "Academic Transcript",
     shortName: "Transcript",

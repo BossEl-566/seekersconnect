@@ -13,6 +13,8 @@ import {
   Package,
   ShieldCheck,
   UserRound,
+  Loader2,
+Upload,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -104,6 +106,21 @@ export function RequestWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [draft, setDraft] = useState<RequestDraft>(initialDraft);
   const [hydrated, setHydrated] = useState(false);
+  const [paymentProof, setPaymentProof] =
+  useState<File | null>(null);
+
+const [submitting, setSubmitting] =
+  useState(false);
+
+const [submitError, setSubmitError] =
+  useState("");
+
+const [
+  submittedRequest,
+  setSubmittedRequest,
+] = useState<{
+  requestNumber: string;
+} | null>(null);
 
   useEffect(() => {
     try {
@@ -254,8 +271,11 @@ export function RequestWizard() {
     }
 
     if (currentStep === 5) {
-      return Boolean(draft.paymentMethod);
-    }
+  return Boolean(
+    draft.paymentMethod &&
+      paymentProof,
+  );
+}
 
     return true;
   }
@@ -280,11 +300,73 @@ export function RequestWizard() {
     });
   }
 
-  function clearDraft() {
-    setDraft(initialDraft);
-    setCurrentStep(1);
-    localStorage.removeItem(STORAGE_KEY);
+  async function submitRequest() {
+  if (!paymentProof || submitting) {
+    return;
   }
+
+  setSubmitting(true);
+  setSubmitError("");
+
+  try {
+    const formData = new FormData();
+
+    formData.append(
+      "draft",
+      JSON.stringify(draft),
+    );
+
+    formData.append(
+      "paymentProof",
+      paymentProof,
+    );
+
+    const response = await fetch(
+      "/api/requests",
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          "Unable to submit request.",
+      );
+    }
+
+    localStorage.removeItem(
+      STORAGE_KEY,
+    );
+
+    setSubmittedRequest({
+      requestNumber:
+        result.request.requestNumber,
+    });
+  } catch (error) {
+    setSubmitError(
+      error instanceof Error
+        ? error.message
+        : "Unable to submit request.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+}
+  function clearDraft() {
+  setDraft(initialDraft);
+  setPaymentProof(null);
+  setSubmitError("");
+  setCurrentStep(1);
+
+  localStorage.removeItem(
+    STORAGE_KEY,
+  );
+}
 
   if (!hydrated) {
     return (
@@ -295,6 +377,59 @@ export function RequestWizard() {
       </div>
     );
   }
+
+  if (submittedRequest) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      <div className="rounded-[28px] border border-emerald-200 bg-white p-7 text-center shadow-sm sm:p-10">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <CheckCircle2 className="h-7 w-7" />
+        </div>
+
+        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+          Request Submitted
+        </p>
+
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+          We have received your request.
+        </h1>
+
+        <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
+          Your payment proof is now awaiting verification by
+          Seekers Connect 247.
+        </p>
+
+        <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            Request Number
+          </p>
+
+          <p className="mt-2 break-all text-xl font-semibold tracking-wide text-slate-950">
+            {submittedRequest.requestNumber}
+          </p>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-left">
+          <p className="font-semibold text-blue-950">
+            What happens next?
+          </p>
+
+          <p className="mt-2 text-sm leading-6 text-blue-800">
+            Our team will verify your payment. Once the payment
+            has been confirmed, your secure tracking details will
+            be generated and provided to you.
+          </p>
+        </div>
+
+        <p className="mt-6 text-xs leading-5 text-slate-400">
+          Keep your request number safe. Customer support may ask
+          for it if you contact us before your tracking details
+          are issued.
+        </p>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -404,9 +539,13 @@ export function RequestWizard() {
 
             {currentStep === 5 && (
               <PaymentStep
-                draft={draft}
-                setDraft={setDraft}
-              />
+  draft={draft}
+  setDraft={setDraft}
+  paymentProof={paymentProof}
+  onPaymentProofChange={
+    setPaymentProof
+  }
+/>
             )}
 
             {currentStep === 6 && (
@@ -417,6 +556,12 @@ export function RequestWizard() {
                 dynamicFields={dynamicFields}
               />
             )}
+
+            {submitError && (
+  <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    {submitError}
+  </div>
+)}
 
             <div className="mt-9 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -445,12 +590,26 @@ export function RequestWizard() {
                 </Button>
               ) : (
                 <Button
-                  type="button"
-                  className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                >
-                  Submit Request
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+  type="button"
+  className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
+  disabled={
+    submitting ||
+    !paymentProof
+  }
+  onClick={submitRequest}
+>
+  {submitting ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Submitting...
+    </>
+  ) : (
+    <>
+      Submit Request
+      <ArrowRight className="ml-2 h-4 w-4" />
+    </>
+  )}
+</Button>
               )}
             </div>
           </div>
@@ -920,16 +1079,27 @@ function DeliveryStep({
 function PaymentStep({
   draft,
   setDraft,
+  paymentProof,
+  onPaymentProofChange,
 }: {
   draft: RequestDraft;
-  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+
+  setDraft: React.Dispatch<
+    React.SetStateAction<RequestDraft>
+  >;
+
+  paymentProof: File | null;
+
+  onPaymentProofChange: (
+    file: File | null,
+  ) => void;
 }) {
   return (
     <>
       <StepHeading
         eyebrow="Payment"
-        title="Choose how you will make payment."
-        description="After payment, you will upload proof of payment before submitting the request."
+        title="Make payment and upload your proof."
+        description="Choose your payment method, complete the payment, then upload a clear screenshot or receipt."
       />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -941,15 +1111,18 @@ function PaymentStep({
               paymentMethod: "momo",
             }))
           }
-          className={`rounded-2xl border p-5 text-left ${
-            draft.paymentMethod === "momo"
+          className={`rounded-2xl border p-5 text-left transition ${
+            draft.paymentMethod ===
+            "momo"
               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-              : "border-slate-200"
+              : "border-slate-200 hover:border-blue-200"
           }`}
         >
           <CreditCard className="h-5 w-5 text-blue-600" />
 
-          <h3 className="mt-4 font-semibold">Mobile Money</h3>
+          <h3 className="mt-4 font-semibold">
+            Mobile Money
+          </h3>
 
           <p className="mt-3 text-sm text-slate-500">
             Number
@@ -976,10 +1149,11 @@ function PaymentStep({
               paymentMethod: "bank",
             }))
           }
-          className={`rounded-2xl border p-5 text-left ${
-            draft.paymentMethod === "bank"
+          className={`rounded-2xl border p-5 text-left transition ${
+            draft.paymentMethod ===
+            "bank"
               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-              : "border-slate-200"
+              : "border-slate-200 hover:border-blue-200"
           }`}
         >
           <Building2 className="h-5 w-5 text-blue-600" />
@@ -1006,14 +1180,74 @@ function PaymentStep({
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-        <p className="font-semibold text-blue-950">
-          Proof of payment
+      <div className="mt-7">
+        <Label>
+          Proof of Payment
+          <span className="ml-1 text-red-500">
+            *
+          </span>
+        </Label>
+
+        <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+            <Upload className="h-5 w-5" />
+          </div>
+
+          {paymentProof ? (
+            <>
+              <p className="mt-4 text-sm font-semibold text-slate-900">
+                {paymentProof.name}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                {(
+                  paymentProof.size /
+                  1024 /
+                  1024
+                ).toFixed(2)}{" "}
+                MB
+              </p>
+
+              <p className="mt-3 text-xs font-medium text-blue-600">
+                Click to replace
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 text-sm font-semibold text-slate-900">
+                Upload payment screenshot
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                JPG, PNG, WEBP or PDF · Maximum 5 MB
+              </p>
+            </>
+          )}
+
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="hidden"
+            onChange={(event) => {
+              const file =
+                event.target.files?.[0] ??
+                null;
+
+              onPaymentProofChange(file);
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-amber-950">
+          Important
         </p>
 
-        <p className="mt-2 text-sm leading-6 text-blue-800">
-          Screenshot upload will be connected when we integrate Supabase
-          Storage. For now, select the payment method and continue.
+        <p className="mt-1 text-sm leading-6 text-amber-800">
+          Ensure the payment proof clearly shows the successful
+          transaction. Your request will not begin processing
+          until payment has been verified.
         </p>
       </div>
     </>
@@ -1114,8 +1348,8 @@ function ReviewStep({
             </p>
 
             <p className="mt-1 text-sm leading-6 text-emerald-800">
-              The actual database submission and payment screenshot upload
-              will be connected in the next backend phase.
+              Your information and payment proof are ready to be submitted.
+Please confirm that all details are correct before continuing.
             </p>
           </div>
         </div>

@@ -20,20 +20,26 @@ export type RequestField = {
 
 export type RequestService = {
   id: string;
+  slug: string;
+
   universityId: UniversityId;
+
   name: string;
   shortName: string;
   description: string;
+
   category:
     | "transcript"
     | "attestation"
     | "proficiency"
     | "other";
+
   formType:
     | "ucc-degree"
     | "ucc-distance"
     | "ucc-college"
     | "generic";
+
   active: boolean;
 };
 
