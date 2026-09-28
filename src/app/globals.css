@@ -124,7 +124,17 @@
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
-  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #f7f9fc;
+}
+
+::selection {
+  background: #2563eb;
+  color: white;
 }
