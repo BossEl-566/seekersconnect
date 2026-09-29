@@ -46,6 +46,10 @@ import {
   RequestDocumentUpload,
 } from "@/components/admin/request-document-upload";
 
+import {
+  RequestDeliveryActions,
+} from "@/components/admin/request-delivery-actions";
+
 
 type PageProps = {
   params: Promise<{
@@ -1050,6 +1054,25 @@ export default async function RequestDetailPage({
     }
   />
 )}
+<RequestDeliveryActions
+  requestId={
+    request.id
+  }
+  status={
+    request.status as RequestStatus
+  }
+  deliveryRequired={
+    Boolean(
+      delivery
+        ?.physical_delivery_required,
+    )
+  }
+  existingEmsTrackingNumber={
+    delivery
+      ?.ems_tracking_number ??
+    null
+  }
+/>
           {/* =============================================
               CURRENT STATUS
           ============================================= */}
