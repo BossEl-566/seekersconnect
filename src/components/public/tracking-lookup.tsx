@@ -42,6 +42,10 @@ import type {
   TrackingResult,
 } from "@/types/tracking";
 
+import {
+  TrackingDocuments,
+} from "@/components/public/tracking-documents";
+
 const standardPipeline: {
   status: RequestStatus;
   label: string;
@@ -221,9 +225,10 @@ export function TrackingLookup() {
   if (result) {
     return (
       <TrackingDetails
-        result={result}
-        onReset={resetLookup}
-      />
+  result={result}
+  trackingPin={trackingPin}
+  onReset={resetLookup}
+/>
     );
   }
 
@@ -352,9 +357,11 @@ export function TrackingLookup() {
 
 function TrackingDetails({
   result,
+  trackingPin,
   onReset,
 }: {
   result: TrackingResult;
+  trackingPin: string;
   onReset: () => void;
 }) {
   const currentStatus =
@@ -488,6 +495,19 @@ function TrackingDetails({
                 )}
               </div>
             </div>
+            <TrackingDocuments
+  documents={
+    result.documents ??
+    []
+  }
+  trackingNumber={
+    result.trackingNumber
+  }
+  trackingPin={
+    trackingPin
+  }
+/>
+
           </div>
 
           <aside className="space-y-4">
