@@ -1,0 +1,1463 @@
+"use client";
+
+import {
+  useState,
+  useTransition,
+} from "react";
+
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  CheckCircle2,
+  CircleOff,
+  FileInput,
+  Loader2,
+  Pencil,
+  Plus,
+  Power,
+  Save,
+  X,
+} from "lucide-react";
+
+import Link from "next/link";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+import {
+  Input,
+} from "@/components/ui/input";
+
+import {
+  Label,
+} from "@/components/ui/label";
+
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+
+import {
+  createServiceFormField,
+  moveServiceFormField,
+  setServiceFormFieldActive,
+  updateServiceFormField,
+} from "@/app/admin/(dashboard)/services/[id]/fields/actions";
+
+import {
+  serviceFormFieldTypes,
+  type ServiceFormFieldType,
+} from "@/lib/validation/service-form-field";
+
+
+export type FormBuilderService = {
+  id: string;
+
+  name: string;
+
+  short_name: string;
+
+  slug: string;
+
+  active: boolean;
+
+  universities:
+    | {
+        code: string;
+
+        name: string;
+      }
+    | null;
+};
+
+
+export type ServiceFormFieldItem = {
+  id: string;
+
+  service_id: string;
+
+  field_key: string;
+
+  label: string;
+
+  field_type:
+    ServiceFormFieldType;
+
+  placeholder:
+    | string
+    | null;
+
+  required:
+    boolean;
+
+  options:
+    string[]
+    | null;
+
+  sort_order:
+    number;
+
+  active:
+    boolean;
+
+  created_at:
+    string;
+};
+
+
+export function ServiceFormFieldsManager({
+  service,
+  fields,
+}: {
+  service:
+    FormBuilderService;
+
+  fields:
+    ServiceFormFieldItem[];
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link
+          href="/admin/services"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-blue-600"
+        >
+          <ArrowLeft className="h-4 w-4" />
+
+          Back to services
+        </Link>
+      </div>
+
+
+      <div className="rounded-[26px] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm sm:p-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold">
+                {service
+                  .universities
+                  ?.code ??
+                  "—"}
+              </span>
+
+              <span className="rounded-lg bg-white/10 px-2.5 py-1 font-mono text-xs text-slate-300">
+                {
+                  service.slug
+                }
+              </span>
+            </div>
+
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {service.name}
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Configure the academic
+              information collected for
+              this service.
+            </p>
+          </div>
+
+
+          <div className="rounded-2xl bg-white/10 px-5 py-4">
+            <p className="text-xs text-slate-400">
+              Form Fields
+            </p>
+
+            <p className="mt-1 text-3xl font-semibold">
+              {
+                fields.length
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+      <CreateFieldCard
+        serviceId={
+          service.id
+        }
+      />
+
+
+      <FieldList
+        serviceId={
+          service.id
+        }
+        fields={
+          fields
+        }
+      />
+    </div>
+  );
+}
+
+
+// =========================================================
+// CREATE FIELD
+// =========================================================
+
+function CreateFieldCard({
+  serviceId,
+}: {
+  serviceId: string;
+}) {
+  const [
+    open,
+    setOpen,
+  ] =
+    useState(false);
+
+
+  const [
+    fieldKey,
+    setFieldKey,
+  ] =
+    useState("");
+
+
+  const [
+    label,
+    setLabel,
+  ] =
+    useState("");
+
+
+  const [
+    fieldType,
+    setFieldType,
+  ] =
+    useState<ServiceFormFieldType>(
+      "text",
+    );
+
+
+  const [
+    placeholder,
+    setPlaceholder,
+  ] =
+    useState("");
+
+
+  const [
+    required,
+    setRequired,
+  ] =
+    useState(true);
+
+
+  const [
+    optionsText,
+    setOptionsText,
+  ] =
+    useState("");
+
+
+  const [
+    error,
+    setError,
+  ] =
+    useState("");
+
+
+  const [
+    success,
+    setSuccess,
+  ] =
+    useState("");
+
+
+  const [
+    pending,
+    startTransition,
+  ] =
+    useTransition();
+
+
+  function reset() {
+    setFieldKey("");
+    setLabel("");
+
+    setFieldType(
+      "text",
+    );
+
+    setPlaceholder("");
+
+    setRequired(
+      true,
+    );
+
+    setOptionsText("");
+
+    setError("");
+  }
+
+
+  function handleCreate() {
+    setError("");
+    setSuccess("");
+
+
+    startTransition(
+      async () => {
+        const result =
+          await createServiceFormField(
+            serviceId,
+            {
+              fieldKey,
+
+              label,
+
+              fieldType,
+
+              placeholder,
+
+              required,
+
+              options:
+                parseOptions(
+                  optionsText,
+                ),
+            },
+          );
+
+
+        if (
+          !result.success
+        ) {
+          setError(
+            result.error,
+          );
+
+          return;
+        }
+
+
+        reset();
+
+        setSuccess(
+          "Form field added successfully.",
+        );
+
+        setOpen(false);
+      },
+    );
+  }
+
+
+  return (
+    <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div>
+          <h2 className="font-semibold text-slate-950">
+            Form Builder
+          </h2>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Add the fields customers
+            must complete when requesting
+            this service.
+          </p>
+        </div>
+
+
+        <Button
+          type="button"
+          onClick={() =>
+            setOpen(
+              (value) =>
+                !value,
+            )
+          }
+          className="rounded-xl bg-blue-600 hover:bg-blue-700"
+        >
+          {open ? (
+            <>
+              <X className="mr-2 h-4 w-4" />
+
+              Cancel
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+
+              Add Field
+            </>
+          )}
+        </Button>
+      </div>
+
+
+      {success && (
+        <div className="mx-5 mb-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 sm:mx-6">
+          <CheckCircle2 className="h-4 w-4" />
+
+          {success}
+        </div>
+      )}
+
+
+      {open && (
+        <div className="border-t border-slate-100 p-5 sm:p-6">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="fieldKey">
+                Field Key
+              </Label>
+
+              <Input
+                id="fieldKey"
+                value={
+                  fieldKey
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setFieldKey(
+                    normalizeFieldKey(
+                      event.target.value,
+                    ),
+                  )
+                }
+                placeholder="studentId"
+                disabled={
+                  pending
+                }
+              />
+
+              <p className="text-xs text-slate-400">
+                Stable internal name,
+                e.g. studentId or
+                yearOfCompletion.
+              </p>
+            </div>
+
+
+            <div className="space-y-2">
+              <Label htmlFor="fieldLabel">
+                Field Label
+              </Label>
+
+              <Input
+                id="fieldLabel"
+                value={
+                  label
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setLabel(
+                    event.target.value,
+                  )
+                }
+                placeholder="Student ID"
+                disabled={
+                  pending
+                }
+              />
+            </div>
+
+
+            <div className="space-y-2">
+              <Label htmlFor="fieldType">
+                Field Type
+              </Label>
+
+              <select
+                id="fieldType"
+                value={
+                  fieldType
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setFieldType(
+                    event.target
+                      .value as ServiceFormFieldType,
+                  )
+                }
+                disabled={
+                  pending
+                }
+                className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              >
+                {serviceFormFieldTypes.map(
+                  (type) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {humanize(
+                        type,
+                      )}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+
+            <div className="space-y-2">
+              <Label htmlFor="fieldPlaceholder">
+                Placeholder
+              </Label>
+
+              <Input
+                id="fieldPlaceholder"
+                value={
+                  placeholder
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setPlaceholder(
+                    event.target.value,
+                  )
+                }
+                placeholder="Enter your student ID"
+                disabled={
+                  pending
+                }
+              />
+            </div>
+          </div>
+
+
+          {fieldType ===
+            "select" && (
+            <div className="mt-5 space-y-2">
+              <Label htmlFor="fieldOptions">
+                Select Options
+              </Label>
+
+              <Textarea
+                id="fieldOptions"
+                value={
+                  optionsText
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setOptionsText(
+                    event.target.value,
+                  )
+                }
+                placeholder={`Regular\nDistance\nSandwich`}
+                disabled={
+                  pending
+                }
+                className="min-h-32"
+              />
+
+              <p className="text-xs text-slate-400">
+                Enter one option per
+                line. Comma-separated
+                values are also accepted.
+              </p>
+            </div>
+          )}
+
+
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={
+                required
+              }
+              onChange={(
+                event,
+              ) =>
+                setRequired(
+                  event.target.checked,
+                )
+              }
+              disabled={
+                pending
+              }
+              className="mt-1 h-4 w-4 rounded border-slate-300"
+            />
+
+            <div>
+              <p className="text-sm font-medium text-slate-800">
+                Required Field
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Customers must provide a
+                value before continuing.
+              </p>
+            </div>
+          </label>
+
+
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+
+          <div className="mt-5 flex justify-end">
+            <Button
+              type="button"
+              disabled={
+                pending ||
+                !fieldKey ||
+                !label.trim() ||
+                (fieldType ===
+                  "select" &&
+                  parseOptions(
+                    optionsText,
+                  ).length ===
+                    0)
+              }
+              onClick={
+                handleCreate
+              }
+              className="rounded-xl bg-blue-600 hover:bg-blue-700"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+
+                  Add Field
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// =========================================================
+// FIELD LIST
+// =========================================================
+
+function FieldList({
+  serviceId,
+  fields,
+}: {
+  serviceId:
+    string;
+
+  fields:
+    ServiceFormFieldItem[];
+}) {
+  if (
+    fields.length ===
+    0
+  ) {
+    return (
+      <div className="rounded-[24px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+        <FileInput className="mx-auto h-7 w-7 text-slate-400" />
+
+        <h3 className="mt-4 font-semibold text-slate-900">
+          No form fields yet
+        </h3>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Add the first field required
+          for this service.
+        </p>
+      </div>
+    );
+  }
+
+
+  return (
+    <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+        <h2 className="font-semibold text-slate-950">
+          Form Fields
+        </h2>
+
+        <p className="mt-1 text-xs text-slate-400">
+          Fields are displayed to the
+          customer in this order.
+        </p>
+      </div>
+
+
+      <div className="divide-y divide-slate-100">
+        {fields.map(
+          (
+            field,
+            index,
+          ) => (
+            <FieldCard
+              key={
+                field.id
+              }
+              serviceId={
+                serviceId
+              }
+              field={
+                field
+              }
+              first={
+                index ===
+                0
+              }
+              last={
+                index ===
+                fields.length -
+                  1
+              }
+            />
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// =========================================================
+// FIELD CARD
+// =========================================================
+
+function FieldCard({
+  serviceId,
+  field,
+  first,
+  last,
+}: {
+  serviceId:
+    string;
+
+  field:
+    ServiceFormFieldItem;
+
+  first:
+    boolean;
+
+  last:
+    boolean;
+}) {
+  const [
+    editing,
+    setEditing,
+  ] =
+    useState(false);
+
+
+  const [
+    label,
+    setLabel,
+  ] =
+    useState(
+      field.label,
+    );
+
+
+  const [
+    fieldType,
+    setFieldType,
+  ] =
+    useState<ServiceFormFieldType>(
+      field.field_type,
+    );
+
+
+  const [
+    placeholder,
+    setPlaceholder,
+  ] =
+    useState(
+      field.placeholder ??
+        "",
+    );
+
+
+  const [
+    required,
+    setRequired,
+  ] =
+    useState(
+      field.required,
+    );
+
+
+  const [
+    optionsText,
+    setOptionsText,
+  ] =
+    useState(
+      (field.options ??
+        []).join(
+        "\n",
+      ),
+    );
+
+
+  const [
+    error,
+    setError,
+  ] =
+    useState("");
+
+
+  const [
+    pending,
+    startTransition,
+  ] =
+    useTransition();
+
+
+  function cancelEditing() {
+    setLabel(
+      field.label,
+    );
+
+    setFieldType(
+      field.field_type,
+    );
+
+    setPlaceholder(
+      field.placeholder ??
+        "",
+    );
+
+    setRequired(
+      field.required,
+    );
+
+    setOptionsText(
+      (
+        field.options ??
+        []
+      ).join(
+        "\n",
+      ),
+    );
+
+    setError("");
+
+    setEditing(false);
+  }
+
+
+  function handleSave() {
+    setError("");
+
+
+    startTransition(
+      async () => {
+        const result =
+          await updateServiceFormField(
+            serviceId,
+            field.id,
+            {
+              label,
+
+              fieldType,
+
+              placeholder,
+
+              required,
+
+              options:
+                parseOptions(
+                  optionsText,
+                ),
+            },
+          );
+
+
+        if (
+          !result.success
+        ) {
+          setError(
+            result.error,
+          );
+
+          return;
+        }
+
+
+        setEditing(false);
+      },
+    );
+  }
+
+
+  function handleToggle() {
+    setError("");
+
+
+    startTransition(
+      async () => {
+        const result =
+          await setServiceFormFieldActive(
+            serviceId,
+            field.id,
+            !field.active,
+          );
+
+
+        if (
+          !result.success
+        ) {
+          setError(
+            result.error,
+          );
+        }
+      },
+    );
+  }
+
+
+  function handleMove(
+    direction:
+      | "UP"
+      | "DOWN",
+  ) {
+    setError("");
+
+
+    startTransition(
+      async () => {
+        const result =
+          await moveServiceFormField(
+            serviceId,
+            field.id,
+            direction,
+          );
+
+
+        if (
+          !result.success
+        ) {
+          setError(
+            result.error,
+          );
+        }
+      },
+    );
+  }
+
+
+  return (
+    <div
+      className={`p-5 sm:p-6 ${
+        !field.active
+          ? "bg-slate-50/60"
+          : ""
+      }`}
+    >
+      {!editing ? (
+        <>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-mono text-sm font-semibold text-blue-700">
+                {
+                  field.sort_order
+                }
+              </div>
+
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold text-slate-900">
+                    {
+                      field.label
+                    }
+                  </h3>
+
+                  <span className="rounded-lg bg-slate-100 px-2 py-1 font-mono text-[10px] text-slate-500">
+                    {
+                      field.field_key
+                    }
+                  </span>
+
+                  <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold uppercase text-blue-700">
+                    {humanize(
+                      field.field_type,
+                    )}
+                  </span>
+
+                  {field.required && (
+                    <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">
+                      Required
+                    </span>
+                  )}
+
+                  <span
+                    className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${
+                      field.active
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {field.active
+                      ? "Active"
+                      : "Disabled"}
+                  </span>
+                </div>
+
+
+                {field.placeholder && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Placeholder:{" "}
+                    {
+                      field.placeholder
+                    }
+                  </p>
+                )}
+
+
+                {field.field_type ===
+                  "select" &&
+                  field.options &&
+                  field.options.length >
+                    0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {field.options.map(
+                        (
+                          option,
+                        ) => (
+                          <span
+                            key={
+                              option
+                            }
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600"
+                          >
+                            {
+                              option
+                            }
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={
+                  pending ||
+                  first
+                }
+                onClick={() =>
+                  handleMove(
+                    "UP",
+                  )
+                }
+                title="Move up"
+                className="rounded-xl"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+
+
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={
+                  pending ||
+                  last
+                }
+                onClick={() =>
+                  handleMove(
+                    "DOWN",
+                  )
+                }
+                title="Move down"
+                className="rounded-xl"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  pending
+                }
+                onClick={() =>
+                  setEditing(
+                    true,
+                  )
+                }
+                className="rounded-xl"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+
+                Edit
+              </Button>
+
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  pending
+                }
+                onClick={
+                  handleToggle
+                }
+                className={`rounded-xl ${
+                  field.active
+                    ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                    : "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                }`}
+              >
+                {pending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : field.active ? (
+                  <Power className="mr-2 h-4 w-4" />
+                ) : (
+                  <CircleOff className="mr-2 h-4 w-4" />
+                )}
+
+                {field.active
+                  ? "Disable"
+                  : "Enable"}
+              </Button>
+            </div>
+          </div>
+
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+        </>
+      ) : (
+        <div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>
+                Field Key
+              </Label>
+
+              <Input
+                value={
+                  field.field_key
+                }
+                disabled
+                className="bg-slate-50 font-mono"
+              />
+
+              <p className="text-xs text-slate-400">
+                Field keys cannot be
+                changed after creation.
+              </p>
+            </div>
+
+
+            <div className="space-y-2">
+              <Label>
+                Field Label
+              </Label>
+
+              <Input
+                value={
+                  label
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setLabel(
+                    event.target.value,
+                  )
+                }
+                disabled={
+                  pending
+                }
+              />
+            </div>
+
+
+            <div className="space-y-2">
+              <Label>
+                Field Type
+              </Label>
+
+              <select
+                value={
+                  fieldType
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setFieldType(
+                    event.target
+                      .value as ServiceFormFieldType,
+                  )
+                }
+                disabled={
+                  pending
+                }
+                className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              >
+                {serviceFormFieldTypes.map(
+                  (type) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {humanize(
+                        type,
+                      )}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+
+            <div className="space-y-2">
+              <Label>
+                Placeholder
+              </Label>
+
+              <Input
+                value={
+                  placeholder
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setPlaceholder(
+                    event.target.value,
+                  )
+                }
+                disabled={
+                  pending
+                }
+              />
+            </div>
+          </div>
+
+
+          {fieldType ===
+            "select" && (
+            <div className="mt-5 space-y-2">
+              <Label>
+                Select Options
+              </Label>
+
+              <Textarea
+                value={
+                  optionsText
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setOptionsText(
+                    event.target.value,
+                  )
+                }
+                disabled={
+                  pending
+                }
+                className="min-h-32"
+              />
+
+              <p className="text-xs text-slate-400">
+                One option per line.
+              </p>
+            </div>
+          )}
+
+
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={
+                required
+              }
+              onChange={(
+                event,
+              ) =>
+                setRequired(
+                  event.target.checked,
+                )
+              }
+              disabled={
+                pending
+              }
+              className="mt-1 h-4 w-4"
+            />
+
+            <div>
+              <p className="text-sm font-medium text-slate-800">
+                Required Field
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                Customer must complete
+                this field.
+              </p>
+            </div>
+          </label>
+
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                pending
+              }
+              onClick={
+                cancelEditing
+              }
+              className="rounded-xl"
+            >
+              <X className="mr-2 h-4 w-4" />
+
+              Cancel
+            </Button>
+
+
+            <Button
+              type="button"
+              disabled={
+                pending ||
+                !label.trim() ||
+                (fieldType ===
+                  "select" &&
+                  parseOptions(
+                    optionsText,
+                  ).length ===
+                    0)
+              }
+              onClick={
+                handleSave
+              }
+              className="rounded-xl bg-blue-600 hover:bg-blue-700"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function parseOptions(
+  value: string,
+) {
+  return Array.from(
+    new Set(
+      value
+        .split(
+          /[\n,]+/,
+        )
+        .map(
+          (option) =>
+            option.trim(),
+        )
+        .filter(Boolean),
+    ),
+  );
+}
+
+
+function normalizeFieldKey(
+  value: string,
+) {
+  const cleaned =
+    value
+      .replace(
+        /[^A-Za-z0-9_-]/g,
+        "",
+      );
+
+
+  if (
+    !cleaned
+  ) {
+    return "";
+  }
+
+
+  if (
+    /^[0-9_-]/.test(
+      cleaned,
+    )
+  ) {
+    return cleaned.replace(
+      /^[0-9_-]+/,
+      "",
+    );
+  }
+
+
+  return cleaned;
+}
+
+
+function humanize(
+  value: string,
+) {
+  return value
+    .replaceAll(
+      "_",
+      " ",
+    )
+    .replaceAll(
+      "-",
+      " ",
+    )
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase(),
+    );
+}
