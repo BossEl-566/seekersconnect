@@ -18,9 +18,15 @@ import {
   Upload,
 } from "lucide-react";
 
+import {
+  getSystemSettings,
+} from "@/lib/settings/system-settings";
+
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UNIVERSITIES } from "@/constants/universities";
+import {
+  getPublicUniversities,
+} from "@/lib/catalog/public-universities";
 
 const steps = [
   {
@@ -81,7 +87,54 @@ const services = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [
+    settings,
+    universities,
+  ] =
+    await Promise.all([
+      getSystemSettings(),
+      getPublicUniversities(),
+    ]);
+
+
+  const {
+    company,
+    support,
+  } =
+    settings;
+
+
+  const whatsappDigits =
+    company.whatsapp.replace(
+      /\D/g,
+      "",
+    );
+
+
+  const whatsappNumber =
+    whatsappDigits.startsWith(
+      "0",
+    )
+      ? `233${whatsappDigits.slice(
+          1,
+        )}`
+      : whatsappDigits;
+
+
+  const universityCodes =
+    universities
+      .map(
+        (
+          university,
+        ) =>
+          university.code,
+      )
+      .join(
+        ", ",
+      );
+
+
   return (
     <>
       {/* HERO */}
@@ -192,8 +245,9 @@ export default function HomePage() {
                           Select institution
                         </p>
                         <p className="text-xs text-slate-500">
-                          UCC, UEW, UG or KNUST
-                        </p>
+  {universityCodes ||
+    "Supported universities"}
+</p>
                       </div>
                     </div>
 
@@ -292,31 +346,63 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {UNIVERSITIES.map((university) => (
-              <div
-                key={university.id}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-100"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <Building2 className="h-5 w-5" />
-                </div>
-
-                <p className="mt-4 text-lg font-semibold text-slate-950">
-                  {university.shortName}
-                </p>
-
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                  {university.name}
-                </p>
-
-                <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {university.location}
-                </div>
-              </div>
-            ))}
+          {universities.length >
+0 ? (
+  <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    {universities.map(
+      (
+        university,
+      ) => (
+        <div
+          key={
+            university.id
+          }
+          className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-100"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            <Building2 className="h-5 w-5" />
           </div>
+
+
+          <p className="mt-4 text-lg font-semibold text-slate-950">
+            {
+              university.code
+            }
+          </p>
+
+
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+            {
+              university.name
+            }
+          </p>
+
+
+          <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
+            <MapPin className="h-3.5 w-3.5" />
+
+            {
+              university.location ||
+              "Location not specified"
+            }
+          </div>
+        </div>
+      ),
+    )}
+  </div>
+) : (
+  <div className="mt-7 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+    <Building2 className="mx-auto h-7 w-7 text-slate-400" />
+
+    <p className="mt-3 font-semibold text-slate-800">
+      No universities are currently available.
+    </p>
+
+    <p className="mt-1 text-sm text-slate-500">
+      Please check again later or contact our support team.
+    </p>
+  </div>
+)}
         </div>
       </section>
 
@@ -486,33 +572,68 @@ export default function HomePage() {
       {/* SUPPORT */}
       <section className="border-t border-slate-200 bg-white">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-14 sm:px-6 md:grid-cols-2 lg:px-8">
-          <div className="flex gap-4 rounded-2xl border border-slate-200 p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <MessageCircle className="h-5 w-5" />
-            </div>
+          <a
+  href={`https://wa.me/${whatsappNumber}`}
+  target="_blank"
+  rel="noreferrer"
+  className="flex gap-4 rounded-2xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-md"
+>
+  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+    <MessageCircle className="h-5 w-5" />
+  </div>
 
-            <div>
-              <h3 className="font-semibold">WhatsApp Support</h3>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                Need help completing a request? Reach our support team on
-                WhatsApp.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex gap-4 rounded-2xl border border-slate-200 p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Headphones className="h-5 w-5" />
-            </div>
+  <div>
+    <h3 className="font-semibold">
+      WhatsApp Support
+    </h3>
 
-            <div>
-              <h3 className="font-semibold">Customer Support</h3>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                Our team can assist with request information, payment
-                verification and delivery enquiries.
-              </p>
-            </div>
-          </div>
+    <p className="mt-1 text-sm leading-6 text-slate-500">
+      Need help completing a request? Reach our support team on
+      WhatsApp.
+    </p>
+
+    <p className="mt-3 text-sm font-semibold text-blue-600">
+      {
+        company.whatsapp
+      }
+    </p>
+  </div>
+</a>
+
+          <a
+  href={
+    support.phones[0]
+      ? `tel:${support.phones[0]}`
+      : "/contact"
+  }
+  className="flex gap-4 rounded-2xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-md"
+>
+  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+    <Headphones className="h-5 w-5" />
+  </div>
+
+
+  <div>
+    <h3 className="font-semibold">
+      Customer Support
+    </h3>
+
+    <p className="mt-1 text-sm leading-6 text-slate-500">
+      Our team can assist with request information, payment
+      verification and delivery enquiries.
+    </p>
+
+
+    {support.phones[0] && (
+      <p className="mt-3 text-sm font-semibold text-blue-600">
+        {
+          support.phones[0]
+        }
+      </p>
+    )}
+  </div>
+</a>
         </div>
       </section>
     </>

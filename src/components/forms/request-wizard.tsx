@@ -25,29 +25,14 @@ import {
   UserRound,
 } from "lucide-react";
 
-import {
-  Button,
-} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-import {
-  Input,
-} from "@/components/ui/input";
+import type { SystemSettings } from "@/lib/validation/system-settings";
 
-import {
-  Label,
-} from "@/components/ui/label";
-
-import {
-  Textarea,
-} from "@/components/ui/textarea";
-
-import {
-  COMPANY,
-} from "@/constants/company";
-
-import type {
-  RequestDraft,
-} from "@/types/request";
+import type { RequestDraft } from "@/types/request";
 
 import type {
   RequestCatalog,
@@ -63,161 +48,97 @@ const STORAGE_KEY =
 
 const steps = [
   {
-    number:
-      1,
-
-    label:
-      "University",
-
-    icon:
-      Building2,
+    number: 1,
+    label: "University",
+    icon: Building2,
   },
 
   {
-    number:
-      2,
-
-    label:
-      "Service",
-
-    icon:
-      FileText,
+    number: 2,
+    label: "Service",
+    icon: FileText,
   },
 
   {
-    number:
-      3,
-
-    label:
-      "Details",
-
-    icon:
-      UserRound,
+    number: 3,
+    label: "Details",
+    icon: UserRound,
   },
 
   {
-    number:
-      4,
-
-    label:
-      "Delivery",
-
-    icon:
-      Package,
+    number: 4,
+    label: "Delivery",
+    icon: Package,
   },
 
   {
-    number:
-      5,
-
-    label:
-      "Payment",
-
-    icon:
-      CreditCard,
+    number: 5,
+    label: "Payment",
+    icon: CreditCard,
   },
 
   {
-    number:
-      6,
-
-    label:
-      "Review",
-
-    icon:
-      ShieldCheck,
+    number: 6,
+    label: "Review",
+    icon: ShieldCheck,
   },
 ];
 
 
-const initialDraft:
-  RequestDraft = {
-    universityId:
-      "",
+const initialDraft: RequestDraft = {
+  universityId: "",
+  serviceId: "",
 
-    serviceId:
-      "",
+  applicant: {
+    firstName: "",
+    otherNames: "",
+    surname: "",
+    gender: "",
+    phone: "",
+    email: "",
+  },
 
+  responses: {},
 
-    applicant: {
-      firstName:
-        "",
+  delivery: {
+    required: true,
 
-      otherNames:
-        "",
+    fullName: "",
+    houseNumber: "",
+    areaTown: "",
+    cityDistrict: "",
+    region: "",
+    digitalAddress: "",
 
-      surname:
-        "",
+    phone: "",
+    email: "",
 
-      gender:
-        "",
+    itemType: "Academic Document",
 
-      phone:
-        "",
+    emergencyContact: "",
+  },
 
-      email:
-        "",
-    },
+  paymentMethod: "",
 
-
-    responses:
-      {},
-
-
-    delivery: {
-      required:
-        true,
-
-      fullName:
-        "",
-
-      houseNumber:
-        "",
-
-      areaTown:
-        "",
-
-      cityDistrict:
-        "",
-
-      region:
-        "",
-
-      digitalAddress:
-        "",
-
-      phone:
-        "",
-
-      email:
-        "",
-
-      itemType:
-        "Academic Document",
-
-      emergencyContact:
-        "",
-    },
-
-
-    paymentMethod:
-      "",
-
-
-    notes:
-      "",
-  };
+  notes: "",
+};
 
 
 type CatalogApiResponse = {
-  success?:
-    boolean;
+  success?: boolean;
 
-  catalog?:
-    RequestCatalog;
+  catalog?: RequestCatalog;
 
-  message?:
-    string;
+  message?: string;
+};
+
+
+type PublicSettingsApiResponse = {
+  success?: boolean;
+
+  settings?: SystemSettings;
+
+  message?: string;
 };
 
 
@@ -249,6 +170,10 @@ export function RequestWizard() {
     useState(false);
 
 
+  // =======================================================
+  // REQUEST CATALOG STATE
+  // =======================================================
+
   const [
     catalog,
     setCatalog,
@@ -279,6 +204,44 @@ export function RequestWizard() {
     useState(0);
 
 
+  // =======================================================
+  // PUBLIC SETTINGS STATE
+  // =======================================================
+
+  const [
+    publicSettings,
+    setPublicSettings,
+  ] =
+    useState<SystemSettings | null>(
+      null,
+    );
+
+
+  const [
+    settingsLoading,
+    setSettingsLoading,
+  ] =
+    useState(true);
+
+
+  const [
+    settingsError,
+    setSettingsError,
+  ] =
+    useState("");
+
+
+  const [
+    settingsReloadKey,
+    setSettingsReloadKey,
+  ] =
+    useState(0);
+
+
+  // =======================================================
+  // REQUEST SUBMISSION STATE
+  // =======================================================
+
   const [
     paymentProof,
     setPaymentProof,
@@ -307,8 +270,7 @@ export function RequestWizard() {
     setSubmittedRequest,
   ] =
     useState<{
-      requestNumber:
-        string;
+      requestNumber: string;
     } | null>(
       null,
     );
@@ -330,12 +292,35 @@ export function RequestWizard() {
         if (
           saved
         ) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setDraft(
+          const parsed =
             JSON.parse(
               saved,
-            ),
-          );
+            ) as Partial<RequestDraft>;
+
+
+          // Preserve newly introduced properties when
+          // restoring a draft created by an older version.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setDraft({
+            ...initialDraft,
+            ...parsed,
+
+            applicant: {
+              ...initialDraft.applicant,
+              ...(parsed.applicant ??
+                {}),
+            },
+
+            delivery: {
+              ...initialDraft.delivery,
+              ...(parsed.delivery ??
+                {}),
+            },
+
+            responses:
+              parsed.responses ??
+              {},
+          });
         }
       } catch {
         localStorage.removeItem(
@@ -486,13 +471,118 @@ export function RequestWizard() {
 
 
   // =======================================================
+  // LOAD PUBLIC SETTINGS
+  // =======================================================
+
+  useEffect(
+    () => {
+      let cancelled =
+        false;
+
+
+      async function loadSettings() {
+        setSettingsLoading(
+          true,
+        );
+
+        setSettingsError(
+          "",
+        );
+
+
+        try {
+          const response =
+            await fetch(
+              "/api/public-settings",
+              {
+                cache:
+                  "no-store",
+              },
+            );
+
+
+          const result =
+            (await response.json()) as
+              PublicSettingsApiResponse;
+
+
+          if (
+            !response.ok ||
+            !result.success ||
+            !result.settings
+          ) {
+            throw new Error(
+              result.message ||
+                "Public settings could not be loaded.",
+            );
+          }
+
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          setPublicSettings(
+            result.settings,
+          );
+        } catch (
+          error
+        ) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          setPublicSettings(
+            null,
+          );
+
+
+          setSettingsError(
+            error instanceof
+              Error
+              ? error.message
+              : "Public settings could not be loaded.",
+          );
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setSettingsLoading(
+              false,
+            );
+          }
+        }
+      }
+
+
+      loadSettings();
+
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      settingsReloadKey,
+    ],
+  );
+
+
+  // =======================================================
   // RECONCILE OLD / STALE SAVED DRAFTS
   //
-  // Older localStorage drafts used IDs such as "ucc".
-  // The dynamic catalog uses Supabase UUIDs.
+  // Old localStorage drafts may contain university IDs such
+  // as "ucc" while the dynamic catalog now uses UUIDs.
   //
-  // This also removes responses belonging to fields that
-  // have since been disabled.
+  // It also removes responses belonging to fields that were
+  // later disabled by a Super Admin.
   // =======================================================
 
   useEffect(
@@ -1047,7 +1137,8 @@ export function RequestWizard() {
 
   if (
     !hydrated ||
-    catalogLoading
+    catalogLoading ||
+    settingsLoading
   ) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
@@ -1064,12 +1155,14 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // CATALOG FAILURE STATE
+  // CATALOG / SETTINGS FAILURE STATE
   // =======================================================
 
   if (
     catalogError ||
-    !catalog
+    settingsError ||
+    !catalog ||
+    !publicSettings
   ) {
     return (
       <div className="mx-auto max-w-2xl">
@@ -1078,26 +1171,37 @@ export function RequestWizard() {
             <RefreshCw className="h-6 w-6" />
           </div>
 
+
           <h1 className="mt-5 text-2xl font-semibold text-slate-950">
-            Request services could not be loaded.
+            Request form could not be loaded.
           </h1>
+
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
             {catalogError ||
+              settingsError ||
               "Please try loading the request form again."}
           </p>
 
+
           <Button
             type="button"
-            onClick={() =>
+            onClick={() => {
               setCatalogReloadKey(
                 (
                   value,
                 ) =>
-                  value +
-                  1,
-              )
-            }
+                  value + 1,
+              );
+
+
+              setSettingsReloadKey(
+                (
+                  value,
+                ) =>
+                  value + 1,
+              );
+            }}
             className="mt-6 rounded-xl bg-blue-600 hover:bg-blue-700"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -1136,8 +1240,12 @@ export function RequestWizard() {
 
 
           <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
-            Your payment proof is now awaiting verification by
-            Seekers Connect 247.
+            Your payment proof is now awaiting verification by{" "}
+            {
+              publicSettings
+                .company
+                .shortName
+            }.
           </p>
 
 
@@ -1148,7 +1256,8 @@ export function RequestWizard() {
 
             <p className="mt-2 break-all text-xl font-semibold tracking-wide text-slate-950">
               {
-                submittedRequest.requestNumber
+                submittedRequest
+                  .requestNumber
               }
             </p>
           </div>
@@ -1168,9 +1277,11 @@ export function RequestWizard() {
 
 
           <p className="mt-6 text-xs leading-5 text-slate-400">
-            Keep your request number safe. Customer support may ask
-            for it if you contact us before your tracking details are
-            issued.
+            {
+              publicSettings
+                .request
+                .trackingNotice
+            }
           </p>
         </div>
       </div>
@@ -1185,6 +1296,7 @@ export function RequestWizard() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="grid gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
+
         {/* SIDEBAR */}
 
         <aside className="hidden lg:block">
@@ -1286,6 +1398,21 @@ export function RequestWizard() {
 
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+
+            {/* DATABASE CONTROLLED GENERAL REQUEST NOTICE */}
+
+            {currentStep ===
+              1 && (
+              <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+                {
+                  publicSettings
+                    .request
+                    .requestNotice
+                }
+              </div>
+            )}
+
+
             {currentStep ===
               1 && (
               <UniversityStep
@@ -1371,6 +1498,14 @@ export function RequestWizard() {
                 }
                 onPaymentProofChange={
                   setPaymentProof
+                }
+                paymentSettings={
+                  publicSettings
+                    .payment
+                }
+                requestSettings={
+                  publicSettings
+                    .request
                 }
               />
             )}
@@ -1648,7 +1783,8 @@ function UniversityStep({
                     <MapPin className="h-3.5 w-3.5" />
 
                     {
-                      university.location
+                      university.location ||
+                      "Location not specified"
                     }
                   </div>
                 </button>
@@ -1847,7 +1983,9 @@ function DetailsStep({
             label="First Name"
             required
             value={
-              draft.applicant.firstName
+              draft
+                .applicant
+                .firstName
             }
             onChange={(
               value,
@@ -1863,7 +2001,9 @@ function DetailsStep({
           <FormInput
             label="Other Names"
             value={
-              draft.applicant.otherNames
+              draft
+                .applicant
+                .otherNames
             }
             onChange={(
               value,
@@ -1880,7 +2020,9 @@ function DetailsStep({
             label="Surname"
             required
             value={
-              draft.applicant.surname
+              draft
+                .applicant
+                .surname
             }
             onChange={(
               value,
@@ -1906,7 +2048,9 @@ function DetailsStep({
             <select
               className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
               value={
-                draft.applicant.gender
+                draft
+                  .applicant
+                  .gender
               }
               onChange={(
                 event,
@@ -1937,7 +2081,9 @@ function DetailsStep({
             required
             type="tel"
             value={
-              draft.applicant.phone
+              draft
+                .applicant
+                .phone
             }
             onChange={(
               value,
@@ -1955,7 +2101,9 @@ function DetailsStep({
             required
             type="email"
             value={
-              draft.applicant.email
+              draft
+                .applicant
+                .email
             }
             onChange={(
               value,
@@ -2073,7 +2221,9 @@ function DeliveryStep({
             )
           }
           className={`rounded-2xl border p-5 text-left ${
-            draft.delivery.required
+            draft
+              .delivery
+              .required
               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
               : "border-slate-200"
           }`}
@@ -2099,7 +2249,9 @@ function DeliveryStep({
             )
           }
           className={`rounded-2xl border p-5 text-left ${
-            !draft.delivery.required
+            !draft
+              .delivery
+              .required
               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
               : "border-slate-200"
           }`}
@@ -2117,7 +2269,9 @@ function DeliveryStep({
       </div>
 
 
-      {draft.delivery.required && (
+      {draft
+        .delivery
+        .required && (
         <div className="mt-8">
           <SectionHeading
             title="EMS Delivery Information"
@@ -2129,7 +2283,9 @@ function DeliveryStep({
               label="Full Name"
               required
               value={
-                draft.delivery.fullName
+                draft
+                  .delivery
+                  .fullName
               }
               onChange={(
                 value,
@@ -2145,7 +2301,9 @@ function DeliveryStep({
             <FormInput
               label="House Number"
               value={
-                draft.delivery.houseNumber
+                draft
+                  .delivery
+                  .houseNumber
               }
               onChange={(
                 value,
@@ -2162,7 +2320,9 @@ function DeliveryStep({
               label="Area / Town"
               required
               value={
-                draft.delivery.areaTown
+                draft
+                  .delivery
+                  .areaTown
               }
               onChange={(
                 value,
@@ -2179,7 +2339,9 @@ function DeliveryStep({
               label="City / District"
               required
               value={
-                draft.delivery.cityDistrict
+                draft
+                  .delivery
+                  .cityDistrict
               }
               onChange={(
                 value,
@@ -2196,7 +2358,9 @@ function DeliveryStep({
               label="Region"
               required
               value={
-                draft.delivery.region
+                draft
+                  .delivery
+                  .region
               }
               onChange={(
                 value,
@@ -2213,7 +2377,9 @@ function DeliveryStep({
               label="Digital Address"
               placeholder="e.g. GA-123-4567"
               value={
-                draft.delivery.digitalAddress
+                draft
+                  .delivery
+                  .digitalAddress
               }
               onChange={(
                 value,
@@ -2231,7 +2397,9 @@ function DeliveryStep({
               required
               type="tel"
               value={
-                draft.delivery.phone
+                draft
+                  .delivery
+                  .phone
               }
               onChange={(
                 value,
@@ -2248,7 +2416,9 @@ function DeliveryStep({
               label="Email"
               type="email"
               value={
-                draft.delivery.email
+                draft
+                  .delivery
+                  .email
               }
               onChange={(
                 value,
@@ -2264,7 +2434,9 @@ function DeliveryStep({
             <FormInput
               label="Item Type"
               value={
-                draft.delivery.itemType
+                draft
+                  .delivery
+                  .itemType
               }
               onChange={(
                 value,
@@ -2282,7 +2454,9 @@ function DeliveryStep({
               required
               type="tel"
               value={
-                draft.delivery.emergencyContact
+                draft
+                  .delivery
+                  .emergencyContact
               }
               onChange={(
                 value,
@@ -2310,6 +2484,8 @@ function PaymentStep({
   setDraft,
   paymentProof,
   onPaymentProofChange,
+  paymentSettings,
+  requestSettings,
 }: {
   draft:
     RequestDraft;
@@ -2327,13 +2503,22 @@ function PaymentStep({
       file:
         File | null,
     ) => void;
+
+  paymentSettings:
+    SystemSettings["payment"];
+
+  requestSettings:
+    SystemSettings["request"];
 }) {
   return (
     <>
       <StepHeading
         eyebrow="Payment"
         title="Make payment and upload your proof."
-        description="Choose your payment method, complete the payment, then upload a clear screenshot or receipt."
+        description={
+          requestSettings
+            .paymentInstructions
+        }
       />
 
 
@@ -2365,15 +2550,18 @@ function PaymentStep({
             Mobile Money
           </h3>
 
+
           <p className="mt-3 text-sm text-slate-500">
             Number
           </p>
 
           <p className="mt-1 font-semibold">
             {
-              COMPANY.momo.number
+              paymentSettings
+                .momoNumber
             }
           </p>
+
 
           <p className="mt-3 text-sm text-slate-500">
             Account Name
@@ -2381,7 +2569,8 @@ function PaymentStep({
 
           <p className="mt-1 font-semibold">
             {
-              COMPANY.momo.accountName
+              paymentSettings
+                .momoAccountName
             }
           </p>
         </button>
@@ -2410,21 +2599,26 @@ function PaymentStep({
         >
           <Building2 className="h-5 w-5 text-blue-600" />
 
+
           <h3 className="mt-4 font-semibold">
             {
-              COMPANY.bank.name
+              paymentSettings
+                .bankName
             }
           </h3>
+
 
           <p className="mt-3 text-sm text-slate-500">
             Account Number
           </p>
 
-          <p className="mt-1 font-semibold">
+          <p className="mt-1 break-all font-semibold">
             {
-              COMPANY.bank.accountNumber
+              paymentSettings
+                .bankAccountNumber
             }
           </p>
+
 
           <p className="mt-3 text-sm text-slate-500">
             Account Name
@@ -2432,7 +2626,8 @@ function PaymentStep({
 
           <p className="mt-1 font-semibold">
             {
-              COMPANY.bank.accountName
+              paymentSettings
+                .bankAccountName
             }
           </p>
         </button>
@@ -2457,7 +2652,7 @@ function PaymentStep({
 
           {paymentProof ? (
             <>
-              <p className="mt-4 text-sm font-semibold text-slate-900">
+              <p className="mt-4 break-all text-sm font-semibold text-slate-900">
                 {
                   paymentProof.name
                 }
@@ -2519,9 +2714,10 @@ function PaymentStep({
         </p>
 
         <p className="mt-1 text-sm leading-6 text-amber-800">
-          Ensure the payment proof clearly shows the successful
-          transaction. Your request will not begin processing until
-          payment has been verified.
+          {
+            requestSettings
+              .paymentProofNotice
+          }
         </p>
       </div>
     </>
@@ -2586,9 +2782,17 @@ function ReviewStep({
               "Name",
 
               [
-                draft.applicant.firstName,
-                draft.applicant.otherNames,
-                draft.applicant.surname,
+                draft
+                  .applicant
+                  .firstName,
+
+                draft
+                  .applicant
+                  .otherNames,
+
+                draft
+                  .applicant
+                  .surname,
               ]
                 .filter(
                   Boolean,
@@ -2600,17 +2804,23 @@ function ReviewStep({
 
             [
               "Gender",
-              draft.applicant.gender,
+              draft
+                .applicant
+                .gender,
             ],
 
             [
               "Phone",
-              draft.applicant.phone,
+              draft
+                .applicant
+                .phone,
             ],
 
             [
               "Email",
-              draft.applicant.email,
+              draft
+                .applicant
+                .email,
             ],
           ]}
         />
@@ -2618,66 +2828,105 @@ function ReviewStep({
 
         <ReviewCard
           title="Academic Information"
-          rows={dynamicFields.map(
-            (
-              field,
-            ) => [
-              field.label,
+          rows={
+            dynamicFields.map(
+              (
+                field,
+              ) => [
+                field.label,
 
-              draft.responses[
-                field.key
-              ] ||
-                "—",
-            ],
-          )}
+                draft.responses[
+                  field.key
+                ] ||
+                  "—",
+              ],
+            )
+          }
         />
 
 
-        {draft.delivery.required && (
+        {draft
+          .delivery
+          .required ? (
           <ReviewCard
             title="Delivery"
             rows={[
               [
                 "Recipient",
-                draft.delivery.fullName,
+                draft
+                  .delivery
+                  .fullName,
+              ],
+
+              [
+                "House Number",
+                draft
+                  .delivery
+                  .houseNumber ||
+                  "—",
               ],
 
               [
                 "Area / Town",
-                draft.delivery.areaTown,
+                draft
+                  .delivery
+                  .areaTown,
               ],
 
               [
                 "City / District",
-                draft.delivery.cityDistrict,
+                draft
+                  .delivery
+                  .cityDistrict,
               ],
 
               [
                 "Region",
-                draft.delivery.region,
+                draft
+                  .delivery
+                  .region,
               ],
 
               [
                 "Digital Address",
-                draft.delivery.digitalAddress ||
+                draft
+                  .delivery
+                  .digitalAddress ||
                   "—",
               ],
 
               [
                 "Phone",
-                draft.delivery.phone,
+                draft
+                  .delivery
+                  .phone,
+              ],
+
+              [
+                "Email",
+                draft
+                  .delivery
+                  .email ||
+                  "—",
+              ],
+
+              [
+                "Item Type",
+                draft
+                  .delivery
+                  .itemType ||
+                  "—",
               ],
 
               [
                 "Emergency Contact",
-                draft.delivery.emergencyContact,
+                draft
+                  .delivery
+                  .emergencyContact,
               ],
             ]}
           />
-        )}
-
-
-        {!draft.delivery.required && (
+        ) : (
           <ReviewCard
             title="Delivery"
             rows={[
@@ -2747,15 +2996,23 @@ function StepHeading({
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
-        {eyebrow}
+        {
+          eyebrow
+        }
       </p>
 
+
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-        {title}
+        {
+          title
+        }
       </h1>
 
+
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-        {description}
+        {
+          description
+        }
       </p>
     </div>
   );
@@ -2774,7 +3031,9 @@ function SectionHeading({
 }) {
   return (
     <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
-      {title}
+      {
+        title
+      }
     </h2>
   );
 }
@@ -2816,7 +3075,9 @@ function FormInput({
   return (
     <div className="space-y-2">
       <Label>
-        {label}
+        {
+          label
+        }
 
         {required && (
           <span className="ml-1 text-red-500">
@@ -2824,6 +3085,7 @@ function FormInput({
           </span>
         )}
       </Label>
+
 
       <Input
         type={
@@ -2933,6 +3195,7 @@ function DynamicField({
             Select option
           </option>
 
+
           {field.options.map(
             (
               option,
@@ -2990,38 +3253,52 @@ function ReviewCard({
     string;
 
   rows:
-    string[][];
+    [string, string][];
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 p-5">
       <h2 className="font-semibold">
-        {title}
+        {
+          title
+        }
       </h2>
 
-      <div className="mt-4 divide-y divide-slate-100">
-        {rows.map(
-          ([
-            label,
-            value,
-          ]) => (
-            <div
-              key={
-                label
-              }
-              className="grid gap-1 py-3 text-sm sm:grid-cols-[190px_1fr]"
-            >
-              <span className="text-slate-500">
-                {label}
-              </span>
 
-              <span className="font-medium text-slate-800">
-                {value ||
-                  "—"}
-              </span>
-            </div>
-          ),
-        )}
-      </div>
+      {rows.length ===
+      0 ? (
+        <p className="mt-4 text-sm text-slate-500">
+          No additional information was provided.
+        </p>
+      ) : (
+        <div className="mt-4 divide-y divide-slate-100">
+          {rows.map(
+            ([
+              label,
+              value,
+            ]) => (
+              <div
+                key={
+                  label
+                }
+                className="grid gap-1 py-3 text-sm sm:grid-cols-[190px_1fr]"
+              >
+                <span className="text-slate-500">
+                  {
+                    label
+                  }
+                </span>
+
+                <span className="break-words font-medium text-slate-800">
+                  {
+                    value ||
+                    "—"
+                  }
+                </span>
+              </div>
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3057,8 +3334,7 @@ function reconcileDraftWithCatalog(
 
 
   // Old static IDs such as "ucc" arrive here, as do
-  // universities that were disabled after the draft was
-  // saved.
+  // universities disabled after a draft was saved.
   if (
     !university ||
     university.services.length ===
@@ -3151,7 +3427,16 @@ function reconcileDraftWithCatalog(
 
   const responsesChanged =
     previousKeys.length !==
-    nextKeys.length;
+      nextKeys.length ||
+    previousKeys.some(
+      (
+        key,
+      ) =>
+        !Object.hasOwn(
+          nextResponses,
+          key,
+        ),
+    );
 
 
   if (
