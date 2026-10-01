@@ -41,6 +41,10 @@ import type {
   RequestCatalogUniversity,
 } from "@/types/request-catalog";
 
+import {
+  UniversityLogo,
+} from "@/components/public/university-logo";
+
 
 const STORAGE_KEY =
   "seekers-connect-request-draft";
@@ -1738,56 +1742,80 @@ function UniversityStep({
 
               return (
                 <button
-                  key={
-                    university.id
-                  }
-                  type="button"
-                  onClick={() =>
-                    onSelect(
-                      university.id,
-                    )
-                  }
-                  className={`relative rounded-2xl border p-5 text-left transition ${
-                    selected
-                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                      : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
-                  }`}
-                >
-                  {selected && (
-                    <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
-                      <Check className="h-3.5 w-3.5" />
-                    </div>
-                  )}
+  key={
+    university.id
+  }
+  type="button"
+  onClick={() =>
+    onSelect(
+      university.id,
+    )
+  }
+  className={`group relative overflow-hidden rounded-[24px] border text-left transition ${
+    selected
+      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
+  }`}
+>
+  <div
+    className={`flex min-h-32 items-center justify-center border-b ${
+      selected
+        ? "border-blue-100 bg-blue-50"
+        : "border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/40"
+    }`}
+  >
+    <UniversityLogo
+      code={
+        university.code
+      }
+      name={
+        university.name
+      }
+      className="h-20 w-20 shadow-sm transition duration-300 group-hover:scale-105"
+    />
 
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-                    <Building2 className="h-5 w-5" />
-                  </div>
+    {selected && (
+      <div className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+        <Check className="h-4 w-4" />
+      </div>
+    )}
+  </div>
 
 
-                  <h3 className="mt-5 text-lg font-semibold">
-                    {
-                      university.code
-                    }
-                  </h3>
+  <div className="p-5">
+    <div className="flex items-center justify-between gap-3">
+      <h3 className="text-lg font-semibold text-slate-950">
+        {
+          university.code
+        }
+      </h3>
+
+      {selected && (
+        <span className="text-xs font-semibold text-blue-600">
+          Selected
+        </span>
+      )}
+    </div>
 
 
-                  <p className="mt-1 pr-6 text-sm leading-6 text-slate-500">
-                    {
-                      university.name
-                    }
-                  </p>
+    <p className="mt-2 text-sm leading-6 text-slate-500">
+      {
+        university.name
+      }
+    </p>
 
 
-                  <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-                    <MapPin className="h-3.5 w-3.5" />
+    <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+      <MapPin className="h-3.5 w-3.5" />
 
-                    {
-                      university.location ||
-                      "Location not specified"
-                    }
-                  </div>
-                </button>
+      {
+        university.location ||
+        "Ghana"
+      }
+    </div>
+  </div>
+</button>
               );
             },
           )}

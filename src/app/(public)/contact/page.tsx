@@ -10,6 +10,8 @@ import {
   getSystemSettings,
 } from "@/lib/settings/system-settings";
 
+import Image from "next/image";
+
 
 function whatsappLink(
   value:
@@ -75,6 +77,38 @@ export default async function ContactPage() {
           </p>
         </div>
       </section>
+
+      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+  <div className="overflow-hidden rounded-[30px] border border-blue-100 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700">
+    <div className="grid items-center gap-8 p-7 sm:p-10 lg:grid-cols-[1fr_0.9fr] lg:p-12">
+      <div>
+        <p className="text-sm font-medium text-blue-200">
+          Supporting students across universities
+        </p>
+
+        <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight text-white">
+          Get help with your academic document request.
+        </h2>
+
+        <p className="mt-4 max-w-xl text-sm leading-7 text-blue-100">
+          Whether you are requesting a transcript, attestation,
+          proficiency letter or another supported document, our team
+          can guide you through the process.
+        </p>
+      </div>
+
+
+      <div className="relative aspect-[16/8] overflow-hidden rounded-2xl bg-white/95 p-4 shadow-xl">
+        <Image
+          src="/universities-logos-together.png"
+          alt="Universities supported by Seekers Connect 247"
+          fill
+          className="object-contain p-5"
+        />
+      </div>
+    </div>
+  </div>
+</section>
 
 
       {/* CONTACT METHODS */}
