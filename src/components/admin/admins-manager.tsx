@@ -8,7 +8,6 @@ import {
 
 import {
   Check,
-  CheckCircle2,
   Clipboard,
   KeyRound,
   Loader2,
@@ -36,6 +35,7 @@ import {
 import {
   changeAdminRole,
   createAdminAccount,
+  resetAdminPassword,
   setAdminActive,
 } from "@/app/admin/(dashboard)/admins/actions";
 
@@ -144,6 +144,7 @@ export function AdminsManager({
           <div className="relative sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
+
             <Input
               value={
                 search
@@ -175,26 +176,41 @@ export function AdminsManager({
       </div>
 
 
-      <div className="grid gap-4">
-        {filteredAdmins.map(
-          (
-            admin,
-          ) => (
-            <AdminCard
-              key={
-                admin.id
-              }
-              admin={
-                admin
-              }
-              isCurrentAdmin={
-                admin.id ===
-                currentAdminId
-              }
-            />
-          ),
-        )}
-      </div>
+      {filteredAdmins.length ===
+      0 ? (
+        <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+          <UserCog className="mx-auto h-7 w-7 text-slate-400" />
+
+          <p className="mt-3 font-semibold text-slate-800">
+            No administrators found
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Try another name, email address or role.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredAdmins.map(
+            (
+              admin,
+            ) => (
+              <AdminCard
+                key={
+                  admin.id
+                }
+                admin={
+                  admin
+                }
+                isCurrentAdmin={
+                  admin.id ===
+                  currentAdminId
+                }
+              />
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -295,6 +311,7 @@ function CreateAdminCard() {
             "",
         );
 
+
         setFullName("");
         setEmail("");
 
@@ -302,7 +319,9 @@ function CreateAdminCard() {
           "OPERATIONS_ADMIN",
         );
 
-        setOpen(false);
+        setOpen(
+          false,
+        );
       },
     );
   }
@@ -316,23 +335,30 @@ function CreateAdminCard() {
     }
 
 
-    await navigator.clipboard.writeText(
-      temporaryPassword,
-    );
+    try {
+      await navigator.clipboard.writeText(
+        temporaryPassword,
+      );
 
 
-    setCopied(
-      true,
-    );
+      setCopied(
+        true,
+      );
 
 
-    window.setTimeout(
-      () =>
-        setCopied(
-          false,
-        ),
-      1800,
-    );
+      window.setTimeout(
+        () => {
+          setCopied(
+            false,
+          );
+        },
+        1800,
+      );
+    } catch {
+      setError(
+        "The temporary password could not be copied automatically. Please select and copy it manually.",
+      );
+    }
   }
 
 
@@ -386,19 +412,21 @@ function CreateAdminCard() {
               <KeyRound className="h-5 w-5" />
             </div>
 
+
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-emerald-950">
                 Administrator created
               </p>
 
+
               <p className="mt-1 text-sm leading-6 text-emerald-800">
-                Copy this temporary password now. It is shown only
-                after account creation.
+                Copy this temporary password now. The administrator
+                will be required to replace it after signing in.
               </p>
 
 
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <div className="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-4 py-3 font-mono text-sm font-semibold text-slate-900">
+                <div className="min-w-0 flex-1 break-all rounded-xl border border-emerald-200 bg-white px-4 py-3 font-mono text-sm font-semibold text-slate-900">
                   {
                     temporaryPassword
                   }
@@ -442,6 +470,7 @@ function CreateAdminCard() {
                 Full Name
               </Label>
 
+
               <Input
                 value={
                   fullName
@@ -465,6 +494,7 @@ function CreateAdminCard() {
               <Label>
                 Email Address
               </Label>
+
 
               <Input
                 type="email"
@@ -490,6 +520,7 @@ function CreateAdminCard() {
               <Label>
                 Role
               </Label>
+
 
               <select
                 value={
@@ -602,6 +633,20 @@ function AdminCard({
 
 
   const [
+    resetPassword,
+    setResetPassword,
+  ] =
+    useState("");
+
+
+  const [
+    resetCopied,
+    setResetCopied,
+  ] =
+    useState(false);
+
+
+  const [
     pending,
     startTransition,
   ] =
@@ -613,6 +658,8 @@ function AdminCard({
       AdminRole,
   ) {
     setError("");
+    setResetPassword("");
+
     setSelectedRole(
       nextRole,
     );
@@ -645,6 +692,7 @@ function AdminCard({
 
   function handleStatusToggle() {
     setError("");
+    setResetPassword("");
 
 
     startTransition(
@@ -668,6 +716,75 @@ function AdminCard({
   }
 
 
+  function handlePasswordReset() {
+    setError("");
+    setResetPassword("");
+    setResetCopied(false);
+
+
+    startTransition(
+      async () => {
+        const result =
+          await resetAdminPassword(
+            admin.id,
+          );
+
+
+        if (
+          !result.success
+        ) {
+          setError(
+            result.error,
+          );
+
+          return;
+        }
+
+
+        setResetPassword(
+          result.temporaryPassword ??
+            "",
+        );
+      },
+    );
+  }
+
+
+  async function copyResetPassword() {
+    if (
+      !resetPassword
+    ) {
+      return;
+    }
+
+
+    try {
+      await navigator.clipboard.writeText(
+        resetPassword,
+      );
+
+
+      setResetCopied(
+        true,
+      );
+
+
+      window.setTimeout(
+        () => {
+          setResetCopied(
+            false,
+          );
+        },
+        1800,
+      );
+    } catch {
+      setError(
+        "The temporary password could not be copied automatically. Please select and copy it manually.",
+      );
+    }
+  }
+
+
   return (
     <div
       className={`rounded-[24px] border bg-white p-5 shadow-sm sm:p-6 ${
@@ -676,7 +793,7 @@ function AdminCard({
           : "border-slate-200 opacity-70"
       }`}
     >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-start gap-4">
           <div
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
@@ -725,7 +842,7 @@ function AdminCard({
             </div>
 
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 break-all text-sm text-slate-500">
               {
                 admin.email ??
                 "No email"
@@ -743,6 +860,7 @@ function AdminCard({
                 }
               </span>
 
+
               <span>
                 Last sign-in{" "}
                 {admin.lastSignInAt
@@ -756,37 +874,57 @@ function AdminCard({
         </div>
 
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div>
-            <select
-              value={
-                selectedRole
-              }
-              disabled={
-                pending ||
-                isCurrentAdmin ||
-                !admin.active
-              }
-              onChange={(
-                event,
-              ) =>
-                handleRoleChange(
-                  event.target
-                    .value as
-                    AdminRole,
-                )
-              }
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-            >
-              <option value="OPERATIONS_ADMIN">
-                Operations Admin
-              </option>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+          <select
+            value={
+              selectedRole
+            }
+            disabled={
+              pending ||
+              isCurrentAdmin ||
+              !admin.active
+            }
+            onChange={(
+              event,
+            ) =>
+              handleRoleChange(
+                event.target.value as
+                  AdminRole,
+              )
+            }
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="OPERATIONS_ADMIN">
+              Operations Admin
+            </option>
 
-              <option value="SUPER_ADMIN">
-                Super Admin
-              </option>
-            </select>
-          </div>
+            <option value="SUPER_ADMIN">
+              Super Admin
+            </option>
+          </select>
+
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              pending ||
+              isCurrentAdmin ||
+              !admin.active
+            }
+            onClick={
+              handlePasswordReset
+            }
+            className="rounded-xl"
+          >
+            {pending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <KeyRound className="mr-2 h-4 w-4" />
+            )}
+
+            Reset Password
+          </Button>
 
 
           <Button
@@ -819,11 +957,69 @@ function AdminCard({
       </div>
 
 
+      {resetPassword && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <KeyRound className="h-4 w-4" />
+            </div>
+
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-950">
+                Temporary password generated
+              </p>
+
+
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Send this password securely to the administrator. They
+                must replace it before accessing the dashboard.
+              </p>
+
+
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <div className="min-w-0 flex-1 break-all rounded-xl border border-amber-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-slate-900">
+                  {
+                    resetPassword
+                  }
+                </div>
+
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={
+                    copyResetPassword
+                  }
+                  className="rounded-xl bg-white"
+                >
+                  {resetCopied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Clipboard className="mr-2 h-4 w-4" />
+
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {isCurrentAdmin && (
         <div className="mt-4 flex gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
           <Shield className="mt-0.5 h-4 w-4 shrink-0" />
 
-          Your own role and status cannot be changed from this page.
+          Your own role, password reset and status cannot be changed
+          from this page. Use My Account for your own password.
         </div>
       )}
 

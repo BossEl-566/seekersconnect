@@ -232,17 +232,20 @@ export async function createAdminAccount(
     "admin_profiles",
   )
   .insert({
-    id:
-      userId,
+  id:
+    userId,
 
-    full_name:
-      fullName,
+  full_name:
+    fullName,
 
-    role,
+  role,
 
-    active:
-      true,
-  });
+  active:
+    true,
+
+  must_change_password:
+    true,
+});
 
 
   if (
@@ -862,5 +865,207 @@ export async function setAdminActive(
 
     error:
       "",
+  };
+}
+
+// =========================================================
+// RESET ADMIN PASSWORD
+// =========================================================
+
+export async function resetAdminPassword(
+  targetAdminId:
+    string,
+): Promise<AdminActionResult> {
+  const currentAdmin =
+    await requireSuperAdmin();
+
+
+  if (
+    targetAdminId ===
+    currentAdmin.id
+  ) {
+    return {
+      success:
+        false,
+
+      error:
+        "Use My Account to change your own password.",
+    };
+  }
+
+
+  const supabase =
+    createAdminClient();
+
+
+  const {
+    data:
+      profile,
+
+    error:
+      profileError,
+  } =
+    await supabase
+      .from(
+        "admin_profiles",
+      )
+      .select(`
+        id,
+        full_name,
+        role,
+        active
+      `)
+      .eq(
+        "id",
+        targetAdminId,
+      )
+      .maybeSingle();
+
+
+  if (
+    profileError ||
+    !profile
+  ) {
+    return {
+      success:
+        false,
+
+      error:
+        "Administrator not found.",
+    };
+  }
+
+
+  if (
+    !profile.active
+  ) {
+    return {
+      success:
+        false,
+
+      error:
+        "Enable this administrator before resetting their password.",
+    };
+  }
+
+
+  const temporaryPassword =
+    generateTemporaryPassword();
+
+
+  const {
+    data:
+      authResult,
+
+    error:
+      passwordError,
+  } =
+    await supabase.auth.admin.updateUserById(
+      targetAdminId,
+      {
+        password:
+          temporaryPassword,
+      },
+    );
+
+
+  if (
+    passwordError ||
+    !authResult.user
+  ) {
+    console.error(
+      "Admin password reset failed:",
+      passwordError,
+    );
+
+
+    return {
+      success:
+        false,
+
+      error:
+        "The administrator password could not be reset.",
+    };
+  }
+
+
+  const {
+    error:
+      stateError,
+  } =
+    await supabase
+      .from(
+        "admin_profiles",
+      )
+      .update({
+        must_change_password:
+          true,
+      })
+      .eq(
+        "id",
+        targetAdminId,
+      );
+
+
+  if (
+    stateError
+  ) {
+    console.error(
+      "Admin password reset state failed:",
+      stateError,
+    );
+
+
+    return {
+      success:
+        false,
+
+      error:
+        "The password was reset, but the temporary-password state could not be saved. Contact the system administrator immediately.",
+    };
+  }
+
+
+  await supabase
+    .from(
+      "activity_logs",
+    )
+    .insert({
+      actor_id:
+        currentAdmin.id,
+
+      action:
+        "ADMIN_PASSWORD_RESET",
+
+      entity_type:
+        "admin",
+
+      entity_id:
+        targetAdminId,
+
+      metadata: {
+        email:
+          authResult.user.email ??
+          null,
+
+        role:
+          profile.role,
+      },
+    });
+
+
+  revalidatePath(
+    "/admin/admins",
+  );
+
+
+  return {
+    success:
+      true,
+
+    error:
+      "",
+
+    temporaryPassword,
   };
 }

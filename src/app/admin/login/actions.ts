@@ -1,25 +1,43 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import {
+  redirect,
+} from "next/navigation";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
 
 export type LoginState = {
   error: string;
 };
 
+
 export async function loginAdmin(
-  _previousState: LoginState,
-  formData: FormData,
+  _previousState:
+    LoginState,
+
+  formData:
+    FormData,
 ): Promise<LoginState> {
   const email =
-    formData.get("email");
+    formData.get(
+      "email",
+    );
+
 
   const password =
-    formData.get("password");
+    formData.get(
+      "password",
+    );
+
 
   if (
-    typeof email !== "string" ||
-    typeof password !== "string" ||
+    typeof email !==
+      "string" ||
+    typeof password !==
+      "string" ||
     !email.trim() ||
     !password
   ) {
@@ -29,17 +47,24 @@ export async function loginAdmin(
     };
   }
 
+
   const supabase =
     await createClient();
+
 
   const {
     data,
     error,
   } =
     await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email:
+        email
+          .trim()
+          .toLowerCase(),
+
       password,
     });
+
 
   if (
     error ||
@@ -51,22 +76,40 @@ export async function loginAdmin(
     };
   }
 
+
   const {
-    data: profile,
-    error: profileError,
+    data:
+      profile,
+
+    error:
+      profileError,
   } =
     await supabase
-      .from("admin_profiles")
-      .select("role, active")
-      .eq("id", data.user.id)
+      .from(
+        "admin_profiles",
+      )
+      .select(`
+        role,
+        active,
+        must_change_password
+      `)
+      .eq(
+        "id",
+        data.user.id,
+      )
       .single();
+
 
   if (
     profileError ||
     !profile ||
     !profile.active
   ) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({
+      scope:
+        "local",
+    });
+
 
     return {
       error:
@@ -74,11 +117,18 @@ export async function loginAdmin(
     };
   }
 
+
   if (
-    profile.role !== "SUPER_ADMIN" &&
-    profile.role !== "OPERATIONS_ADMIN"
+    profile.role !==
+      "SUPER_ADMIN" &&
+    profile.role !==
+      "OPERATIONS_ADMIN"
   ) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({
+      scope:
+        "local",
+    });
+
 
     return {
       error:
@@ -86,5 +136,17 @@ export async function loginAdmin(
     };
   }
 
-  redirect("/admin");
+
+  if (
+    profile.must_change_password
+  ) {
+    redirect(
+      "/admin/change-password",
+    );
+  }
+
+
+  redirect(
+    "/admin",
+  );
 }

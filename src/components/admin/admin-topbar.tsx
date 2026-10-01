@@ -2,6 +2,7 @@ import {
   Bell,
   ChevronDown,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
@@ -50,26 +51,29 @@ export function AdminTopbar({
 
         <div className="hidden h-8 w-px bg-slate-200 sm:block" />
 
-        <div className="hidden items-center gap-3 sm:flex">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-xs font-semibold text-blue-700">
-            {initials}
-          </div>
+        <Link
+  href="/admin/account"
+  className="hidden items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-slate-50 sm:flex"
+>
+  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-xs font-semibold text-blue-700">
+    {initials}
+  </div>
 
-          <div>
-            <p className="max-w-36 truncate text-xs font-semibold text-slate-800">
-              {admin.fullName}
-            </p>
+  <div>
+    <p className="max-w-36 truncate text-xs font-semibold text-slate-800">
+      {admin.fullName}
+    </p>
 
-            <p className="text-[10px] text-slate-400">
-              {admin.role ===
-              "SUPER_ADMIN"
-                ? "Super Admin"
-                : "Operations Admin"}
-            </p>
-          </div>
+    <p className="text-[10px] text-slate-400">
+      {admin.role ===
+      "SUPER_ADMIN"
+        ? "Super Admin"
+        : "Operations Admin"}
+    </p>
+  </div>
 
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        </div>
+  <ChevronDown className="h-4 w-4 text-slate-400" />
+</Link>
 
         <form action={logoutAdmin}>
           <Button

@@ -1,37 +1,82 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import {
+  redirect,
+} from "next/navigation";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
 
 export type AdminRole =
   | "SUPER_ADMIN"
   | "OPERATIONS_ADMIN";
 
+
 export type CurrentAdmin = {
   id: string;
+
   email: string;
+
   fullName: string;
+
   role: AdminRole;
+
+  mustChangePassword:
+    boolean;
 };
 
-export async function getCurrentAdmin(): Promise<CurrentAdmin | null> {
-  const supabase = await createClient();
+
+export async function getCurrentAdmin():
+  Promise<CurrentAdmin | null> {
+  const supabase =
+    await createClient();
+
 
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    data: {
+      user,
+    },
 
-  if (userError || !user) {
+    error:
+      userError,
+  } =
+    await supabase.auth.getUser();
+
+
+  if (
+    userError ||
+    !user
+  ) {
     return null;
   }
 
-  const { data: profile, error: profileError } =
+
+  const {
+    data:
+      profile,
+
+    error:
+      profileError,
+  } =
     await supabase
-      .from("admin_profiles")
-      .select("id, full_name, role, active")
-      .eq("id", user.id)
+      .from(
+        "admin_profiles",
+      )
+      .select(`
+        id,
+        full_name,
+        role,
+        active,
+        must_change_password
+      `)
+      .eq(
+        "id",
+        user.id,
+      )
       .single();
+
 
   if (
     profileError ||
@@ -41,37 +86,81 @@ export async function getCurrentAdmin(): Promise<CurrentAdmin | null> {
     return null;
   }
 
+
   if (
-    profile.role !== "SUPER_ADMIN" &&
-    profile.role !== "OPERATIONS_ADMIN"
+    profile.role !==
+      "SUPER_ADMIN" &&
+    profile.role !==
+      "OPERATIONS_ADMIN"
   ) {
     return null;
   }
 
+
   return {
-    id: user.id,
-    email: user.email ?? "",
-    fullName: profile.full_name,
-    role: profile.role,
+    id:
+      user.id,
+
+    email:
+      user.email ??
+      "",
+
+    fullName:
+      profile.full_name,
+
+    role:
+      profile.role,
+
+    mustChangePassword:
+      profile.must_change_password,
   };
 }
 
-export async function requireAdmin() {
-  const admin = await getCurrentAdmin();
 
-  if (!admin) {
-    redirect("/admin/login");
+export async function requireAdmin() {
+  const admin =
+    await getCurrentAdmin();
+
+
+  if (
+    !admin
+  ) {
+    redirect(
+      "/admin/login",
+    );
   }
+
+
+  // Temporary/reset-password accounts cannot use the
+  // operational dashboard until they choose their own
+  // password.
+  if (
+    admin.mustChangePassword
+  ) {
+    redirect(
+      "/admin/change-password",
+    );
+  }
+
 
   return admin;
 }
 
-export async function requireSuperAdmin() {
-  const admin = await requireAdmin();
 
-  if (admin.role !== "SUPER_ADMIN") {
-    redirect("/admin");
+export async function requireSuperAdmin() {
+  const admin =
+    await requireAdmin();
+
+
+  if (
+    admin.role !==
+    "SUPER_ADMIN"
+  ) {
+    redirect(
+      "/admin",
+    );
   }
+
 
   return admin;
 }
