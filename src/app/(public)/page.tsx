@@ -14,7 +14,7 @@ import {
   MessageCircle,
   PackageCheck,
   Search,
-  Send,
+  Languages,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -39,6 +39,10 @@ import {
 import {
   UniversityLogo,
 } from "@/components/public/university-logo";
+
+import {
+  getPublicServiceCatalog,
+} from "@/lib/catalog/public-service-catalog";
 
 
 const steps = [
@@ -114,40 +118,6 @@ const steps = [
 ];
 
 
-const services = [
-  {
-    title:
-      "Academic Transcripts",
-
-    description:
-      "Request official academic transcripts from supported universities.",
-
-    icon:
-      FileText,
-  },
-
-  {
-    title:
-      "Attestation Letters",
-
-    description:
-      "Submit and track requests for official attestation documents.",
-
-    icon:
-      ShieldCheck,
-  },
-
-  {
-    title:
-      "English Proficiency",
-
-    description:
-      "Request English proficiency letters where supported by your institution.",
-
-    icon:
-      Send,
-  },
-];
 
 
 const trackingPreview = [
@@ -199,13 +169,15 @@ const trackingPreview = [
 
 export default async function HomePage() {
   const [
-    settings,
-    universities,
-  ] =
-    await Promise.all([
-      getSystemSettings(),
-      getPublicUniversities(),
-    ]);
+  settings,
+  universities,
+  serviceCatalog,
+] =
+  await Promise.all([
+    getSystemSettings(),
+    getPublicUniversities(),
+    getPublicServiceCatalog(),
+  ]);
 
 
   const {
@@ -243,6 +215,108 @@ export default async function HomePage() {
       .join(
         ", ",
       );
+
+      const allServices =
+  serviceCatalog.flatMap(
+    (
+      university,
+    ) =>
+      university.services.map(
+        (
+          service,
+        ) => ({
+          ...service,
+
+          universityCode:
+            university.code,
+
+          universityName:
+            university.name,
+        }),
+      ),
+  );
+
+
+const serviceGroups =
+  new Map<
+    string,
+    {
+      name:
+        string;
+
+      category:
+        string;
+
+      description:
+        string;
+
+      universityCodes:
+        string[];
+    }
+  >();
+
+
+for (
+  const service of
+    allServices
+) {
+  const key =
+    service.category
+      .trim()
+      .toLowerCase();
+
+
+  const existing =
+    serviceGroups.get(
+      key,
+    );
+
+
+  if (
+    existing
+  ) {
+    if (
+      !existing.universityCodes.includes(
+        service.universityCode,
+      )
+    ) {
+      existing.universityCodes.push(
+        service.universityCode,
+      );
+    }
+
+    continue;
+  }
+
+
+  serviceGroups.set(
+    key,
+    {
+      name:
+        service.name,
+
+      category:
+        service.category,
+
+      description:
+        service.description ||
+        "Academic document request service available from supported institutions.",
+
+      universityCodes: [
+        service.universityCode,
+      ],
+    },
+  );
+}
+
+
+const serviceHighlights =
+  Array.from(
+    serviceGroups.values(),
+  ).slice(
+    0,
+    4,
+  );
 
 
   return (
@@ -839,71 +913,117 @@ export default async function HomePage() {
 
             {/* SERVICE CARDS */}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {services.map(
-                (
-                  service,
-                  index,
-                ) => {
-                  const Icon =
-                    service.icon;
+            {serviceHighlights.length >
+0 ? (
+  <div className="grid gap-4 md:grid-cols-2">
+    {serviceHighlights.map(
+      (
+        service,
+        index,
+      ) => {
+        const Icon =
+          getServiceIcon(
+            service.category,
+          );
 
 
-                  return (
-                    <div
-                      key={
-                        service.title
-                      }
-                      className={`group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50 ${
-                        index ===
-                        2
-                          ? "md:col-span-2"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
-                          <Icon className="h-5 w-5" />
-                        </div>
+        return (
+          <div
+            key={
+              service.category
+            }
+            className={`group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50 ${
+              serviceHighlights.length %
+                2 !==
+                0 &&
+              index ===
+                serviceHighlights.length -
+                  1
+                ? "md:col-span-2"
+                : ""
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+                <Icon className="h-5 w-5" />
+              </div>
 
 
-                        <span className="text-xs font-medium text-slate-300">
-                          0
-                          {
-                            index +
-                            1
-                          }
-                        </span>
-                      </div>
-
-
-                      <h3 className="mt-6 text-lg font-semibold text-slate-950">
-                        {
-                          service.title
-                        }
-                      </h3>
-
-
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {
-                          service.description
-                        }
-                      </p>
-
-
-                      <Link
-                        href="/request"
-                        className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
-                      >
-                        Start request
-
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </div>
-                  );
-                },
-              )}
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                {
+                  service
+                    .category
+                }
+              </span>
             </div>
+
+
+            <h3 className="mt-6 text-lg font-semibold text-slate-950">
+              {
+                service.name
+              }
+            </h3>
+
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {
+                service.description
+              }
+            </p>
+
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {service
+                .universityCodes
+                .slice(
+                  0,
+                  5,
+                )
+                .map(
+                  (
+                    code,
+                  ) => (
+                    <span
+                      key={
+                        code
+                      }
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600"
+                    >
+                      {
+                        code
+                      }
+                    </span>
+                  ),
+                )}
+            </div>
+
+
+            <Link
+              href="/services"
+              className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:gap-3 hover:text-blue-700"
+            >
+              View service
+
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        );
+      },
+    )}
+  </div>
+) : (
+  <div className="rounded-[26px] border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+    <FileText className="mx-auto h-7 w-7 text-slate-400" />
+
+    <p className="mt-4 font-semibold text-slate-800">
+      No services are currently available.
+    </p>
+
+    <p className="mt-2 text-sm text-slate-500">
+      Please check again later or contact our support team.
+    </p>
+  </div>
+)}
           </div>
         </div>
       </section>
@@ -1204,4 +1324,25 @@ export default async function HomePage() {
       </section>
     </>
   );
+}
+
+function getServiceIcon(
+  category:
+    string,
+) {
+  switch (
+    category.toLowerCase()
+  ) {
+    case "transcript":
+      return FileText;
+
+    case "attestation":
+      return ShieldCheck;
+
+    case "proficiency":
+      return Languages;
+
+    default:
+      return FileCheck2;
+  }
 }
