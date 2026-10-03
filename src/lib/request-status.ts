@@ -2,25 +2,133 @@ import type {
   RequestStatus,
 } from "@/constants/request-status";
 
-export const PROCESSABLE_STATUSES: RequestStatus[] = [
-  "PAYMENT_CONFIRMED",
-  "PROCESSING_REQUEST",
-  "SUBMITTED_TO_UNIVERSITY",
-  "AWAITING_UNIVERSITY",
-];
+
+// =========================================================
+// ACADEMIC WORKFLOW
+// =========================================================
+
+export const ACADEMIC_PROCESSABLE_STATUSES:
+  RequestStatus[] = [
+    "PAYMENT_CONFIRMED",
+    "PROCESSING_REQUEST",
+    "SUBMITTED_TO_UNIVERSITY",
+    "AWAITING_UNIVERSITY",
+  ];
+
+
+// =========================================================
+// GENERAL SERVICE WORKFLOW
+// =========================================================
+
+export const GENERAL_PROCESSABLE_STATUSES:
+  RequestStatus[] = [
+    "PAYMENT_CONFIRMED",
+    "PROCESSING_REQUEST",
+  ];
+
+
+// =========================================================
+// CAN ADVANCE
+// =========================================================
 
 export function canAdvanceRequest(
-  status: string,
+  status:
+    string,
+
+  isGeneralService:
+    boolean,
 ) {
-  return PROCESSABLE_STATUSES.includes(
+  const statuses =
+    isGeneralService
+      ? GENERAL_PROCESSABLE_STATUSES
+      : ACADEMIC_PROCESSABLE_STATUSES;
+
+
+  return statuses.includes(
     status as RequestStatus,
   );
 }
 
+
+// =========================================================
+// NEXT WORKFLOW ACTION
+// =========================================================
+
 export function getNextRequestAction(
-  status: RequestStatus,
+  status:
+    RequestStatus,
+
+  isGeneralService:
+    boolean,
+
+  deliveryRequired:
+    boolean,
 ) {
-  switch (status) {
+  // -------------------------------------------------------
+  // GENERAL SERVICES
+  // -------------------------------------------------------
+
+  if (
+    isGeneralService
+  ) {
+    switch (
+      status
+    ) {
+      case "PAYMENT_CONFIRMED":
+        return {
+          nextStatus:
+            "PROCESSING_REQUEST" as const,
+
+          label:
+            "Start Processing",
+
+          description:
+            "Begin working on this customer service request.",
+        };
+
+
+      case "PROCESSING_REQUEST":
+        if (
+          deliveryRequired
+        ) {
+          return {
+            nextStatus:
+              "PREPARING_DELIVERY" as const,
+
+            label:
+              "Mark Ready for Delivery",
+
+            description:
+              "Use this after the errand, shopping or service work has been completed and the item is ready to be delivered.",
+          };
+        }
+
+
+        return {
+          nextStatus:
+            "COMPLETED" as const,
+
+          label:
+            "Complete Request",
+
+          description:
+            "No final physical delivery is required. Complete the request after confirming that the requested service has been finished.",
+        };
+
+
+      default:
+        return null;
+    }
+  }
+
+
+  // -------------------------------------------------------
+  // ACADEMIC SERVICES
+  // -------------------------------------------------------
+
+  switch (
+    status
+  ) {
     case "PAYMENT_CONFIRMED":
       return {
         nextStatus:
@@ -30,8 +138,9 @@ export function getNextRequestAction(
           "Start Processing",
 
         description:
-          "Begin preparing the customer request for submission to the university.",
+          "Begin preparing the customer's academic request for submission to the university.",
       };
+
 
     case "PROCESSING_REQUEST":
       return {
@@ -45,6 +154,7 @@ export function getNextRequestAction(
           "Use this after the request has actually been submitted to the university.",
       };
 
+
     case "SUBMITTED_TO_UNIVERSITY":
       return {
         nextStatus:
@@ -57,6 +167,7 @@ export function getNextRequestAction(
           "The university now has the request and processing is pending.",
       };
 
+
     case "AWAITING_UNIVERSITY":
       return {
         nextStatus:
@@ -68,6 +179,7 @@ export function getNextRequestAction(
         description:
           "Use this only after the university has completed the requested document.",
       };
+
 
     default:
       return null;

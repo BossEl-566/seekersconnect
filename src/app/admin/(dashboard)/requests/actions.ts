@@ -17,57 +17,170 @@ import {
 } from "@/lib/request-status";
 
 
-export type AdvanceRequestState = {
-  success: boolean;
-  error: string;
-  newStatus?: string;
+// =========================================================
+// TYPES
+// =========================================================
+
+type ProviderRelation =
+  | {
+      code:
+        string;
+    }
+  | {
+      code:
+        string;
+    }[]
+  | null;
+
+
+type RequestWorkflowRow = {
+  id:
+    string;
+
+  status:
+    string;
+
+  universities:
+    ProviderRelation;
 };
 
 
+export type AdvanceRequestState = {
+  success:
+    boolean;
+
+  error:
+    string;
+
+  newStatus?:
+    string;
+};
+
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function getProviderCode(
+  relation:
+    ProviderRelation,
+) {
+  if (
+    !relation
+  ) {
+    return null;
+  }
+
+
+  if (
+    Array.isArray(
+      relation,
+    )
+  ) {
+    return (
+      relation[0]
+        ?.code ??
+      null
+    );
+  }
+
+
+  return (
+    relation.code ??
+    null
+  );
+}
+
+
+// =========================================================
+// ADVANCE PROCESSING WORKFLOW
+// =========================================================
+
 export async function advanceRequest(
-  requestId: string,
-  internalNote: string,
+  requestId:
+    string,
+
+  internalNote:
+    string,
 ): Promise<AdvanceRequestState> {
   const admin =
     await requireAdmin();
+
 
   const supabase =
     createAdminClient();
 
 
   // -------------------------------------------------------
-  // Check current request first
+  // Load request and provider
   // -------------------------------------------------------
 
   const {
-    data: request,
-    error: requestError,
-  } = await supabase
-    .from("requests")
-    .select("id, status")
-    .eq("id", requestId)
-    .single();
+    data:
+      requestData,
+
+    error:
+      requestError,
+  } =
+    await supabase
+      .from(
+        "requests",
+      )
+      .select(`
+        id,
+        status,
+
+        universities (
+          code
+        )
+      `)
+      .eq(
+        "id",
+        requestId,
+      )
+      .single();
 
 
   if (
     requestError ||
-    !request
+    !requestData
   ) {
     return {
-      success: false,
+      success:
+        false,
+
       error:
         "The request could not be found.",
     };
   }
 
 
+  const request =
+    requestData as unknown as
+      RequestWorkflowRow;
+
+
+  const providerCode =
+    getProviderCode(
+      request.universities,
+    );
+
+
+  const isGeneralService =
+    providerCode ===
+    "SC247";
+
+
   if (
     !canAdvanceRequest(
       request.status,
+      isGeneralService,
     )
   ) {
     return {
-      success: false,
+      success:
+        false,
+
       error:
         "This request cannot be advanced from its current status.",
     };
@@ -75,49 +188,103 @@ export async function advanceRequest(
 
 
   // -------------------------------------------------------
-  // Advance transaction
+  // Use the appropriate workflow
   // -------------------------------------------------------
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    "advance_request_processing",
+  let data:
+    unknown;
+
+  let error:
     {
-      p_request_id:
-        requestId,
-
-      p_admin_id:
-        admin.id,
-
-      p_internal_note:
-        internalNote.trim() ||
-        null,
-    },
-  );
+      message?:
+        string;
+    } | null =
+    null;
 
 
-  if (error) {
+  if (
+    isGeneralService
+  ) {
+    const result =
+      await supabase.rpc(
+        "advance_general_request_processing",
+        {
+          p_request_id:
+            requestId,
+
+          p_admin_id:
+            admin.id,
+
+          p_internal_note:
+            internalNote.trim() ||
+            null,
+        },
+      );
+
+
+    data =
+      result.data;
+
+    error =
+      result.error;
+  } else {
+    const result =
+      await supabase.rpc(
+        "advance_request_processing",
+        {
+          p_request_id:
+            requestId,
+
+          p_admin_id:
+            admin.id,
+
+          p_internal_note:
+            internalNote.trim() ||
+            null,
+        },
+      );
+
+
+    data =
+      result.data;
+
+    error =
+      result.error;
+  }
+
+
+  if (
+    error
+  ) {
     console.error(
       "Request advancement failed:",
       error,
     );
 
+
     return {
-      success: false,
+      success:
+        false,
+
       error:
+        error.message ||
         "The request status could not be updated. Please try again.",
     };
   }
 
 
   const result =
-    Array.isArray(data)
+    Array.isArray(
+      data,
+    )
       ? data[0]
       : data;
 
 
-  revalidatePath("/admin");
+  revalidatePath(
+    "/admin",
+  );
+
   revalidatePath(
     "/admin/requests",
   );
@@ -128,53 +295,99 @@ export async function advanceRequest(
 
 
   return {
-    success: true,
-    error: "",
+    success:
+      true,
+
+    error:
+      "",
+
     newStatus:
-      result?.new_status,
+      (
+        result as {
+          new_status?:
+            string;
+        } | null
+      )
+        ?.new_status,
   };
 }
+
+
+// =========================================================
+// DELIVERY TYPES
+// =========================================================
+
 export type DeliveryWorkflowState = {
-  success: boolean;
-  error: string;
-  newStatus?: string;
+  success:
+    boolean;
+
+  error:
+    string;
+
+  newStatus?:
+    string;
 };
 
 
+// =========================================================
+// ADVANCE DELIVERY WORKFLOW
+// =========================================================
+
 export async function advanceDeliveryWorkflow(
-  requestId: string,
-  emsTrackingNumber: string,
-  internalNote: string,
+  requestId:
+    string,
+
+  trackingReference:
+    string,
+
+  internalNote:
+    string,
 ): Promise<DeliveryWorkflowState> {
   const admin =
     await requireAdmin();
+
 
   const supabase =
     createAdminClient();
 
 
+  // -------------------------------------------------------
+  // Load request + provider
+  // -------------------------------------------------------
+
   const {
-    data: request,
-    error: requestError,
-  } = await supabase
-    .from("requests")
-    .select(`
-      id,
-      status
-    `)
-    .eq(
-      "id",
-      requestId,
-    )
-    .single();
+    data:
+      requestData,
+
+    error:
+      requestError,
+  } =
+    await supabase
+      .from(
+        "requests",
+      )
+      .select(`
+        id,
+        status,
+
+        universities (
+          code
+        )
+      `)
+      .eq(
+        "id",
+        requestId,
+      )
+      .single();
 
 
   if (
     requestError ||
-    !request
+    !requestData
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The request could not be found.",
@@ -182,14 +395,40 @@ export async function advanceDeliveryWorkflow(
   }
 
 
+  const request =
+    requestData as unknown as
+      RequestWorkflowRow;
+
+
+  const providerCode =
+    getProviderCode(
+      request.universities,
+    );
+
+
+  const isGeneralService =
+    providerCode ===
+    "SC247";
+
+
+  // -------------------------------------------------------
+  // Validate allowed status
+  // -------------------------------------------------------
+
   const allowedStatuses =
-    new Set([
-      "DOCUMENT_SCANNED",
-      "PREPARING_DELIVERY",
-      "HANDED_TO_EMS",
-      "IN_TRANSIT",
-      "DELIVERED",
-    ]);
+    isGeneralService
+      ? new Set([
+          "PREPARING_DELIVERY",
+          "IN_TRANSIT",
+          "DELIVERED",
+        ])
+      : new Set([
+          "DOCUMENT_SCANNED",
+          "PREPARING_DELIVERY",
+          "HANDED_TO_EMS",
+          "IN_TRANSIT",
+          "DELIVERED",
+        ]);
 
 
   if (
@@ -198,7 +437,8 @@ export async function advanceDeliveryWorkflow(
     )
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "This request cannot be advanced through the delivery workflow.",
@@ -206,30 +446,83 @@ export async function advanceDeliveryWorkflow(
   }
 
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    "advance_delivery_workflow",
+  // -------------------------------------------------------
+  // General delivery workflow
+  // -------------------------------------------------------
+
+  let data:
+    unknown;
+
+  let error:
     {
-      p_request_id:
-        requestId,
-
-      p_admin_id:
-        admin.id,
-
-      p_ems_tracking_number:
-        emsTrackingNumber.trim() ||
-        null,
-
-      p_internal_note:
-        internalNote.trim() ||
-        null,
-    },
-  );
+      message?:
+        string;
+    } | null =
+    null;
 
 
-  if (error) {
+  if (
+    isGeneralService
+  ) {
+    const result =
+      await supabase.rpc(
+        "advance_general_delivery_workflow",
+        {
+          p_request_id:
+            requestId,
+
+          p_admin_id:
+            admin.id,
+
+          p_delivery_reference:
+            trackingReference.trim() ||
+            null,
+
+          p_internal_note:
+            internalNote.trim() ||
+            null,
+        },
+      );
+
+
+    data =
+      result.data;
+
+    error =
+      result.error;
+  } else {
+    const result =
+      await supabase.rpc(
+        "advance_delivery_workflow",
+        {
+          p_request_id:
+            requestId,
+
+          p_admin_id:
+            admin.id,
+
+          p_ems_tracking_number:
+            trackingReference.trim() ||
+            null,
+
+          p_internal_note:
+            internalNote.trim() ||
+            null,
+        },
+      );
+
+
+    data =
+      result.data;
+
+    error =
+      result.error;
+  }
+
+
+  if (
+    error
+  ) {
     console.error(
       "Delivery workflow update failed:",
       error,
@@ -237,7 +530,8 @@ export async function advanceDeliveryWorkflow(
 
 
     return {
-      success: false,
+      success:
+        false,
 
       error:
         error.message ||
@@ -247,7 +541,9 @@ export async function advanceDeliveryWorkflow(
 
 
   const result =
-    Array.isArray(data)
+    Array.isArray(
+      data,
+    )
       ? data[0]
       : data;
 
@@ -270,11 +566,19 @@ export async function advanceDeliveryWorkflow(
 
 
   return {
-    success: true,
+    success:
+      true,
 
-    error: "",
+    error:
+      "",
 
     newStatus:
-      result?.new_status,
+      (
+        result as {
+          new_status?:
+            string;
+        } | null
+      )
+        ?.new_status,
   };
 }

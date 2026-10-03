@@ -40,17 +40,156 @@ import type {
 
 
 type DeliveryAction = {
-  title: string;
-  description: string;
-  buttonLabel: string;
-  requiresEmsNumber: boolean;
+  title:
+    string;
+
+  description:
+    string;
+
+  buttonLabel:
+    string;
+
+  showTrackingInput:
+    boolean;
+
+  trackingRequired:
+    boolean;
+
+  trackingLabel:
+    string;
+
+  trackingPlaceholder:
+    string;
+
+  trackingHelp:
+    string;
 };
 
 
+// =========================================================
+// GET DELIVERY ACTION
+// =========================================================
+
 function getDeliveryAction(
-  status: RequestStatus,
-  deliveryRequired: boolean,
+  status:
+    RequestStatus,
+
+  deliveryRequired:
+    boolean,
+
+  isGeneralService:
+    boolean,
 ): DeliveryAction | null {
+  // -------------------------------------------------------
+  // GENERAL SERVICES
+  // -------------------------------------------------------
+
+  if (
+    isGeneralService
+  ) {
+    if (
+      status ===
+      "PREPARING_DELIVERY"
+    ) {
+      return {
+        title:
+          "Dispatch Delivery",
+
+        description:
+          "The request is ready for delivery. Continue once the item has left for the customer's destination.",
+
+        buttonLabel:
+          "Mark as In Transit",
+
+        showTrackingInput:
+          true,
+
+        trackingRequired:
+          false,
+
+        trackingLabel:
+          "Delivery Reference",
+
+        trackingPlaceholder:
+          "Optional rider, courier or delivery reference",
+
+        trackingHelp:
+          "Optional. Add a rider, courier or delivery reference if one is available.",
+      };
+    }
+
+
+    if (
+      status ===
+      "IN_TRANSIT"
+    ) {
+      return {
+        title:
+          "Confirm Delivery",
+
+        description:
+          "Use this after confirming that the customer or recipient has received the item successfully.",
+
+        buttonLabel:
+          "Mark as Delivered",
+
+        showTrackingInput:
+          false,
+
+        trackingRequired:
+          false,
+
+        trackingLabel:
+          "",
+
+        trackingPlaceholder:
+          "",
+
+        trackingHelp:
+          "",
+      };
+    }
+
+
+    if (
+      status ===
+      "DELIVERED"
+    ) {
+      return {
+        title:
+          "Complete Request",
+
+        description:
+          "Delivery has been completed. Close the request after confirming that no further action is required.",
+
+        buttonLabel:
+          "Complete Request",
+
+        showTrackingInput:
+          false,
+
+        trackingRequired:
+          false,
+
+        trackingLabel:
+          "",
+
+        trackingPlaceholder:
+          "",
+
+        trackingHelp:
+          "",
+      };
+    }
+
+
+    return null;
+  }
+
+
+  // -------------------------------------------------------
+  // ACADEMIC DOCUMENT DELIVERY
+  // -------------------------------------------------------
 
   if (
     status ===
@@ -69,8 +208,20 @@ function getDeliveryAction(
         buttonLabel:
           "Start Delivery Preparation",
 
-        requiresEmsNumber:
+        showTrackingInput:
           false,
+
+        trackingRequired:
+          false,
+
+        trackingLabel:
+          "",
+
+        trackingPlaceholder:
+          "",
+
+        trackingHelp:
+          "",
       };
     }
 
@@ -85,8 +236,20 @@ function getDeliveryAction(
       buttonLabel:
         "Mark Request Completed",
 
-      requiresEmsNumber:
+      showTrackingInput:
         false,
+
+      trackingRequired:
+        false,
+
+      trackingLabel:
+        "",
+
+      trackingPlaceholder:
+        "",
+
+      trackingHelp:
+        "",
     };
   }
 
@@ -105,8 +268,20 @@ function getDeliveryAction(
       buttonLabel:
         "Mark as Handed to EMS",
 
-      requiresEmsNumber:
+      showTrackingInput:
         true,
+
+      trackingRequired:
+        true,
+
+      trackingLabel:
+        "EMS Tracking Number",
+
+      trackingPlaceholder:
+        "Enter EMS tracking number",
+
+      trackingHelp:
+        "Enter the official tracking number issued by EMS.",
     };
   }
 
@@ -125,8 +300,20 @@ function getDeliveryAction(
       buttonLabel:
         "Mark as In Transit",
 
-      requiresEmsNumber:
+      showTrackingInput:
         false,
+
+      trackingRequired:
+        false,
+
+      trackingLabel:
+        "",
+
+      trackingPlaceholder:
+        "",
+
+      trackingHelp:
+        "",
     };
   }
 
@@ -145,8 +332,20 @@ function getDeliveryAction(
       buttonLabel:
         "Mark as Delivered",
 
-      requiresEmsNumber:
+      showTrackingInput:
         false,
+
+      trackingRequired:
+        false,
+
+      trackingLabel:
+        "",
+
+      trackingPlaceholder:
+        "",
+
+      trackingHelp:
+        "",
     };
   }
 
@@ -165,8 +364,20 @@ function getDeliveryAction(
       buttonLabel:
         "Complete Request",
 
-      requiresEmsNumber:
+      showTrackingInput:
         false,
+
+      trackingRequired:
+        false,
+
+      trackingLabel:
+        "",
+
+      trackingPlaceholder:
+        "",
+
+      trackingHelp:
+        "",
     };
   }
 
@@ -175,13 +386,19 @@ function getDeliveryAction(
 }
 
 
+// =========================================================
+// COMPONENT
+// =========================================================
+
 export function RequestDeliveryActions({
   requestId,
   status,
   deliveryRequired,
   existingEmsTrackingNumber,
+  isGeneralService,
 }: {
-  requestId: string;
+  requestId:
+    string;
 
   status:
     RequestStatus;
@@ -192,6 +409,9 @@ export function RequestDeliveryActions({
   existingEmsTrackingNumber:
     | string
     | null;
+
+  isGeneralService:
+    boolean;
 }) {
   const [
     pending,
@@ -201,8 +421,8 @@ export function RequestDeliveryActions({
 
 
   const [
-    emsTrackingNumber,
-    setEmsTrackingNumber,
+    trackingReference,
+    setTrackingReference,
   ] =
     useState(
       existingEmsTrackingNumber ??
@@ -235,65 +455,80 @@ export function RequestDeliveryActions({
     getDeliveryAction(
       status,
       deliveryRequired,
+      isGeneralService,
     );
 
 
-  if (!action) {
+  if (
+    !action
+  ) {
     return null;
   }
 
 
   function handleAdvance() {
-    setError("");
-    setSuccess("");
-
-    if (!action) {
-      return;
-    }
-
-    if (
-      action.requiresEmsNumber &&
-      emsTrackingNumber.trim().length <
-        3
-    ) {
-      setError(
-        "Enter the EMS tracking number before continuing.",
-      );
-
-      return;
-    }
+  setError("");
+  setSuccess("");
 
 
-    startTransition(
-      async () => {
-        const result =
-          await advanceDeliveryWorkflow(
-            requestId,
-            emsTrackingNumber,
-            note,
-          );
+  const currentAction =
+    action;
 
 
-        if (
-          !result.success
-        ) {
-          setError(
-            result.error,
-          );
-
-          return;
-        }
-
-
-        setNote("");
-
-
-        setSuccess(
-          "Request status updated successfully.",
-        );
-      },
-    );
+  if (
+    !currentAction
+  ) {
+    return;
   }
+
+
+  if (
+    currentAction.trackingRequired &&
+    trackingReference
+      .trim()
+      .length <
+      3
+  ) {
+    setError(
+      isGeneralService
+        ? "Enter the required delivery reference before continuing."
+        : "Enter the EMS tracking number before continuing.",
+    );
+
+    return;
+  }
+
+
+  startTransition(
+    async () => {
+      const result =
+        await advanceDeliveryWorkflow(
+          requestId,
+          trackingReference,
+          note,
+        );
+
+
+      if (
+        !result.success
+      ) {
+        setError(
+          result.error,
+        );
+
+        return;
+      }
+
+
+      setNote("");
+
+
+      setSuccess(
+        "Request status updated successfully.",
+      );
+    },
+  );
+}
 
 
   return (
@@ -313,59 +548,77 @@ export function RequestDeliveryActions({
 
         <div>
           <p className="font-semibold text-indigo-950">
-            {action.title}
+            {
+              action.title
+            }
           </p>
 
+
           <p className="mt-1 text-sm leading-6 text-indigo-800">
-            {action.description}
+            {
+              action.description
+            }
           </p>
         </div>
       </div>
 
 
-      {action.requiresEmsNumber && (
+      {action.showTrackingInput && (
         <div className="mt-5 space-y-2">
-          <Label
-            htmlFor="emsTrackingNumber"
-          >
-            EMS Tracking Number
+          <Label htmlFor="deliveryTrackingReference">
+            {
+              action.trackingLabel
+            }
+
+            {!action.trackingRequired && (
+              <span className="ml-1 font-normal text-slate-400">
+                (optional)
+              </span>
+            )}
           </Label>
 
+
           <Input
-            id="emsTrackingNumber"
+            id="deliveryTrackingReference"
             value={
-              emsTrackingNumber
+              trackingReference
             }
             onChange={(
               event,
             ) =>
-              setEmsTrackingNumber(
+              setTrackingReference(
                 event.target.value,
               )
             }
-            placeholder="Enter EMS tracking number"
+            placeholder={
+              action.trackingPlaceholder
+            }
             disabled={
               pending
             }
             className="bg-white"
           />
 
+
           <p className="text-xs leading-5 text-indigo-700">
-            Enter the official tracking number issued by EMS.
+            {
+              action.trackingHelp
+            }
           </p>
         </div>
       )}
 
 
       <div className="mt-5 space-y-2">
-        <Label
-          htmlFor="deliveryInternalNote"
-        >
+        <Label htmlFor="deliveryInternalNote">
           Internal Note
+
           <span className="ml-1 font-normal text-slate-400">
+            {" "}
             (optional)
           </span>
         </Label>
+
 
         <Textarea
           id="deliveryInternalNote"
@@ -386,6 +639,7 @@ export function RequestDeliveryActions({
           className="min-h-24 bg-white"
         />
 
+
         <p className="text-xs leading-5 text-indigo-700">
           Internal notes are visible only to administrators.
         </p>
@@ -394,7 +648,9 @@ export function RequestDeliveryActions({
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
-          {error}
+          {
+            error
+          }
         </div>
       )}
 
@@ -403,7 +659,9 @@ export function RequestDeliveryActions({
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
 
-          {success}
+          {
+            success
+          }
         </div>
       )}
 

@@ -351,6 +351,19 @@ export default async function RequestDetailPage({
   const delivery =
     deliveryResult.data;
 
+  const isGeneralService =
+  request
+    .universities
+    ?.code ===
+  "SC247";
+
+
+const deliveryRequired =
+  Boolean(
+    delivery
+      ?.physical_delivery_required,
+  );
+
 
   const payment =
     paymentResult.data;
@@ -1037,14 +1050,19 @@ export default async function RequestDetailPage({
           ============================================= */}
 
           <RequestProcessingActions
-            requestId={
-              request.id
-            }
-            status={
-              request.status as RequestStatus
-            }
-            
-          />
+  requestId={
+    request.id
+  }
+  status={
+    request.status as RequestStatus
+  }
+  isGeneralService={
+    isGeneralService
+  }
+  deliveryRequired={
+    deliveryRequired
+  }
+/>
 
             {request.status ===
   "DOCUMENT_READY" && (
@@ -1062,15 +1080,15 @@ export default async function RequestDetailPage({
     request.status as RequestStatus
   }
   deliveryRequired={
-    Boolean(
-      delivery
-        ?.physical_delivery_required,
-    )
+    deliveryRequired
   }
   existingEmsTrackingNumber={
     delivery
       ?.ems_tracking_number ??
     null
+  }
+  isGeneralService={
+    isGeneralService
   }
 />
           {/* =============================================

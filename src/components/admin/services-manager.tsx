@@ -219,29 +219,28 @@ export function ServicesManager({
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             >
               <option value="ALL">
-                All Universities
-              </option>
+  All Service Areas
+</option>
 
               {universities.map(
-                (university) => (
-                  <option
-                    key={
-                      university.id
-                    }
-                    value={
-                      university.id
-                    }
-                  >
-                    {
-                      university.code
-                    }{" "}
-                    —{" "}
-                    {
-                      university.name
-                    }
-                  </option>
-                ),
-              )}
+  (
+    university,
+  ) => (
+    <option
+      key={
+        university.id
+      }
+      value={
+        university.id
+      }
+    >
+      {university.code ===
+      "SC247"
+        ? "General Services"
+        : `${university.code} — ${university.name}`}
+    </option>
+  ),
+)}
             </select>
 
 
@@ -486,14 +485,13 @@ function CreateServiceCard({
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <h2 className="font-semibold text-slate-950">
-            Service Directory
-          </h2>
+  Service Directory
+</h2>
 
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            Configure academic document
-            services available under
-            each university.
-          </p>
+<p className="mt-1 text-sm leading-6 text-slate-500">
+  Configure general errands, delivery, shopping and academic
+  document services from one place.
+</p>
         </div>
 
 
@@ -540,8 +538,8 @@ function CreateServiceCard({
 
             <div className="space-y-2">
               <Label htmlFor="serviceUniversity">
-                University
-              </Label>
+  Service Area / Institution
+</Label>
 
               <select
                 id="serviceUniversity"
@@ -561,8 +559,8 @@ function CreateServiceCard({
                 className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="">
-                  Select university
-                </option>
+  Select service area
+</option>
 
                 {activeUniversities.map(
                   (
@@ -576,13 +574,10 @@ function CreateServiceCard({
                         university.id
                       }
                     >
-                      {
-                        university.code
-                      }{" "}
-                      —{" "}
-                      {
-                        university.name
-                      }
+                      {university.code ===
+"SC247"
+  ? "General Services — Seekers Connect 247"
+  : `${university.code} — ${university.name}`}
                     </option>
                   ),
                 )}
@@ -1111,12 +1106,26 @@ function ServiceCard({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white">
-                {currentService
-                  .universities
-                  ?.code ??
-                  "—"}
-              </span>
+              <span
+  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+    currentService
+      .universities
+      ?.code ===
+    "SC247"
+      ? "bg-blue-600 text-white"
+      : "bg-slate-950 text-white"
+  }`}
+>
+  {currentService
+    .universities
+    ?.code ===
+  "SC247"
+    ? "GENERAL SERVICE"
+    : currentService
+        .universities
+        ?.code ??
+      "—"}
+</span>
 
               <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-[10px] text-slate-600">
                 {
@@ -1398,12 +1407,10 @@ function ServiceCard({
 
 
           <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-            The university and service
-            slug are intentionally not
-            editable. Existing customer
-            requests may already depend
-            on these identifiers.
-          </div>
+  The service area / institution and service slug are
+  intentionally not editable because existing customer
+  requests may already depend on these identifiers.
+</div>
 
 
           {error && (

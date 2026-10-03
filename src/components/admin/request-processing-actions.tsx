@@ -39,38 +39,60 @@ import type {
 export function RequestProcessingActions({
   requestId,
   status,
+  isGeneralService,
+  deliveryRequired,
 }: {
-  requestId: string;
-  status: RequestStatus;
+  requestId:
+    string;
+
+  status:
+    RequestStatus;
+
+  isGeneralService:
+    boolean;
+
+  deliveryRequired:
+    boolean;
 }) {
   const [
     pending,
     startTransition,
-  ] = useTransition();
+  ] =
+    useTransition();
+
 
   const [
     note,
     setNote,
-  ] = useState("");
+  ] =
+    useState("");
+
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] =
+    useState("");
+
 
   const [
     success,
     setSuccess,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   const action =
     getNextRequestAction(
       status,
+      isGeneralService,
+      deliveryRequired,
     );
 
 
-  if (!action) {
+  if (
+    !action
+  ) {
     return null;
   }
 
@@ -78,6 +100,7 @@ export function RequestProcessingActions({
   function handleAdvance() {
     setError("");
     setSuccess("");
+
 
     startTransition(
       async () => {
@@ -87,7 +110,10 @@ export function RequestProcessingActions({
             note,
           );
 
-        if (!result.success) {
+
+        if (
+          !result.success
+        ) {
           setError(
             result.error,
           );
@@ -95,7 +121,9 @@ export function RequestProcessingActions({
           return;
         }
 
+
         setNote("");
+
 
         setSuccess(
           "Request status updated successfully.",
@@ -112,31 +140,43 @@ export function RequestProcessingActions({
           <ArrowRight className="h-5 w-5" />
         </div>
 
+
         <div>
           <p className="font-semibold text-blue-950">
-            Next Workflow Action
+            {isGeneralService
+              ? "Next Service Action"
+              : "Next Workflow Action"}
           </p>
 
+
           <p className="mt-1 text-sm leading-6 text-blue-800">
-            {action.description}
+            {
+              action.description
+            }
           </p>
         </div>
       </div>
 
+
       <div className="mt-5 space-y-2">
-        <Label
-          htmlFor="internalNote"
-        >
+        <Label htmlFor="internalNote">
           Internal Note
+
           <span className="ml-1 font-normal text-slate-400">
+            {" "}
             (optional)
           </span>
         </Label>
 
+
         <Textarea
           id="internalNote"
-          value={note}
-          onChange={(event) =>
+          value={
+            note
+          }
+          onChange={(
+            event,
+          ) =>
             setNote(
               event.target.value,
             )
@@ -145,39 +185,56 @@ export function RequestProcessingActions({
           className="min-h-24 bg-white"
         />
 
+
         <p className="text-xs leading-5 text-blue-700">
           Internal notes are visible to admins only and will never
           appear on the public tracking page.
         </p>
       </div>
 
+
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+          {
+            error
+          }
         </div>
       )}
+
 
       {success && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          {success}
+
+          {
+            success
+          }
         </div>
       )}
 
+
       <Button
         type="button"
-        disabled={pending}
-        onClick={handleAdvance}
+        disabled={
+          pending
+        }
+        onClick={
+          handleAdvance
+        }
         className="mt-5 w-full rounded-xl bg-blue-600 hover:bg-blue-700"
       >
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
             Updating...
           </>
         ) : (
           <>
-            {action.label}
+            {
+              action.label
+            }
+
             <ArrowRight className="ml-2 h-4 w-4" />
           </>
         )}
