@@ -10,7 +10,7 @@ import Link from "next/link";
 
 import {
   Menu,
-  Search,
+  Package,
 } from "lucide-react";
 
 import {
@@ -31,28 +31,48 @@ import type {
 } from "@/lib/validation/system-settings";
 
 
+// =========================================================
+// NAVIGATION
+// =========================================================
+
 const navigation = [
   {
-    label: "Home",
-    href: "/",
+    label:
+      "Home",
+
+    href:
+      "/",
   },
 
   {
-    label: "Services",
-    href: "/services",
+    label:
+      "Services",
+
+    href:
+      "/services",
   },
 
   {
-    label: "Track Request",
-    href: "/track",
+    label:
+      "Track Request",
+
+    href:
+      "/track",
   },
 
   {
-    label: "Contact",
-    href: "/contact",
+    label:
+      "Contact",
+
+    href:
+      "/contact",
   },
 ];
 
+
+// =========================================================
+// PUBLIC HEADER
+// =========================================================
 
 export function PublicHeader() {
   const [
@@ -70,7 +90,7 @@ export function PublicHeader() {
         false;
 
 
-      async function loadCompanyName() {
+      async function loadSettings() {
         try {
           const response =
             await fetch(
@@ -105,15 +125,19 @@ export function PublicHeader() {
           setCompanyName(
             result.settings
               .company
-              .shortName,
+              .shortName ||
+              result.settings
+                .company
+                .name ||
+              "Seekers Connect 247",
           );
         } catch {
-          // Keep the safe display fallback.
+          // Keep safe fallback.
         }
       }
 
 
-      loadCompanyName();
+      loadSettings();
 
 
       return () => {
@@ -128,39 +152,43 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-
-        {/* BRAND */}
+        {/* ===============================================
+            BRAND
+        =============================================== */}
 
         <Link
           href="/"
-          className="flex items-center gap-3"
+          className="flex min-w-0 items-center gap-3"
         >
-          <div className="relative h-11 w-11 overflow-hidden rounded-xl border bg-white">
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <Image
               src="/seekersconnect-logo.jpg"
-              alt={companyName}
+              alt={`${companyName} logo`}
               fill
-              className="object-contain p-1"
               priority
+              className="object-contain p-1"
             />
           </div>
 
 
-          <div className="hidden sm:block">
-            <p className="text-[15px] font-semibold leading-tight text-slate-950">
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-[15px] font-semibold leading-tight text-slate-950">
               {
                 companyName
               }
             </p>
 
+
             <p className="mt-0.5 text-xs text-slate-500">
-              Academic Request Services
+              Errands • Delivery • Documents
             </p>
           </div>
         </Link>
 
 
-        {/* DESKTOP NAVIGATION */}
+        {/* ===============================================
+            DESKTOP NAVIGATION
+        =============================================== */}
 
         <nav className="hidden items-center gap-1 lg:flex">
           {navigation.map(
@@ -185,19 +213,11 @@ export function PublicHeader() {
         </nav>
 
 
-        {/* DESKTOP ACTIONS */}
+        {/* ===============================================
+            DESKTOP ACTIONS
+        =============================================== */}
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-xl"
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-
-
           <Link
             href="/track"
             className={buttonVariants({
@@ -205,7 +225,7 @@ export function PublicHeader() {
                 "outline",
 
               className:
-                "rounded-xl",
+                "rounded-xl bg-white",
             })}
           >
             Track Request
@@ -219,12 +239,16 @@ export function PublicHeader() {
                 "rounded-xl bg-blue-600 px-5 text-white hover:bg-blue-700",
             })}
           >
-            Start a Request
+            <Package className="mr-2 h-4 w-4" />
+
+            Request a Service
           </Link>
         </div>
 
 
-        {/* MOBILE */}
+        {/* ===============================================
+            MOBILE MENU
+        =============================================== */}
 
         <div className="lg:hidden">
           <Sheet>
@@ -252,37 +276,73 @@ export function PublicHeader() {
               </SheetHeader>
 
 
-              <div className="mt-8 flex flex-col gap-2">
-                {navigation.map(
-                  (
-                    item,
-                  ) => (
-                    <Link
-                      key={
-                        item.href
-                      }
-                      href={
-                        item.href
-                      }
-                      className="rounded-xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                    >
-                      {
-                        item.label
-                      }
-                    </Link>
-                  ),
-                )}
+              <div className="mt-8">
+                <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Package className="h-5 w-5" />
+                  </div>
 
 
-                <Link
-                  href="/request"
-                  className={buttonVariants({
-                    className:
-                      "mt-4 rounded-xl bg-blue-600 hover:bg-blue-700",
-                  })}
-                >
-                  Start a Request
-                </Link>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Need something handled?
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Errands, shopping, documents & delivery
+                    </p>
+                  </div>
+                </div>
+
+
+                <div className="flex flex-col gap-2">
+                  {navigation.map(
+                    (
+                      item,
+                    ) => (
+                      <Link
+                        key={
+                          item.href
+                        }
+                        href={
+                          item.href
+                        }
+                        className="rounded-xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      >
+                        {
+                          item.label
+                        }
+                      </Link>
+                    ),
+                  )}
+                </div>
+
+
+                <div className="mt-6 grid gap-3">
+                  <Link
+                    href="/request"
+                    className={buttonVariants({
+                      className:
+                        "w-full rounded-xl bg-blue-600 text-white hover:bg-blue-700",
+                    })}
+                  >
+                    Request a Service
+                  </Link>
+
+
+                  <Link
+                    href="/track"
+                    className={buttonVariants({
+                      variant:
+                        "outline",
+
+                      className:
+                        "w-full rounded-xl",
+                    })}
+                  >
+                    Track Request
+                  </Link>
+                </div>
               </div>
             </SheetContent>
           </Sheet>
