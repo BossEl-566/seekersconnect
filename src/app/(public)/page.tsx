@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import {
   ArrowRight,
+  BookOpen,
   Building2,
   Check,
   CheckCircle2,
@@ -10,23 +11,29 @@ import {
   FileCheck2,
   FileText,
   Headphones,
+  Languages,
   MapPin,
   MessageCircle,
+  Package,
   PackageCheck,
   Search,
-  Languages,
   ShieldCheck,
+  ShoppingBasket,
   Sparkles,
   Upload,
 } from "lucide-react";
+
+import {
+  Badge,
+} from "@/components/ui/badge";
 
 import {
   buttonVariants,
 } from "@/components/ui/button";
 
 import {
-  Badge,
-} from "@/components/ui/badge";
+  UniversityLogo,
+} from "@/components/public/university-logo";
 
 import {
   getSystemSettings,
@@ -37,13 +44,88 @@ import {
 } from "@/lib/catalog/public-universities";
 
 import {
-  UniversityLogo,
-} from "@/components/public/university-logo";
-
-import {
   getPublicServiceCatalog,
 } from "@/lib/catalog/public-service-catalog";
 
+
+// =========================================================
+// PRIMARY SERVICES
+// =========================================================
+
+const primaryServices = [
+  {
+    title:
+      "Run an Errand",
+
+    description:
+      "Need something handled on your behalf? Give us the task, location and instructions and our team will take care of it.",
+
+    icon:
+      Package,
+
+    features: [
+      "Pickup & drop-off",
+      "Queue on your behalf",
+      "Submit or collect items",
+    ],
+  },
+
+  {
+    title:
+      "Pickup & Delivery",
+
+    description:
+      "Send documents, books, packages and other permitted items from one location to another.",
+
+    icon:
+      PackageCheck,
+
+    features: [
+      "Document delivery",
+      "Book & parcel delivery",
+      "Recipient delivery",
+    ],
+  },
+
+  {
+    title:
+      "Document Services",
+
+    description:
+      "Let us submit, collect, process or deliver documents from universities, offices and organizations.",
+
+    icon:
+      FileText,
+
+    features: [
+      "Academic documents",
+      "Document collection",
+      "Document submission",
+    ],
+  },
+
+  {
+    title:
+      "Shop For Me",
+
+    description:
+      "Send us your shopping list and let us purchase and deliver the items you need.",
+
+    icon:
+      ShoppingBasket,
+
+    features: [
+      "Groceries",
+      "Books",
+      "Stationery",
+    ],
+  },
+];
+
+
+// =========================================================
+// HOW IT WORKS
+// =========================================================
 
 const steps = [
   {
@@ -51,13 +133,13 @@ const steps = [
       "01",
 
     title:
-      "Choose your university",
+      "Choose what you need",
 
     description:
-      "Select your institution and the academic document you want us to process.",
+      "Select an errand, delivery, shopping or document service and tell us what you need.",
 
     icon:
-      Building2,
+      Package,
   },
 
   {
@@ -65,10 +147,10 @@ const steps = [
       "02",
 
     title:
-      "Complete your request",
+      "Provide the details",
 
     description:
-      "Provide the required academic, applicant and delivery information.",
+      "Add locations, contacts, shopping lists, document information and any special instructions.",
 
     icon:
       FileText,
@@ -79,7 +161,7 @@ const steps = [
       "03",
 
     title:
-      "Submit payment proof",
+      "Confirm payment",
 
     description:
       "Follow the payment instructions and securely upload your proof of payment.",
@@ -93,10 +175,10 @@ const steps = [
       "04",
 
     title:
-      "We process it",
+      "We handle it",
 
     description:
-      "Our team verifies your request and handles the university processing.",
+      "Our team reviews the request and carries out the errand, shopping, document or delivery workflow.",
 
     icon:
       FileCheck2,
@@ -110,7 +192,7 @@ const steps = [
       "Track & receive",
 
     description:
-      "Follow every stage and receive your scanned or physically delivered document.",
+      "Use your secure tracking details to follow progress until your request is completed.",
 
     icon:
       PackageCheck,
@@ -118,7 +200,9 @@ const steps = [
 ];
 
 
-
+// =========================================================
+// TRACKING PREVIEW
+// =========================================================
 
 const trackingPreview = [
   {
@@ -134,7 +218,7 @@ const trackingPreview = [
 
   {
     label:
-      "University processing",
+      "Request processing",
 
     status:
       "In progress",
@@ -145,7 +229,7 @@ const trackingPreview = [
 
   {
     label:
-      "Document ready",
+      "Pickup / service",
 
     status:
       "Pending",
@@ -156,7 +240,7 @@ const trackingPreview = [
 
   {
     label:
-      "EMS delivery",
+      "Delivery / completion",
 
     status:
       "Pending",
@@ -167,17 +251,21 @@ const trackingPreview = [
 ] as const;
 
 
+// =========================================================
+// HOME PAGE
+// =========================================================
+
 export default async function HomePage() {
   const [
-  settings,
-  universities,
-  serviceCatalog,
-] =
-  await Promise.all([
-    getSystemSettings(),
-    getPublicUniversities(),
-    getPublicServiceCatalog(),
-  ]);
+    settings,
+    loadedUniversities,
+    serviceCatalog,
+  ] =
+    await Promise.all([
+      getSystemSettings(),
+      getPublicUniversities(),
+      getPublicServiceCatalog(),
+    ]);
 
 
   const {
@@ -185,6 +273,39 @@ export default async function HomePage() {
     support,
   } =
     settings;
+
+
+  // Safety filter:
+  // SC247 is our internal general-services provider,
+  // not a university that should be displayed publicly.
+  const universities =
+    loadedUniversities.filter(
+      (
+        university,
+      ) =>
+        university.code !==
+        "SC247",
+    );
+
+
+  const generalProvider =
+    serviceCatalog.find(
+      (
+        provider,
+      ) =>
+        provider.code ===
+        "SC247",
+    );
+
+
+  const academicCatalog =
+    serviceCatalog.filter(
+      (
+        provider,
+      ) =>
+        provider.code !==
+        "SC247",
+    );
 
 
   const whatsappDigits =
@@ -216,107 +337,109 @@ export default async function HomePage() {
         ", ",
       );
 
-      const allServices =
-  serviceCatalog.flatMap(
-    (
-      university,
-    ) =>
-      university.services.map(
-        (
-          service,
-        ) => ({
-          ...service,
 
-          universityCode:
-            university.code,
+  // =======================================================
+  // DYNAMIC ACADEMIC SERVICE HIGHLIGHTS
+  // =======================================================
 
-          universityName:
-            university.name,
-        }),
-      ),
-  );
+  const allAcademicServices =
+    academicCatalog.flatMap(
+      (
+        university,
+      ) =>
+        university.services.map(
+          (
+            service,
+          ) => ({
+            ...service,
 
-
-const serviceGroups =
-  new Map<
-    string,
-    {
-      name:
-        string;
-
-      category:
-        string;
-
-      description:
-        string;
-
-      universityCodes:
-        string[];
-    }
-  >();
-
-
-for (
-  const service of
-    allServices
-) {
-  const key =
-    service.category
-      .trim()
-      .toLowerCase();
-
-
-  const existing =
-    serviceGroups.get(
-      key,
+            universityCode:
+              university.code,
+          }),
+        ),
     );
 
 
-  if (
-    existing
+  const serviceGroups =
+    new Map<
+      string,
+      {
+        name:
+          string;
+
+        category:
+          string;
+
+        description:
+          string;
+
+        universityCodes:
+          string[];
+      }
+    >();
+
+
+  for (
+    const service of
+      allAcademicServices
   ) {
-    if (
-      !existing.universityCodes.includes(
-        service.universityCode,
-      )
-    ) {
-      existing.universityCodes.push(
-        service.universityCode,
+    const key =
+      `${service.category}:${service.name}`
+        .trim()
+        .toLowerCase();
+
+
+    const existing =
+      serviceGroups.get(
+        key,
       );
+
+
+    if (
+      existing
+    ) {
+      if (
+        !existing.universityCodes.includes(
+          service.universityCode,
+        )
+      ) {
+        existing.universityCodes.push(
+          service.universityCode,
+        );
+      }
+
+      continue;
     }
 
-    continue;
+
+    serviceGroups.set(
+      key,
+      {
+        name:
+          service.name,
+
+        category:
+          service.category,
+
+        description:
+          service.description ||
+          "Academic document service available from supported institutions.",
+
+        universityCodes: [
+          service.universityCode,
+        ],
+      },
+    );
   }
 
 
-  serviceGroups.set(
-    key,
-    {
-      name:
-        service.name,
-
-      category:
-        service.category,
-
-      description:
-        service.description ||
-        "Academic document request service available from supported institutions.",
-
-      universityCodes: [
-        service.universityCode,
-      ],
-    },
-  );
-}
-
-
-const serviceHighlights =
-  Array.from(
-    serviceGroups.values(),
-  ).slice(
-    0,
-    4,
-  );
+  const serviceHighlights =
+    Array.from(
+      serviceGroups.values(),
+    ).slice(
+      0,
+      4,
+    );
 
 
   return (
@@ -325,19 +448,18 @@ const serviceHighlights =
           HERO
       =================================================== */}
 
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-blue-100/70 blur-3xl" />
+      <section className="relative overflow-hidden bg-white">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-0 h-[560px] w-[960px] -translate-x-1/2 rounded-full bg-blue-100/60 blur-3xl" />
 
-          <div className="absolute -left-40 top-72 h-72 w-72 rounded-full bg-indigo-100/60 blur-3xl" />
+          <div className="absolute -left-48 top-72 h-80 w-80 rounded-full bg-indigo-100/60 blur-3xl" />
 
-          <div className="absolute -right-40 top-40 h-80 w-80 rounded-full bg-sky-100/60 blur-3xl" />
+          <div className="absolute -right-48 top-40 h-96 w-96 rounded-full bg-sky-100/70 blur-3xl" />
         </div>
 
 
-        <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-28">
-
-          {/* HERO COPY */}
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[0.96fr_1.04fr] lg:px-8 lg:py-28">
+          {/* COPY */}
 
           <div>
             <Badge
@@ -346,12 +468,13 @@ const serviceHighlights =
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
 
-              Academic document requests made simpler
+              Errands, deliveries & document services
             </Badge>
 
 
-            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.05]">
-              Your academic documents,
+            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.04]">
+              Your errands and deliveries,
+
               <span className="text-blue-600">
                 {" "}
                 handled for you.
@@ -360,9 +483,10 @@ const serviceHighlights =
 
 
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              Request transcripts, attestation letters, English
-              proficiency letters and other supported academic
-              documents without unnecessary travel or uncertainty.
+              Request errands, pickups, deliveries, document services
+              and shopping assistance from one place. From groceries
+              and books to stationery and academic documents, tell us
+              what you need and we will help you handle it.
             </p>
 
 
@@ -377,7 +501,7 @@ const serviceHighlights =
                     "h-12 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-700",
                 })}
               >
-                Start a Request
+                Request a Service
 
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -414,7 +538,7 @@ const serviceHighlights =
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
 
-                Request tracking
+                Secure request tracking
               </div>
 
 
@@ -426,308 +550,168 @@ const serviceHighlights =
             </div>
 
 
-            {/* SMALL TRUST PANEL */}
+            <div className="mt-10 flex flex-wrap gap-3">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                <p className="text-xl font-semibold text-slate-950">
+                  {
+                    generalProvider
+                      ?.services
+                      .length ??
+                    4
+                  }
+                </p>
 
-            <div className="mt-10 max-w-xl rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  {universities
-                    .slice(
-                      0,
-                      4,
-                    )
-                    .map(
-                      (
-                        university,
-                      ) => (
-                        <UniversityLogo
-                          key={
-                            university.id
-                          }
-                          code={
-                            university.code
-                          }
-                          name={
-                            university.name
-                          }
-                          className="h-10 w-10 rounded-full shadow-sm"
-                          imageClassName="p-1.5"
-                        />
-                      ),
-                    )}
-                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  General service types
+                </p>
+              </div>
 
 
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {
-                      universities.length
-                    }{" "}
-                    supported universit
-                    {universities.length ===
-                    1
-                      ? "y"
-                      : "ies"}
-                  </p>
+              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                <p className="text-xl font-semibold text-slate-950">
+                  {
+                    universities.length
+                  }
+                </p>
 
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Request services depend on the selected institution.
-                  </p>
-                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Supported universities
+                </p>
+              </div>
+
+
+              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+                <p className="text-xl font-semibold text-slate-950">
+                  1
+                </p>
+
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Place to manage it all
+                </p>
               </div>
             </div>
           </div>
 
 
-          {/* ===================================================
-              VISUAL / REQUEST PREVIEW
-          =================================================== */}
+          {/* =================================================
+              HERO IMAGE
+          ================================================= */}
 
-          <div className="relative mx-auto w-full max-w-xl">
-            <div className="absolute -inset-6 -z-10 rounded-[44px] bg-blue-100/70 blur-2xl" />
-
-
-            {/* UNIVERSITY LOGO IMAGE */}
-
-            <div className="mb-5 overflow-hidden rounded-[28px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-5 shadow-lg shadow-slate-200/40">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
-                    Supported Institutions
-                  </p>
-
-                  <h2 className="mt-2 text-lg font-semibold text-slate-950">
-                    Academic requests across leading universities
-                  </h2>
-                </div>
+          <div className="relative mx-auto w-full max-w-2xl">
+            <div className="absolute -inset-6 -z-10 rounded-[48px] bg-blue-100/80 blur-3xl" />
 
 
-                <div className="hidden rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white sm:block">
-                  Ghana
-                </div>
-              </div>
-
-
-              <div className="relative mt-5 aspect-[16/6] overflow-hidden rounded-2xl border border-slate-100 bg-white">
+            <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-slate-950 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
+              <div className="relative aspect-[4/3] sm:aspect-[5/4]">
                 <Image
-                  src="/universities-logos-together.png"
-                  alt="Supported university logos"
+                  src="/pick-up.jpg"
+                  alt="Seekers Connect pickup and errand service"
                   fill
                   priority
-                  sizes="(max-width: 1024px) 100vw, 520px"
-                  className="object-contain p-4"
+                  sizes="(max-width: 1024px) 100vw, 600px"
+                  className="object-cover"
                 />
+
+
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/10 to-transparent" />
+
+
+                <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
+                  <div className="rounded-full border border-white/20 bg-slate-950/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
+                    Seekers Connect 247
+                  </div>
+
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white backdrop-blur">
+                    <Package className="h-4 w-4" />
+                  </div>
+                </div>
+
+
+                <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
+                    On-demand assistance
+                  </p>
+
+
+                  <h2 className="mt-2 max-w-md text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                    Tell us what needs to be done.
+                  </h2>
+
+
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-200">
+                    From a quick pickup to shopping, documents or
+                    delivery, submit the request and let our team
+                    handle the rest.
+                  </p>
+                </div>
               </div>
             </div>
 
 
-            {/* REQUEST PREVIEW */}
+            {/* FLOATING SERVICES */}
 
-            <div className="rounded-[28px] border border-white/80 bg-white p-3 shadow-[0_25px_80px_rgba(15,23,42,0.12)]">
-              <div className="rounded-[22px] border border-slate-200 bg-[#f8fafc] p-5 sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-blue-600">
-                      Request overview
-                    </p>
+            <div className="relative -mt-7 mx-4 grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-xl sm:mx-8 sm:grid-cols-4">
+              {[
+                {
+                  label:
+                    "Errands",
 
-                    <h2 className="mt-2 text-xl font-semibold text-slate-950">
-                      Start your document request
-                    </h2>
-                  </div>
+                  icon:
+                    Package,
+                },
 
+                {
+                  label:
+                    "Delivery",
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                </div>
+                  icon:
+                    PackageCheck,
+                },
 
+                {
+                  label:
+                    "Documents",
 
-                <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-medium text-slate-500">
-                    UNIVERSITY
-                  </p>
+                  icon:
+                    FileText,
+                },
 
+                {
+                  label:
+                    "Shopping",
 
-                  <div className="mt-3 flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      {universities[0] ? (
-                        <UniversityLogo
-                          code={
-                            universities[0]
-                              .code
-                          }
-                          name={
-                            universities[0]
-                              .name
-                          }
-                          className="h-11 w-11 shrink-0 rounded-xl"
-                          imageClassName="p-1.5"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                          <Building2 className="h-5 w-5" />
-                        </div>
-                      )}
+                  icon:
+                    ShoppingBasket,
+                },
+              ].map(
+                (
+                  item,
+                ) => {
+                  const Icon =
+                    item.icon;
 
 
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold">
-                          Select institution
-                        </p>
-
-                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-                          {universityCodes ||
-                            "Supported universities"}
-                        </p>
+                  return (
+                    <div
+                      key={
+                        item.label
+                      }
+                      className="rounded-2xl bg-slate-50 px-3 py-4 text-center"
+                    >
+                      <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <Icon className="h-4 w-4" />
                       </div>
-                    </div>
 
-
-                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
-                  </div>
-                </div>
-
-
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-medium text-slate-500">
-                    POPULAR SERVICES
-                  </p>
-
-
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {[
-                      "Transcript",
-                      "Attestation",
-                      "Proficiency",
-                    ].map(
-                      (
-                        service,
-                      ) => (
-                        <div
-                          key={
-                            service
-                          }
-                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-medium text-slate-700"
-                        >
-                          {
-                            service
-                          }
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-
-                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-blue-600 p-4 text-white">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                    <Clock3 className="h-5 w-5" />
-                  </div>
-
-
-                  <div>
-                    <p className="text-sm font-semibold">
-                      Track every important stage
-                    </p>
-
-                    <p className="mt-0.5 text-xs leading-5 text-blue-100">
-                      From payment verification through university
-                      processing and delivery.
-                    </p>
-                  </div>
-                </div>
-
-
-                <div className="mt-5 flex items-center justify-between">
-                  {[
-                    {
-                      label:
-                        "Submitted",
-
-                      completed:
-                        true,
-                    },
-
-                    {
-                      label:
-                        "Payment",
-
-                      completed:
-                        true,
-                    },
-
-                    {
-                      label:
-                        "University",
-
-                      completed:
-                        false,
-                    },
-
-                    {
-                      label:
-                        "Delivery",
-
-                      completed:
-                        false,
-                    },
-                  ].map(
-                    (
-                      item,
-                      index,
-                    ) => (
-                      <div
-                        key={
+                      <p className="mt-2 text-xs font-semibold text-slate-800">
+                        {
                           item.label
                         }
-                        className="flex flex-1 items-center"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <div
-                            className={`flex h-7 w-7 items-center justify-center rounded-full ${
-                              item.completed
-                                ? "bg-blue-600 text-white"
-                                : "border border-slate-300 bg-white text-slate-400"
-                            }`}
-                          >
-                            {item.completed ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <span className="text-[10px]">
-                                {
-                                  index +
-                                  1
-                                }
-                              </span>
-                            )}
-                          </div>
-
-
-                          <span className="hidden text-[10px] text-slate-500 sm:block">
-                            {
-                              item.label
-                            }
-                          </span>
-                        </div>
-
-
-                        {index <
-                          3 && (
-                          <div
-                            className={`mb-5 h-px flex-1 ${
-                              index ===
-                              0
-                                ? "bg-blue-500"
-                                : "bg-slate-200"
-                            }`}
-                          />
-                        )}
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
+                      </p>
+                    </div>
+                  );
+                },
+              )}
             </div>
           </div>
         </div>
@@ -735,28 +719,427 @@ const serviceHighlights =
 
 
       {/* ===================================================
-          UNIVERSITIES
+          PRIMARY SERVICES
       =================================================== */}
 
-      <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
-              Supported Universities
+      <section className="border-y border-slate-200 bg-slate-50/70">
+        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <Badge
+                variant="outline"
+                className="rounded-full border-blue-200 bg-white text-blue-700"
+              >
+                What We Do
+              </Badge>
+
+
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Everyday tasks should not take over your day.
+              </h2>
+
+
+              <p className="mt-4 leading-7 text-slate-600">
+                Tell us what needs to be handled. Our service flow is
+                designed for errands, pickups, deliveries, shopping
+                and document requests.
+              </p>
+            </div>
+
+
+            <Link
+              href="/request"
+              className={buttonVariants({
+                variant:
+                  "outline",
+
+                size:
+                  "lg",
+
+                className:
+                  "rounded-xl bg-white",
+              })}
+            >
+              Start a Request
+
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
+
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            {primaryServices.map(
+              (
+                service,
+              ) => {
+                const Icon =
+                  service.icon;
+
+
+                return (
+                  <Link
+                    key={
+                      service.title
+                    }
+                    href="/request"
+                    className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/60 sm:p-7"
+                  >
+                    <div className="flex items-start justify-between gap-5">
+                      <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+                        <Icon className="h-5 w-5" />
+                      </div>
+
+
+                      <ArrowRight className="mt-2 h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600" />
+                    </div>
+
+
+                    <h3 className="mt-6 text-xl font-semibold text-slate-950">
+                      {
+                        service.title
+                      }
+                    </h3>
+
+
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                      {
+                        service.description
+                      }
+                    </p>
+
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {service.features.map(
+                        (
+                          feature,
+                        ) => (
+                          <span
+                            key={
+                              feature
+                            }
+                            className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600"
+                          >
+                            {
+                              feature
+                            }
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  </Link>
+                );
+              },
+            )}
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===================================================
+          DELIVERY FEATURE WITH SECOND IMAGE
+      =================================================== */}
+
+      <section className="overflow-hidden bg-white">
+        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-28">
+          {/* IMAGE */}
+
+          <div className="relative">
+            <div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-blue-100 blur-3xl" />
+
+
+            <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-slate-50 shadow-xl shadow-slate-200/50">
+              <div className="relative aspect-[5/4]">
+                <Image
+                  src="/delivery.png"
+                  alt="Seekers Connect delivery service"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 560px"
+                  className="object-cover"
+                />
+
+
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
+
+
+                <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-slate-950/65 p-4 text-white backdrop-blur-md sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                      <PackageCheck className="h-5 w-5" />
+                    </div>
+
+
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Pickup to destination
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-slate-300">
+                        One request. Clear delivery details.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          {/* COPY */}
+
+          <div>
+            <Badge
+              variant="outline"
+              className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+            >
+              Errands & Delivery
+            </Badge>
+
+
+            <h2 className="mt-5 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              From the pickup point to where it needs to go.
+            </h2>
+
+
+            <p className="mt-5 max-w-xl leading-7 text-slate-600">
+              Whether you need someone to collect a document, purchase
+              a book, deliver a parcel or handle a local errand,
+              Seekers Connect gives you one structured way to submit
+              the details and follow the request.
             </p>
 
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Choose the institution that holds your academic record.
+            <div className="mt-8 space-y-4">
+              {[
+                {
+                  title:
+                    "Give us the location",
+
+                  description:
+                    "Provide the pickup point, office, shop, institution or landmark.",
+
+                  icon:
+                    MapPin,
+                },
+
+                {
+                  title:
+                    "Tell us what to collect or do",
+
+                  description:
+                    "Add item information, shopping lists, document details or special instructions.",
+
+                  icon:
+                    FileText,
+                },
+
+                {
+                  title:
+                    "Track what happens next",
+
+                  description:
+                    "After payment verification, use your secure tracking details to follow progress.",
+
+                  icon:
+                    Search,
+                },
+              ].map(
+                (
+                  item,
+                ) => {
+                  const Icon =
+                    item.icon;
+
+
+                  return (
+                    <div
+                      key={
+                        item.title
+                      }
+                      className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <Icon className="h-5 w-5" />
+                      </div>
+
+
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {
+                            item.title
+                          }
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          {
+                            item.description
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+
+
+            <Link
+              href="/request"
+              className={buttonVariants({
+                size:
+                  "lg",
+
+                className:
+                  "mt-8 rounded-xl bg-blue-600 text-white hover:bg-blue-700",
+              })}
+            >
+              Send Us a Request
+
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===================================================
+          SHOP FOR ME
+      =================================================== */}
+
+      <section className="bg-slate-950 text-white">
+        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <div>
+              <Badge className="rounded-full bg-blue-500/15 text-blue-300 hover:bg-blue-500/15">
+                Shop For Me
+              </Badge>
+
+
+              <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Groceries, books and stationery — add them to the list.
+              </h2>
+
+
+              <p className="mt-4 max-w-xl leading-7 text-slate-400">
+                You do not need to browse a complicated online store.
+                Tell us what you need, add quantities and preferences,
+                and provide the delivery information.
+              </p>
+
+
+              <Link
+                href="/request"
+                className={buttonVariants({
+                  size:
+                    "lg",
+
+                  className:
+                    "mt-7 rounded-xl bg-white text-slate-950 hover:bg-slate-100",
+                })}
+              >
+                Create Shopping Request
+
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
+
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                {
+                  title:
+                    "Groceries",
+
+                  description:
+                    "Food, household products and everyday essentials.",
+
+                  icon:
+                    ShoppingBasket,
+                },
+
+                {
+                  title:
+                    "Books",
+
+                  description:
+                    "Textbooks, novels, study materials and requested titles.",
+
+                  icon:
+                    BookOpen,
+                },
+
+                {
+                  title:
+                    "Stationery",
+
+                  description:
+                    "Notebooks, pens, paper and school or office supplies.",
+
+                  icon:
+                    FileText,
+                },
+              ].map(
+                (
+                  item,
+                ) => {
+                  const Icon =
+                    item.icon;
+
+
+                  return (
+                    <div
+                      key={
+                        item.title
+                      }
+                      className="rounded-[24px] border border-white/10 bg-white/[0.05] p-6"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
+                        <Icon className="h-5 w-5" />
+                      </div>
+
+
+                      <h3 className="mt-5 text-lg font-semibold">
+                        {
+                          item.title
+                        }
+                      </h3>
+
+
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        {
+                          item.description
+                        }
+                      </p>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===================================================
+          ACADEMIC UNIVERSITIES
+      =================================================== */}
+
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
+              Academic Document Services
+            </p>
+
+
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              We also handle requests from supported universities.
             </h2>
 
 
             <p className="mt-4 text-sm leading-7 text-slate-500">
-              The institutions shown here are actively available for
-              request processing through{" "}
-              {
-                company.shortName
-              }.
+              Need a transcript, attestation, proficiency letter or
+              another supported academic document? Select your
+              institution when starting a request.
             </p>
           </div>
 
@@ -826,57 +1209,61 @@ const serviceHighlights =
             <div className="mt-10 rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
               <Building2 className="mx-auto h-8 w-8 text-slate-400" />
 
-
               <p className="mt-4 font-semibold text-slate-800">
                 No universities are currently available.
               </p>
-
-
-              <p className="mt-2 text-sm text-slate-500">
-                Please check again later or contact our support team.
-              </p>
             </div>
           )}
+
+
+          <div className="mt-8 text-center">
+            <p className="text-xs text-slate-400">
+              Currently supported:{" "}
+              {
+                universityCodes ||
+                "Contact us for current availability."
+              }
+            </p>
+          </div>
         </div>
       </section>
 
 
       {/* ===================================================
-          SERVICES
+          ACADEMIC SERVICES
       =================================================== */}
 
-      <section className="relative overflow-hidden">
-        <div className="absolute right-0 top-0 -z-10 h-96 w-96 rounded-full bg-blue-50 blur-3xl" />
+      <section className="relative overflow-hidden bg-slate-50/60">
+        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-blue-100/40 blur-3xl" />
 
 
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-
-            {/* SERVICE INTRO */}
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            {/* INTRO */}
 
             <div className="lg:sticky lg:top-28">
               <Badge
                 variant="outline"
-                className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+                className="rounded-full border-blue-200 bg-white text-blue-700"
               >
-                Our Services
+                Academic Services
               </Badge>
 
 
               <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                One place for your academic document requests.
+                Academic services when you need them.
               </h2>
 
 
               <p className="mt-4 max-w-xl leading-7 text-slate-600">
-                Available services depend on your institution and
-                programme. The request process guides you through the
-                exact information needed.
+                Academic document services remain available for
+                supported universities alongside our broader errand
+                and delivery services.
               </p>
 
 
-              <div className="mt-8 overflow-hidden rounded-[26px] border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5">
-                <div className="relative aspect-[16/7] overflow-hidden rounded-2xl bg-white">
+              <div className="mt-8 overflow-hidden rounded-[26px] border border-blue-100 bg-white p-5 shadow-sm">
+                <div className="relative aspect-[16/7] overflow-hidden rounded-2xl bg-slate-50">
                   <Image
                     src="/universities-logos-together.png"
                     alt="Universities supported by Seekers Connect"
@@ -888,8 +1275,8 @@ const serviceHighlights =
 
 
                 <p className="mt-4 text-sm leading-6 text-slate-500">
-                  Request services are configured individually for each
-                  supported university.
+                  Services are configured individually for each
+                  supported institution.
                 </p>
               </div>
 
@@ -911,119 +1298,102 @@ const serviceHighlights =
             </div>
 
 
-            {/* SERVICE CARDS */}
+            {/* CARDS */}
 
             {serviceHighlights.length >
-0 ? (
-  <div className="grid gap-4 md:grid-cols-2">
-    {serviceHighlights.map(
-      (
-        service,
-        index,
-      ) => {
-        const Icon =
-          getServiceIcon(
-            service.category,
-          );
-
-
-        return (
-          <div
-            key={
-              service.category
-            }
-            className={`group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50 ${
-              serviceHighlights.length %
-                2 !==
-                0 &&
-              index ===
-                serviceHighlights.length -
-                  1
-                ? "md:col-span-2"
-                : ""
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
-                <Icon className="h-5 w-5" />
-              </div>
-
-
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                {
-                  service
-                    .category
-                }
-              </span>
-            </div>
-
-
-            <h3 className="mt-6 text-lg font-semibold text-slate-950">
-              {
-                service.name
-              }
-            </h3>
-
-
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              {
-                service.description
-              }
-            </p>
-
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {service
-                .universityCodes
-                .slice(
-                  0,
-                  5,
-                )
-                .map(
+            0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {serviceHighlights.map(
                   (
-                    code,
-                  ) => (
-                    <span
-                      key={
-                        code
-                      }
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600"
-                    >
-                      {
-                        code
-                      }
-                    </span>
-                  ),
+                    service,
+                  ) => {
+                    const Icon =
+                      getServiceIcon(
+                        service.category,
+                      );
+
+
+                    return (
+                      <div
+                        key={`${service.category}-${service.name}`}
+                        className="group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+                            <Icon className="h-5 w-5" />
+                          </div>
+
+
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            {
+                              service.category
+                            }
+                          </span>
+                        </div>
+
+
+                        <h3 className="mt-6 text-lg font-semibold text-slate-950">
+                          {
+                            service.name
+                          }
+                        </h3>
+
+
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                          {
+                            service.description
+                          }
+                        </p>
+
+
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          {service
+                            .universityCodes
+                            .slice(
+                              0,
+                              5,
+                            )
+                            .map(
+                              (
+                                code,
+                              ) => (
+                                <span
+                                  key={
+                                    code
+                                  }
+                                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600"
+                                >
+                                  {
+                                    code
+                                  }
+                                </span>
+                              ),
+                            )}
+                        </div>
+
+
+                        <Link
+                          href="/request"
+                          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:gap-3 hover:text-blue-700"
+                        >
+                          Start request
+
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    );
+                  },
                 )}
-            </div>
+              </div>
+            ) : (
+              <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-8 text-center">
+                <FileText className="mx-auto h-7 w-7 text-slate-400" />
 
-
-            <Link
-              href="/services"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:gap-3 hover:text-blue-700"
-            >
-              View service
-
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        );
-      },
-    )}
-  </div>
-) : (
-  <div className="rounded-[26px] border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-    <FileText className="mx-auto h-7 w-7 text-slate-400" />
-
-    <p className="mt-4 font-semibold text-slate-800">
-      No services are currently available.
-    </p>
-
-    <p className="mt-2 text-sm text-slate-500">
-      Please check again later or contact our support team.
-    </p>
-  </div>
-)}
+                <p className="mt-4 font-semibold text-slate-800">
+                  No academic services are currently available.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1045,13 +1415,13 @@ const serviceHighlights =
 
 
             <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-              From request to delivery, without the guesswork.
+              From request to completion, without the guesswork.
             </h2>
 
 
             <p className="mt-4 leading-7 text-slate-400">
-              We keep the process clear so you know what has happened,
-              what is happening now and what comes next.
+              Whether it is an errand, a shopping request, document
+              processing or delivery, the process stays clear.
             </p>
           </div>
 
@@ -1112,7 +1482,7 @@ const serviceHighlights =
       =================================================== */}
 
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-        <div className="relative overflow-hidden rounded-[32px] bg-blue-600">
+        <div className="relative overflow-hidden rounded-[34px] bg-blue-600">
           <div className="absolute -right-16 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
 
           <div className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-indigo-900/20 blur-3xl" />
@@ -1131,9 +1501,9 @@ const serviceHighlights =
 
 
               <p className="mt-4 max-w-xl leading-7 text-blue-100">
-                Use your secure tracking details to see the latest
-                progress of your request, from payment verification to
-                document processing and delivery.
+                Use your secure tracking details to follow your
+                request from payment verification through processing,
+                pickup, delivery or completion.
               </p>
 
 
@@ -1204,7 +1574,6 @@ const serviceHighlights =
                           }`}
                         />
 
-
                         <span className="text-sm text-white">
                           {
                             item.label
@@ -1239,9 +1608,16 @@ const serviceHighlights =
               Need assistance?
             </p>
 
+
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Our support team is here to help.
             </h2>
+
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+              Ask about a new request, payment verification, an errand,
+              delivery, academic document or an existing tracking issue.
+            </p>
           </div>
 
 
@@ -1267,8 +1643,8 @@ const serviceHighlights =
                   </h3>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Need help completing a request? Reach our support
-                    team directly on WhatsApp.
+                    Need help before submitting a request? Talk to our
+                    support team directly.
                   </p>
 
                   <p className="mt-4 text-sm font-semibold text-emerald-700">
@@ -1305,7 +1681,8 @@ const serviceHighlights =
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     Our team can assist with request information,
-                    payment verification and delivery enquiries.
+                    payment verification, shopping, document and
+                    delivery enquiries.
                   </p>
 
 
@@ -1325,6 +1702,11 @@ const serviceHighlights =
     </>
   );
 }
+
+
+// =========================================================
+// ACADEMIC SERVICE ICON
+// =========================================================
 
 function getServiceIcon(
   category:

@@ -110,33 +110,20 @@ export async function getPublicUniversities():
     );
 
 
-  return (
-    universitiesResult.data ??
-    []
+ return (universitiesResult.data ?? [])
+  .filter(
+    (university) =>
+      university.code !==
+        "SC247" &&
+      universityIdsWithServices.has(
+        university.id,
+      ),
   )
-    .filter(
-      (
-        university,
-      ) =>
-        universityIdsWithServices.has(
-          university.id,
-        ),
-    )
-    .map(
-      (
-        university,
-      ) => ({
-        id:
-          university.id,
-
-        code:
-          university.code,
-
-        name:
-          university.name,
-
-        location:
-          university.location,
-      }),
-    );
+  .map((university) => ({
+    id: university.id,
+    code: university.code,
+    name: university.name,
+    location:
+      university.location,
+  }));
 }

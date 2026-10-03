@@ -52,10 +52,10 @@ const STORAGE_KEY =
 
 const steps = [
   {
-    number: 1,
-    label: "University",
-    icon: Building2,
-  },
+  number: 1,
+  label: "Service Area",
+  icon: Package,
+},
 
   {
     number: 2,
@@ -622,8 +622,9 @@ export function RequestWizard() {
   // =======================================================
 
   const availableUniversities =
-    useMemo(
-      () =>
+  useMemo(
+    () => {
+      const items =
         (
           catalog
             ?.universities ??
@@ -636,11 +637,42 @@ export function RequestWizard() {
               .services
               .length >
             0,
-        ),
-      [
-        catalog,
-      ],
-    );
+        );
+
+
+      return [
+        ...items,
+      ].sort(
+        (
+          first,
+          second,
+        ) => {
+          if (
+            first.code ===
+            "SC247"
+          ) {
+            return -1;
+          }
+
+
+          if (
+            second.code ===
+            "SC247"
+          ) {
+            return 1;
+          }
+
+
+          return first.name.localeCompare(
+            second.name,
+          );
+        },
+      );
+    },
+    [
+      catalog,
+    ],
+  );
 
 
   const selectedUniversity =
@@ -825,22 +857,50 @@ export function RequestWizard() {
   // =======================================================
 
   function selectService(
-    serviceId:
-      string,
-  ) {
-    setDraft(
+  serviceId:
+    string,
+) {
+  const service =
+    availableServices.find(
       (
-        current,
-      ) => ({
-        ...current,
-
+        item,
+      ) =>
+        item.id ===
         serviceId,
-
-        responses:
-          {},
-      }),
     );
-  }
+
+
+  const isGeneralService =
+    selectedUniversity
+      ?.code ===
+    "SC247";
+
+
+  setDraft(
+    (
+      current,
+    ) => ({
+      ...current,
+
+      serviceId,
+
+      responses:
+        {},
+
+      delivery: {
+        ...current.delivery,
+
+        itemType:
+          isGeneralService
+            ? service
+                ?.shortName ||
+              service?.name ||
+              "Service Request"
+            : "Academic Document",
+      },
+    }),
+  );
+}
 
 
   // =======================================================
@@ -1436,20 +1496,24 @@ export function RequestWizard() {
             {currentStep ===
               2 && (
               <ServiceStep
-                universityName={
-                  selectedUniversity
-                    ?.name
-                }
-                services={
-                  availableServices
-                }
-                selectedId={
-                  draft.serviceId
-                }
-                onSelect={
-                  selectService
-                }
-              />
+  providerCode={
+    selectedUniversity
+      ?.code
+  }
+  universityName={
+    selectedUniversity
+      ?.name
+  }
+  services={
+    availableServices
+  }
+  selectedId={
+    draft.serviceId
+  }
+  onSelect={
+    selectService
+  }
+/>
             )}
 
 
@@ -1518,21 +1582,25 @@ export function RequestWizard() {
             {currentStep ===
               6 && (
               <ReviewStep
-                draft={
-                  draft
-                }
-                universityName={
-                  selectedUniversity
-                    ?.name
-                }
-                serviceName={
-                  selectedService
-                    ?.name
-                }
-                dynamicFields={
-                  dynamicFields
-                }
-              />
+  draft={
+    draft
+  }
+  providerCode={
+    selectedUniversity
+      ?.code
+  }
+  universityName={
+    selectedUniversity
+      ?.name
+  }
+  serviceName={
+    selectedService
+      ?.name
+  }
+  dynamicFields={
+    dynamicFields
+  }
+/>
             )}
 
 
@@ -1707,120 +1775,211 @@ function UniversityStep({
         string,
     ) => void;
 }) {
+  const generalProvider =
+    universities.find(
+      (
+        university,
+      ) =>
+        university.code ===
+        "SC247",
+    );
+
+
+  const academicUniversities =
+    universities.filter(
+      (
+        university,
+      ) =>
+        university.code !==
+        "SC247",
+    );
+
+
   return (
     <>
       <StepHeading
-        eyebrow="University"
-        title="Which university are you requesting from?"
-        description="Select the institution that holds the academic record you want us to process."
+        eyebrow="Service Area"
+        title="What do you need help with?"
+        description="Choose an errand, delivery or shopping service, or select your university for an academic document request."
       />
 
 
-      {universities.length ===
-      0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-          <Building2 className="mx-auto h-7 w-7 text-slate-400" />
+      {/* ================================================
+          GENERAL SERVICES
+      ================================================ */}
 
-          <p className="mt-4 font-semibold text-slate-800">
-            No request services are currently available.
+      {generalProvider && (
+        <div className="mt-8">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
+            Errands & Delivery
           </p>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Please contact Seekers Connect 247 for assistance.
+
+          <button
+            type="button"
+            onClick={() =>
+              onSelect(
+                generalProvider.id,
+              )
+            }
+            className={`relative w-full overflow-hidden rounded-[24px] border p-6 text-left transition ${
+              selectedId ===
+              generalProvider.id
+                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-slate-50 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
+            }`}
+          >
+            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-blue-100/70 blur-3xl" />
+
+
+            {selectedId ===
+              generalProvider.id && (
+              <div className="absolute right-5 top-5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white">
+                <Check className="h-4 w-4" />
+              </div>
+            )}
+
+
+            <div className="relative">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200">
+                <Package className="h-5 w-5" />
+              </div>
+
+
+              <h3 className="mt-5 text-xl font-semibold text-slate-950">
+                Errands, Delivery & Shopping
+              </h3>
+
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Let Seekers Connect run errands, pick up and deliver
+                items, handle document errands or shop on your behalf.
+              </p>
+
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {generalProvider.services.map(
+                  (
+                    service,
+                  ) => (
+                    <span
+                      key={
+                        service.id
+                      }
+                      className="rounded-full border border-blue-100 bg-white px-3 py-1.5 text-xs font-medium text-blue-700"
+                    >
+                      {
+                        service.shortName
+                      }
+                    </span>
+                  ),
+                )}
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+
+
+      {/* ================================================
+          ACADEMIC SERVICES
+      ================================================ */}
+
+      <div className="mt-8 border-t border-slate-200 pt-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            Academic Documents
+          </p>
+
+          <h3 className="mt-2 font-semibold text-slate-900">
+            Request from a university
+          </h3>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Select the institution that holds the academic record or
+            document you need.
           </p>
         </div>
-      ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {universities.map(
-            (
-              university,
-            ) => {
-              const selected =
-                selectedId ===
-                university.id;
 
 
-              return (
-                <button
-  key={
-    university.id
-  }
-  type="button"
-  onClick={() =>
-    onSelect(
-      university.id,
-    )
-  }
-  className={`group relative overflow-hidden rounded-[24px] border text-left transition ${
-    selected
-      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
-  }`}
->
-  <div
-    className={`flex min-h-32 items-center justify-center border-b ${
-      selected
-        ? "border-blue-100 bg-blue-50"
-        : "border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/40"
-    }`}
-  >
-    <UniversityLogo
-      code={
-        university.code
-      }
-      name={
-        university.name
-      }
-      className="h-20 w-20 shadow-sm transition duration-300 group-hover:scale-105"
-    />
+        {academicUniversities.length ===
+        0 ? (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+            <Building2 className="mx-auto h-6 w-6 text-slate-400" />
+
+            <p className="mt-3 text-sm text-slate-500">
+              No academic institutions are currently available.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {academicUniversities.map(
+              (
+                university,
+              ) => {
+                const selected =
+                  selectedId ===
+                  university.id;
 
 
-    {selected && (
-      <div className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-        <Check className="h-4 w-4" />
+                return (
+                  <button
+                    key={
+                      university.id
+                    }
+                    type="button"
+                    onClick={() =>
+                      onSelect(
+                        university.id,
+                      )
+                    }
+                    className={`relative rounded-2xl border p-5 text-left transition ${
+                      selected
+                        ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                        : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
+                    }`}
+                  >
+                    {selected && (
+                      <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+                        <Check className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+
+
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+
+
+                    <h3 className="mt-5 text-lg font-semibold text-slate-950">
+                      {
+                        university.code
+                      }
+                    </h3>
+
+
+                    <p className="mt-1 pr-6 text-sm leading-6 text-slate-500">
+                      {
+                        university.name
+                      }
+                    </p>
+
+
+                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                      <MapPin className="h-3.5 w-3.5" />
+
+                      {
+                        university.location ||
+                        "Ghana"
+                      }
+                    </div>
+                  </button>
+                );
+              },
+            )}
+          </div>
+        )}
       </div>
-    )}
-  </div>
-
-
-  <div className="p-5">
-    <div className="flex items-center justify-between gap-3">
-      <h3 className="text-lg font-semibold text-slate-950">
-        {
-          university.code
-        }
-      </h3>
-
-      {selected && (
-        <span className="text-xs font-semibold text-blue-600">
-          Selected
-        </span>
-      )}
-    </div>
-
-
-    <p className="mt-2 text-sm leading-6 text-slate-500">
-      {
-        university.name
-      }
-    </p>
-
-
-    <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-      <MapPin className="h-3.5 w-3.5" />
-
-      {
-        university.location ||
-        "Ghana"
-      }
-    </div>
-  </div>
-</button>
-              );
-            },
-          )}
-        </div>
-      )}
     </>
   );
 }
@@ -1831,11 +1990,15 @@ function UniversityStep({
 // =========================================================
 
 function ServiceStep({
+  providerCode,
   universityName,
   services,
   selectedId,
   onSelect,
 }: {
+  providerCode?:
+    string;
+
   universityName?:
     string;
 
@@ -1851,16 +2014,29 @@ function ServiceStep({
         string,
     ) => void;
 }) {
+  const isGeneralServices =
+    providerCode ===
+    "SC247";
+
+
   return (
     <>
       <StepHeading
         eyebrow="Service"
-        title="What document do you need?"
-        description={`Choose the academic request you want us to process${
-          universityName
-            ? ` for ${universityName}`
-            : ""
-        }.`}
+        title={
+          isGeneralServices
+            ? "What would you like us to handle?"
+            : "What academic document do you need?"
+        }
+        description={
+          isGeneralServices
+            ? "Choose the errand, delivery, document or shopping service you need."
+            : `Choose the academic request you want us to process${
+                universityName
+                  ? ` for ${universityName}`
+                  : ""
+              }.`
+        }
       />
 
 
@@ -1870,11 +2046,11 @@ function ServiceStep({
           <FileText className="mx-auto h-7 w-7 text-slate-400" />
 
           <p className="mt-4 font-semibold text-slate-800">
-            No active services are available for this university.
+            No active services are currently available.
           </p>
         </div>
       ) : (
-        <div className="mt-8 space-y-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {services.map(
             (
               service,
@@ -1895,49 +2071,53 @@ function ServiceStep({
                       service.id,
                     )
                   }
-                  className={`flex w-full items-start gap-4 rounded-2xl border p-5 text-left transition ${
+                  className={`flex min-h-[150px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                      : "border-slate-200 hover:border-blue-200 hover:shadow-sm"
+                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                   }`}
                 >
-                  <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                      selected
-                        ? "bg-blue-600 text-white"
-                        : "bg-blue-50 text-blue-600"
-                    }`}
-                  >
-                    <FileText className="h-5 w-5" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                        selected
+                          ? "bg-blue-600 text-white"
+                          : "bg-blue-50 text-blue-600"
+                      }`}
+                    >
+                      {isGeneralServices ? (
+                        <Package className="h-5 w-5" />
+                      ) : (
+                        <FileText className="h-5 w-5" />
+                      )}
+                    </div>
+
+
+                    <div
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                        selected
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {selected && (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                    </div>
                   </div>
 
 
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-950">
-                      {
-                        service.name
-                      }
-                    </h3>
+                  <h3 className="mt-5 font-semibold text-slate-950">
+                    {
+                      service.name
+                    }
+                  </h3>
 
 
-                    <p className="mt-1 text-sm leading-6 text-slate-500">
-                      {service.description ||
-                        "Academic document request service."}
-                    </p>
-                  </div>
-
-
-                  <div
-                    className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
-                      selected
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-slate-300"
-                    }`}
-                  >
-                    {selected && (
-                      <Check className="h-3.5 w-3.5" />
-                    )}
-                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {service.description ||
+                      "Service provided by Seekers Connect 247."}
+                  </p>
                 </button>
               );
             },
@@ -1987,17 +2167,45 @@ function DetailsStep({
         string,
     ) => void;
 }) {
+    const isGeneralService =
+  Boolean(
+    selectedService &&
+      [
+        "general_errand",
+        "pickup_delivery",
+        "document_errand",
+        "shop_for_me",
+      ].includes(
+        selectedService.formType,
+      ),
+  );
   return (
     <>
       <StepHeading
-        eyebrow="Applicant Information"
-        title="Tell us about the applicant."
-        description={`Enter the information carefully. ${
+  eyebrow={
+    isGeneralService
+      ? "Customer Information"
+      : "Applicant Information"
+  }
+  title={
+    isGeneralService
+      ? "Tell us about yourself."
+      : "Tell us about the applicant."
+  }
+  description={
+    isGeneralService
+      ? `Provide your contact details and the information we need to handle ${
+          selectedService
+            ?.shortName ||
+          "your request"
+        }.`
+      : `Enter the information carefully. ${
           selectedService
             ? `These details will be used for ${selectedService.shortName}.`
             : ""
-        }`}
-      />
+        }`
+  }
+/>
 
 
       <div className="mt-8">
@@ -2149,14 +2357,18 @@ function DetailsStep({
 
 
         <SectionHeading
-          title="Academic Information"
-        />
+  title={
+    isGeneralService
+      ? "Service Details"
+      : "Academic Information"
+  }
+/>
 
 
         {dynamicFields.length ===
         0 ? (
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-            This service does not require additional academic fields.
+            This service does not require any additional information.
           </div>
         ) : (
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -2233,10 +2445,10 @@ function DeliveryStep({
   return (
     <>
       <StepHeading
-        eyebrow="Delivery"
-        title="How should the document be delivered?"
-        description="If physical EMS delivery is required, provide complete and accurate delivery details."
-      />
+  eyebrow="Delivery"
+  title="Do you need a final physical delivery?"
+  description="Provide delivery information if an item, document, package or purchase should be delivered to you or another recipient."
+/>
 
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -2259,11 +2471,11 @@ function DeliveryStep({
           <Package className="h-5 w-5 text-blue-600" />
 
           <p className="mt-4 font-semibold">
-            EMS Delivery
+            Physical Delivery
           </p>
 
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            Deliver the physical academic document through EMS.
+            Deliver the completed document, package, purchase or requested item to the recipient.
           </p>
         </button>
 
@@ -2287,11 +2499,11 @@ function DeliveryStep({
           <FileText className="h-5 w-5 text-blue-600" />
 
           <p className="mt-4 font-semibold">
-            No Physical Delivery
+            No Additional Delivery
           </p>
 
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            Select this when EMS delivery is not required.
+            Select this if your request does not require a final physical delivery.
           </p>
         </button>
       </div>
@@ -2302,8 +2514,8 @@ function DeliveryStep({
         .required && (
         <div className="mt-8">
           <SectionHeading
-            title="EMS Delivery Information"
-          />
+  title="Delivery Information"
+/>
 
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -2759,12 +2971,16 @@ function PaymentStep({
 
 function ReviewStep({
   draft,
+  providerCode,
   universityName,
   serviceName,
   dynamicFields,
 }: {
   draft:
     RequestDraft;
+
+  providerCode?:
+    string;
 
   universityName?:
     string;
@@ -2775,36 +2991,48 @@ function ReviewStep({
   dynamicFields:
     RequestCatalogField[];
 }) {
+    const isGeneralService =
+  providerCode ===
+  "SC247";
   return (
     <>
       <StepHeading
         eyebrow="Review"
         title="Review your request before submitting."
-        description="Please confirm that every detail is correct. Academic document requests may be delayed when incorrect information is supplied."
+        description="Please confirm that every detail is correct before submitting your request."
       />
 
 
       <div className="mt-8 space-y-5">
         <ReviewCard
-          title="Request"
-          rows={[
-            [
-              "University",
-              universityName ??
-                "—",
-            ],
+  title="Request"
+  rows={[
+    [
+      isGeneralService
+        ? "Service Area"
+        : "University",
 
-            [
-              "Service",
-              serviceName ??
-                "—",
-            ],
-          ]}
-        />
+      isGeneralService
+        ? "Errands, Delivery & Shopping"
+        : universityName ??
+          "—",
+    ],
+
+    [
+      "Service",
+      serviceName ??
+        "—",
+    ],
+  ]}
+/>
 
 
         <ReviewCard
-          title="Applicant"
+          title={
+  isGeneralService
+    ? "Customer"
+    : "Applicant"
+}
           rows={[
             [
               "Name",
@@ -2855,7 +3083,11 @@ function ReviewStep({
 
 
         <ReviewCard
-          title="Academic Information"
+          title={
+  isGeneralService
+    ? "Service Details"
+    : "Academic Information"
+}
           rows={
             dynamicFields.map(
               (
