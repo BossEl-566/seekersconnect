@@ -11,8 +11,6 @@ import {
   Check,
   CheckCircle2,
   Clock3,
-  Copy,
-  FileCheck2,
   FileText,
   Loader2,
   LockKeyhole,
@@ -46,87 +44,191 @@ import {
   TrackingDocuments,
 } from "@/components/public/tracking-documents";
 
-const standardPipeline: {
-  status: RequestStatus;
-  label: string;
-}[] = [
-  {
-    status:
-      "AWAITING_PAYMENT_VERIFICATION",
-    label:
-      "Payment Verification",
-  },
 
-  {
-    status:
-      "PAYMENT_CONFIRMED",
-    label:
-      "Payment Confirmed",
-  },
+// =========================================================
+// PIPELINE TYPE
+// =========================================================
 
-  {
-    status:
-      "PROCESSING_REQUEST",
-    label:
-      "Request Processing",
-  },
+type PipelineItem = {
+  status:
+    RequestStatus;
 
-  {
-    status:
-      "SUBMITTED_TO_UNIVERSITY",
-    label:
-      "Submitted to University",
-  },
+  label:
+    string;
+};
 
-  {
-    status:
-      "AWAITING_UNIVERSITY",
-    label:
-      "University Processing",
-  },
 
-  {
-    status:
-      "DOCUMENT_READY",
-    label:
-      "Document Ready",
-  },
+// =========================================================
+// ACADEMIC WORKFLOW
+// =========================================================
 
-  {
-    status:
-      "DOCUMENT_SCANNED",
-    label:
-      "Document Scanned",
-  },
+const academicPipeline:
+  PipelineItem[] = [
+    {
+      status:
+        "AWAITING_PAYMENT_VERIFICATION",
 
-  {
-    status:
-      "PREPARING_DELIVERY",
-    label:
-      "Preparing Delivery",
-  },
+      label:
+        "Payment Verification",
+    },
 
-  {
-    status:
-      "HANDED_TO_EMS",
-    label:
-      "Handed to EMS",
-  },
+    {
+      status:
+        "PAYMENT_CONFIRMED",
 
-  {
-    status:
-      "IN_TRANSIT",
-    label:
-      "In Transit",
-  },
+      label:
+        "Payment Confirmed",
+    },
 
-  {
-    status:
-      "DELIVERED",
-    label:
-      "Delivered",
-  },
-];
+    {
+      status:
+        "PROCESSING_REQUEST",
+
+      label:
+        "Request Processing",
+    },
+
+    {
+      status:
+        "SUBMITTED_TO_UNIVERSITY",
+
+      label:
+        "Submitted to University",
+    },
+
+    {
+      status:
+        "AWAITING_UNIVERSITY",
+
+      label:
+        "University Processing",
+    },
+
+    {
+      status:
+        "DOCUMENT_READY",
+
+      label:
+        "Document Ready",
+    },
+
+    {
+      status:
+        "DOCUMENT_SCANNED",
+
+      label:
+        "Document Scanned",
+    },
+
+    {
+      status:
+        "PREPARING_DELIVERY",
+
+      label:
+        "Preparing Delivery",
+    },
+
+    {
+      status:
+        "HANDED_TO_EMS",
+
+      label:
+        "Handed to EMS",
+    },
+
+    {
+      status:
+        "IN_TRANSIT",
+
+      label:
+        "In Transit",
+    },
+
+    {
+      status:
+        "DELIVERED",
+
+      label:
+        "Delivered",
+    },
+
+    {
+      status:
+        "COMPLETED",
+
+      label:
+        "Completed",
+    },
+  ];
+
+
+// =========================================================
+// GENERAL SERVICE WORKFLOW
+// =========================================================
+
+const generalPipeline:
+  PipelineItem[] = [
+    {
+      status:
+        "AWAITING_PAYMENT_VERIFICATION",
+
+      label:
+        "Payment Verification",
+    },
+
+    {
+      status:
+        "PAYMENT_CONFIRMED",
+
+      label:
+        "Payment Confirmed",
+    },
+
+    {
+      status:
+        "PROCESSING_REQUEST",
+
+      label:
+        "Service In Progress",
+    },
+
+    {
+      status:
+        "PREPARING_DELIVERY",
+
+      label:
+        "Preparing Delivery",
+    },
+
+    {
+      status:
+        "IN_TRANSIT",
+
+      label:
+        "In Transit",
+    },
+
+    {
+      status:
+        "DELIVERED",
+
+      label:
+        "Delivered",
+    },
+
+    {
+      status:
+        "COMPLETED",
+
+      label:
+        "Completed",
+    },
+  ];
+
+
+// =========================================================
+// SPECIAL STATUSES
+// =========================================================
 
 const specialStatuses:
   RequestStatus[] = [
@@ -136,26 +238,39 @@ const specialStatuses:
     "CANCELLED",
   ];
 
+
+// =========================================================
+// MAIN LOOKUP
+// =========================================================
+
 export function TrackingLookup() {
   const [
     trackingNumber,
     setTrackingNumber,
-  ] = useState("");
+  ] =
+    useState("");
+
 
   const [
     trackingPin,
     setTrackingPin,
-  ] = useState("");
+  ] =
+    useState("");
+
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
+
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] =
+    useState("");
+
 
   const [
     result,
@@ -165,72 +280,107 @@ export function TrackingLookup() {
       null,
     );
 
+
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+    event:
+      FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
+
     setError("");
     setLoading(true);
+
 
     try {
       const response =
         await fetch(
           "/api/track",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify({
-              trackingNumber,
-              trackingPin,
-            }),
+            body:
+              JSON.stringify({
+                trackingNumber,
+                trackingPin,
+              }),
           },
         );
+
 
       const payload =
         await response.json();
 
-      if (!response.ok) {
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           payload.message ||
             "Unable to track request.",
         );
       }
 
+
       setResult(
         payload.tracking,
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       setError(
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : "Unable to track request.",
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false,
+      );
     }
   }
 
-  function resetLookup() {
-    setResult(null);
-    setError("");
-    setTrackingPin("");
-  }
 
-  if (result) {
-    return (
-      <TrackingDetails
-  result={result}
-  trackingPin={trackingPin}
-  onReset={resetLookup}
-/>
+  function resetLookup() {
+    setResult(
+      null,
+    );
+
+    setError(
+      "",
+    );
+
+    setTrackingPin(
+      "",
     );
   }
+
+
+  if (
+    result
+  ) {
+    return (
+      <TrackingDetails
+        result={
+          result
+        }
+        trackingPin={
+          trackingPin
+        }
+        onReset={
+          resetLookup
+        }
+      />
+    );
+  }
+
 
   return (
     <div className="mx-auto max-w-xl">
@@ -239,56 +389,68 @@ export function TrackingLookup() {
           <Search className="h-5 w-5" />
         </div>
 
+
         <h2 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
           Enter your tracking details
         </h2>
 
+
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Your tracking number and PIN
-          are issued after your payment
+          Your tracking number and PIN are issued after your payment
           has been confirmed.
         </p>
 
+
         <form
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
           className="mt-7 space-y-5"
         >
           <div className="space-y-2">
-            <Label
-              htmlFor="trackingNumber"
-            >
+            <Label htmlFor="trackingNumber">
               Tracking Number
             </Label>
 
+
             <Input
               id="trackingNumber"
-              value={trackingNumber}
-              onChange={(event) =>
+              value={
+                trackingNumber
+              }
+              onChange={(
+                event,
+              ) =>
                 setTrackingNumber(
                   event.target.value,
                 )
               }
-              placeholder="SC247-UCC-XXXXXXXXXX"
+              placeholder="SC247-XXXXXXXXXX"
               autoComplete="off"
               className="h-12 font-mono uppercase"
               required
             />
           </div>
 
+
           <div className="space-y-2">
-            <Label
-              htmlFor="trackingPin"
-            >
+            <Label htmlFor="trackingPin">
               6-Digit Tracking PIN
             </Label>
+
 
             <div className="relative">
               <LockKeyhole className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
+
               <Input
                 id="trackingPin"
-                value={trackingPin}
-                onChange={(event) =>
+                value={
+                  trackingPin
+                }
+                onChange={(
+                  event,
+                ) =>
                   setTrackingPin(
                     event.target.value
                       .replace(
@@ -310,11 +472,15 @@ export function TrackingLookup() {
             </div>
           </div>
 
+
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
-              {error}
+              {
+                error
+              }
             </div>
           )}
+
 
           <Button
             type="submit"
@@ -329,25 +495,25 @@ export function TrackingLookup() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
                 Checking...
               </>
             ) : (
               <>
                 <Search className="mr-2 h-4 w-4" />
+
                 Track Request
               </>
             )}
           </Button>
         </form>
 
+
         <div className="mt-6 border-t border-slate-100 pt-5">
           <p className="text-xs leading-5 text-slate-400">
-            Keep your tracking PIN
-            private. Seekers Connect
-            support may ask for your
-            request number, but you
-            should avoid sharing your
-            tracking PIN unnecessarily.
+            Keep your tracking PIN private. Seekers Connect support
+            may ask for your request number, but you should avoid
+            sharing your tracking PIN unnecessarily.
           </p>
         </div>
       </div>
@@ -355,37 +521,62 @@ export function TrackingLookup() {
   );
 }
 
+
+// =========================================================
+// TRACKING DETAILS
+// =========================================================
+
 function TrackingDetails({
   result,
   trackingPin,
   onReset,
 }: {
-  result: TrackingResult;
-  trackingPin: string;
-  onReset: () => void;
+  result:
+    TrackingResult;
+
+  trackingPin:
+    string;
+
+  onReset:
+    () => void;
 }) {
   const currentStatus =
     REQUEST_STATUSES[
       result.status
     ];
 
+
   const isSpecialStatus =
     specialStatuses.includes(
       result.status,
     );
 
+
+  const isGeneralService =
+    result.university.code ===
+    "SC247";
+
+
   return (
     <div className="mx-auto max-w-4xl">
       <button
         type="button"
-        onClick={onReset}
+        onClick={
+          onReset
+        }
         className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-blue-600"
       >
         <ArrowLeft className="h-4 w-4" />
+
         Track another request
       </button>
 
+
       <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+        {/* ===============================================
+            HEADER
+        =============================================== */}
+
         <div className="border-b border-slate-200 bg-slate-950 p-6 text-white sm:p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -393,17 +584,22 @@ function TrackingDetails({
                 Request Tracking
               </p>
 
+
               <h2 className="mt-3 break-all text-2xl font-semibold sm:text-3xl">
                 {
                   result.trackingNumber
                 }
               </h2>
 
+
               <p className="mt-2 text-sm text-slate-400">
                 Request{" "}
-                {result.requestNumber}
+                {
+                  result.requestNumber
+                }
               </p>
             </div>
+
 
             <StatusBadge
               status={
@@ -413,8 +609,15 @@ function TrackingDetails({
           </div>
         </div>
 
+
         <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1fr_300px]">
+          {/* =============================================
+              MAIN COLUMN
+          ============================================= */}
+
           <div>
+            {/* CURRENT STATUS */}
+
             <div
               className={`rounded-2xl border p-5 ${
                 isSpecialStatus
@@ -426,12 +629,14 @@ function TrackingDetails({
                 Current Status
               </p>
 
+
               <h3 className="mt-2 text-xl font-semibold text-slate-950">
                 {
                   currentStatus
                     ?.label
                 }
               </h3>
+
 
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {
@@ -441,11 +646,15 @@ function TrackingDetails({
               </p>
             </div>
 
+
+            {/* PROGRESS */}
+
             {!isSpecialStatus && (
               <div className="mt-8">
                 <p className="text-sm font-semibold text-slate-950">
                   Request Progress
                 </p>
+
 
                 <div className="mt-6">
                   <TrackingPipeline
@@ -456,15 +665,22 @@ function TrackingDetails({
                       result.delivery
                         .required
                     }
+                    isGeneralService={
+                      isGeneralService
+                    }
                   />
                 </div>
               </div>
             )}
 
+
+            {/* HISTORY */}
+
             <div className="mt-9">
               <p className="text-sm font-semibold text-slate-950">
                 Status History
               </p>
+
 
               <div className="mt-5 space-y-0">
                 {result.history.map(
@@ -485,8 +701,7 @@ function TrackingDetails({
                       }
                       last={
                         index ===
-                        result
-                          .history
+                        result.history
                           .length -
                           1
                       }
@@ -495,44 +710,81 @@ function TrackingDetails({
                 )}
               </div>
             </div>
-            <TrackingDocuments
-  documents={
-    result.documents ??
-    []
-  }
-  trackingNumber={
-    result.trackingNumber
-  }
-  trackingPin={
-    trackingPin
-  }
-/>
 
+
+            {/* ACADEMIC CUSTOMER DOCUMENTS ONLY */}
+
+            {!isGeneralService && (
+              <TrackingDocuments
+                documents={
+                  result.documents ??
+                  []
+                }
+                trackingNumber={
+                  result.trackingNumber
+                }
+                trackingPin={
+                  trackingPin
+                }
+              />
+            )}
           </div>
 
+
+          {/* =============================================
+              SUMMARY SIDEBAR
+          ============================================= */}
+
           <aside className="space-y-4">
+            {/* SERVICE AREA / UNIVERSITY */}
+
             <SummaryCard
-              title="University"
+              title={
+                isGeneralService
+                  ? "Service Area"
+                  : "University"
+              }
               icon={
-                Building2
+                isGeneralService
+                  ? PackageCheck
+                  : Building2
               }
             >
-              <p className="font-semibold text-slate-900">
-                {
-                  result
-                    .university
-                    .code
-                }
-              </p>
+              {isGeneralService ? (
+                <>
+                  <p className="font-semibold text-slate-900">
+                    General Services
+                  </p>
 
-              <p className="mt-1 text-sm leading-5 text-slate-500">
-                {
-                  result
-                    .university
-                    .name
-                }
-              </p>
+
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    Seekers Connect 247
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-slate-900">
+                    {
+                      result
+                        .university
+                        .code
+                    }
+                  </p>
+
+
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    {
+                      result
+                        .university
+                        .name
+                    }
+                  </p>
+                </>
+              )}
             </SummaryCard>
+
+
+            {/* SERVICE */}
 
             <SummaryCard
               title="Service"
@@ -547,6 +799,7 @@ function TrackingDetails({
                 }
               </p>
 
+
               <p className="mt-1 text-sm leading-5 text-slate-500">
                 {
                   result.service
@@ -555,18 +808,30 @@ function TrackingDetails({
               </p>
             </SummaryCard>
 
+
+            {/* DELIVERY */}
+
             {result.delivery
               .required && (
               <SummaryCard
-                title="EMS Delivery"
-                icon={Truck}
+                title={
+                  isGeneralService
+                    ? "Physical Delivery"
+                    : "EMS Delivery"
+                }
+                icon={
+                  Truck
+                }
               >
                 {result.delivery
                   .emsTrackingNumber ? (
                   <>
                     <p className="text-xs text-slate-400">
-                      EMS Tracking
+                      {isGeneralService
+                        ? "Delivery Reference"
+                        : "EMS Tracking"}
                     </p>
+
 
                     <p className="mt-1 break-all font-mono text-sm font-semibold text-slate-900">
                       {
@@ -578,19 +843,22 @@ function TrackingDetails({
                   </>
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
-                    EMS tracking will
-                    appear here once
-                    the document has
-                    been dispatched.
+                    {isGeneralService
+                      ? "A delivery reference will appear here if one is assigned during dispatch."
+                      : "EMS tracking will appear here once the document has been dispatched."}
                   </p>
                 )}
               </SummaryCard>
             )}
 
+
+            {/* SUBMITTED */}
+
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-medium text-slate-400">
                 Submitted
               </p>
+
 
               <p className="mt-1 text-sm font-medium text-slate-700">
                 {formatDate(
@@ -605,41 +873,86 @@ function TrackingDetails({
   );
 }
 
+
+// =========================================================
+// TRACKING PIPELINE
+// =========================================================
+
 function TrackingPipeline({
   status,
   deliveryRequired,
+  isGeneralService,
 }: {
-  status: RequestStatus;
-  deliveryRequired: boolean;
-}) {
-  const pipeline =
-    deliveryRequired
-      ? standardPipeline
-      : standardPipeline.filter(
-          (item) =>
-            ![
-              "PREPARING_DELIVERY",
-              "HANDED_TO_EMS",
-              "IN_TRANSIT",
-              "DELIVERED",
-            ].includes(
-              item.status,
-            ),
-        );
+  status:
+    RequestStatus;
 
-  const normalizedStatus =
-    status === "COMPLETED"
-      ? deliveryRequired
-        ? "DELIVERED"
-        : "DOCUMENT_SCANNED"
-      : status;
+  deliveryRequired:
+    boolean;
+
+  isGeneralService:
+    boolean;
+}) {
+  let pipeline:
+    PipelineItem[];
+
+
+  // -------------------------------------------------------
+  // GENERAL SERVICE
+  // -------------------------------------------------------
+
+  if (
+    isGeneralService
+  ) {
+    pipeline =
+      deliveryRequired
+        ? generalPipeline
+        : generalPipeline.filter(
+            (
+              item,
+            ) =>
+              ![
+                "PREPARING_DELIVERY",
+                "IN_TRANSIT",
+                "DELIVERED",
+              ].includes(
+                item.status,
+              ),
+          );
+  }
+
+  // -------------------------------------------------------
+  // ACADEMIC SERVICE
+  // -------------------------------------------------------
+
+  else {
+    pipeline =
+      deliveryRequired
+        ? academicPipeline
+        : academicPipeline.filter(
+            (
+              item,
+            ) =>
+              ![
+                "PREPARING_DELIVERY",
+                "HANDED_TO_EMS",
+                "IN_TRANSIT",
+                "DELIVERED",
+              ].includes(
+                item.status,
+              ),
+          );
+  }
+
 
   const currentIndex =
     pipeline.findIndex(
-      (item) =>
+      (
+        item,
+      ) =>
         item.status ===
-        normalizedStatus,
+        status,
     );
+
 
   return (
     <div>
@@ -652,13 +965,17 @@ function TrackingPipeline({
             currentIndex >
             index;
 
+
           const current =
             currentIndex ===
             index;
 
+
           return (
             <div
-              key={item.status}
+              key={
+                item.status
+              }
               className="relative flex gap-4 pb-7 last:pb-0"
             >
               {index <
@@ -672,6 +989,7 @@ function TrackingPipeline({
                   }`}
                 />
               )}
+
 
               <div
                 className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
@@ -691,6 +1009,7 @@ function TrackingPipeline({
                 )}
               </div>
 
+
               <div className="pt-1">
                 <p
                   className={`text-sm font-medium ${
@@ -701,8 +1020,11 @@ function TrackingPipeline({
                         : "text-slate-400"
                   }`}
                 >
-                  {item.label}
+                  {
+                    item.label
+                  }
                 </p>
+
 
                 {current && (
                   <p className="mt-1 text-xs text-slate-500">
@@ -718,19 +1040,34 @@ function TrackingPipeline({
   );
 }
 
+
+// =========================================================
+// HISTORY ITEM
+// =========================================================
+
 function HistoryItem({
   status,
   message,
   createdAt,
   last,
 }: {
-  status: RequestStatus;
-  message: string | null;
-  createdAt: string;
-  last: boolean;
+  status:
+    RequestStatus;
+
+  message:
+    string | null;
+
+  createdAt:
+    string;
+
+  last:
+    boolean;
 }) {
   const statusInfo =
-    REQUEST_STATUSES[status];
+    REQUEST_STATUSES[
+      status
+    ];
+
 
   return (
     <div className="relative flex gap-4 pb-7 last:pb-0">
@@ -738,9 +1075,11 @@ function HistoryItem({
         <div className="absolute left-[15px] top-8 h-[calc(100%-14px)] w-px bg-slate-200" />
       )}
 
+
       <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
         <CheckCircle2 className="h-4 w-4" />
       </div>
+
 
       <div>
         <p className="text-sm font-semibold text-slate-800">
@@ -751,11 +1090,15 @@ function HistoryItem({
             )}
         </p>
 
+
         {message && (
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-            {message}
+            {
+              message
+            }
           </p>
         )}
+
 
         <p className="mt-2 text-xs text-slate-400">
           {formatDate(
@@ -767,10 +1110,16 @@ function HistoryItem({
   );
 }
 
+
+// =========================================================
+// STATUS BADGE
+// =========================================================
+
 function StatusBadge({
   status,
 }: {
-  status: RequestStatus;
+  status:
+    RequestStatus;
 }) {
   const dangerStatuses:
     RequestStatus[] = [
@@ -778,11 +1127,13 @@ function StatusBadge({
       "CANCELLED",
     ];
 
+
   const warningStatuses:
     RequestStatus[] = [
       "MORE_INFORMATION_REQUIRED",
       "ON_HOLD",
     ];
+
 
   const completedStatuses:
     RequestStatus[] = [
@@ -790,8 +1141,10 @@ function StatusBadge({
       "COMPLETED",
     ];
 
+
   let classes =
     "bg-blue-500/15 text-blue-200";
+
 
   if (
     dangerStatuses.includes(
@@ -802,6 +1155,7 @@ function StatusBadge({
       "bg-red-500/15 text-red-200";
   }
 
+
   if (
     warningStatuses.includes(
       status,
@@ -811,6 +1165,7 @@ function StatusBadge({
       "bg-amber-500/15 text-amber-200";
   }
 
+
   if (
     completedStatuses.includes(
       status,
@@ -819,6 +1174,7 @@ function StatusBadge({
     classes =
       "bg-emerald-500/15 text-emerald-200";
   }
+
 
   return (
     <span
@@ -835,31 +1191,54 @@ function StatusBadge({
   );
 }
 
+
+// =========================================================
+// SUMMARY CARD
+// =========================================================
+
 function SummaryCard({
   title,
-  icon: Icon,
+  icon:
+    Icon,
   children,
 }: {
-  title: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
+  title:
+    string;
+
+  icon:
+    React.ElementType;
+
+  children:
+    React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
         <Icon className="h-4 w-4 text-blue-600" />
-        {title}
+
+        {
+          title
+        }
       </div>
 
+
       <div className="mt-3">
-        {children}
+        {
+          children
+        }
       </div>
     </div>
   );
 }
 
+
+// =========================================================
+// DATE
+// =========================================================
+
 function formatDate(
-  value: string,
+  value:
+    string,
 ) {
   return new Date(
     value,

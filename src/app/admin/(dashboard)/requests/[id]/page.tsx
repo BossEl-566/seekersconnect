@@ -450,14 +450,21 @@ const deliveryRequired =
             </h1>
 
             <span
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${getStatusClasses(
-                request.status,
-              )}`}
-            >
-              {readableStatus(
-                request.status,
-              )}
-            </span>
+  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${getStatusClasses(
+    request.status,
+  )}`}
+>
+  {readableStatus(
+    request.status,
+  )}
+</span>
+
+
+{isGeneralService && (
+  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+    General Service
+  </span>
+)}
           </div>
 
           <p className="mt-2 text-sm text-slate-500">
@@ -495,255 +502,311 @@ const deliveryRequired =
               REQUEST OVERVIEW
           ============================================= */}
 
-          <SectionCard
-            icon={FileText}
-            title="Request Overview"
-          >
-            <InfoGrid
-              rows={[
-                [
-                  "University",
-                  request
-                    .universities
-                    ?.name ??
-                    "—",
-                ],
+<SectionCard
+  icon={FileText}
+  title="Request Overview"
+>
+  <InfoGrid
+    rows={[
+      [
+        isGeneralService
+          ? "Service Area"
+          : "University",
 
-                [
-                  "University Code",
-                  request
-                    .universities
-                    ?.code ??
-                    "—",
-                ],
+        isGeneralService
+          ? "General Services"
+          : request
+              .universities
+              ?.name ??
+            "—",
+      ],
 
-                [
-                  "Service",
-                  request
-                    .services
-                    ?.name ??
-                    "—",
-                ],
+      [
+        isGeneralService
+          ? "Service Area Code"
+          : "University Code",
 
-                [
-                  "Status",
-                  readableStatus(
-                    request.status,
-                  ),
-                ],
+        request
+          .universities
+          ?.code ??
+          "—",
+      ],
 
-                [
-                  "Request Number",
-                  request.request_number,
-                ],
+      [
+        "Service",
 
-                [
-                  "Tracking Number",
-                  request.tracking_number ??
-                    "Not issued",
-                ],
-              ]}
-            />
-          </SectionCard>
+        request
+          .services
+          ?.name ??
+          "—",
+      ],
 
+      [
+        "Status",
 
-          {/* =============================================
-              APPLICANT
-          ============================================= */}
+        readableStatus(
+          request.status,
+        ),
+      ],
 
-          <SectionCard
-            icon={UserRound}
-            title="Applicant"
-          >
-            <InfoGrid
-              rows={[
-                [
-                  "Full Name",
-                  customerName,
-                ],
+      [
+        "Request Number",
 
-                [
-                  "Gender",
-                  request.gender ??
-                    "—",
-                ],
+        request.request_number,
+      ],
 
-                [
-                  "Mobile",
-                  request.phone,
-                ],
+      [
+        "Tracking Number",
 
-                [
-                  "Email",
-                  request.email,
-                ],
-              ]}
-            />
-
-            {request.notes && (
-              <div className="mt-5 border-t border-slate-100 pt-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Customer Notes
-                </p>
-
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                  {request.notes}
-                </p>
-              </div>
-            )}
-          </SectionCard>
+        request.tracking_number ??
+          "Not issued",
+      ],
+    ]}
+  />
+</SectionCard>
 
 
-          {/* =============================================
-              ACADEMIC INFORMATION
-          ============================================= */}
+{/* =============================================
+    CUSTOMER / APPLICANT
+============================================= */}
 
-          <SectionCard
-            icon={Building2}
-            title="Academic Information"
-          >
-            {responses.length ===
-            0 ? (
-              <p className="text-sm text-slate-400">
-                No additional academic
-                responses were recorded.
-              </p>
-            ) : (
-              <InfoGrid
-                rows={responses.map(
-                  (item) => [
-                    item.field_label,
+<SectionCard
+  icon={UserRound}
+  title={
+    isGeneralService
+      ? "Customer"
+      : "Applicant"
+  }
+>
+  <InfoGrid
+    rows={[
+      [
+        "Full Name",
+        customerName,
+      ],
 
-                    item.value ||
-                      "—",
-                  ],
-                )}
-              />
-            )}
-          </SectionCard>
+      [
+        "Gender",
+
+        request.gender ??
+          "—",
+      ],
+
+      [
+        "Mobile",
+
+        request.phone,
+      ],
+
+      [
+        "Email",
+
+        request.email,
+      ],
+    ]}
+  />
 
 
-          {/* =============================================
-              DELIVERY
-          ============================================= */}
+  {request.notes && (
+    <div className="mt-5 border-t border-slate-100 pt-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+        Customer Notes
+      </p>
 
-          <SectionCard
-            icon={Package}
-            title="Delivery"
-          >
-            {!delivery ? (
-              <p className="text-sm text-slate-400">
-                No delivery record is
-                available.
-              </p>
-            ) : delivery
-                .physical_delivery_required ? (
-              <InfoGrid
-                rows={[
-                  [
-                    "Delivery Method",
-                    "EMS Delivery",
-                  ],
 
-                  [
-                    "Recipient",
-                    delivery.full_name ??
-                      "—",
-                  ],
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+        {
+          request.notes
+        }
+      </p>
+    </div>
+  )}
+</SectionCard>
 
-                  [
-                    "House Number",
-                    delivery.house_number ??
-                      "—",
-                  ],
 
-                  [
-                    "Area / Town",
-                    delivery.area_town ??
-                      "—",
-                  ],
+{/* =============================================
+    SERVICE / ACADEMIC INFORMATION
+============================================= */}
 
-                  [
-                    "City / District",
-                    delivery.city_district ??
-                      "—",
-                  ],
+<SectionCard
+  icon={
+    isGeneralService
+      ? Package
+      : Building2
+  }
+  title={
+    isGeneralService
+      ? "Service Details"
+      : "Academic Information"
+  }
+>
+  {responses.length ===
+  0 ? (
+    <p className="text-sm text-slate-400">
+      {isGeneralService
+        ? "No additional service details were recorded."
+        : "No additional academic responses were recorded."}
+    </p>
+  ) : (
+    <InfoGrid
+      rows={responses.map(
+        (
+          item,
+        ) => [
+          item.field_label,
 
-                  [
-                    "Region",
-                    delivery.region ??
-                      "—",
-                  ],
+          item.value ||
+            "—",
+        ],
+      )}
+    />
+  )}
+</SectionCard>
 
-                  [
-                    "Digital Address",
-                    delivery.digital_address ??
-                      "—",
-                  ],
 
-                  [
-                    "Phone",
-                    delivery.phone ??
-                      "—",
-                  ],
+{/* =============================================
+    DELIVERY
+============================================= */}
 
-                  [
-                    "Email",
-                    delivery.email ??
-                      "—",
-                  ],
+<SectionCard
+  icon={Package}
+  title={
+    isGeneralService
+      ? "Physical Delivery"
+      : "Delivery"
+  }
+>
+  {!delivery ? (
+    <p className="text-sm text-slate-400">
+      No delivery record is available.
+    </p>
+  ) : delivery
+      .physical_delivery_required ? (
+    <InfoGrid
+      rows={[
+        [
+          "Delivery Method",
 
-                  [
-                    "Item Type",
-                    delivery.item_type ??
-                      "—",
-                  ],
+          isGeneralService
+            ? "Physical Delivery"
+            : "EMS Delivery",
+        ],
 
-                  [
-                    "Emergency Contact",
-                    delivery.emergency_contact ??
-                      "—",
-                  ],
+        [
+          "Recipient",
 
-                  [
-                    "EMS Tracking",
-                    delivery.ems_tracking_number ??
-                      "Not assigned",
-                  ],
+          delivery.full_name ??
+            "—",
+        ],
 
-                  [
-                    "Dispatch Date",
-                    delivery.dispatch_date
-                      ? formatDateTime(
-                          delivery.dispatch_date,
-                        )
-                      : "Not dispatched",
-                  ],
+        [
+          "House Number",
 
-                  [
-                    "Delivered Date",
-                    delivery.delivered_date
-                      ? formatDateTime(
-                          delivery.delivered_date,
-                        )
-                      : "Not delivered",
-                  ],
-                ]}
-              />
-            ) : (
-              <div>
-                <p className="text-sm font-medium text-slate-700">
-                  No Physical Delivery
-                </p>
+          delivery.house_number ??
+            "—",
+        ],
 
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Physical EMS delivery
-                  was not requested for
-                  this application.
-                </p>
-              </div>
-            )}
-          </SectionCard>
+        [
+          "Area / Town",
+
+          delivery.area_town ??
+            "—",
+        ],
+
+        [
+          "City / District",
+
+          delivery.city_district ??
+            "—",
+        ],
+
+        [
+          "Region",
+
+          delivery.region ??
+            "—",
+        ],
+
+        [
+          "Digital Address",
+
+          delivery.digital_address ??
+            "—",
+        ],
+
+        [
+          "Phone",
+
+          delivery.phone ??
+            "—",
+        ],
+
+        [
+          "Email",
+
+          delivery.email ??
+            "—",
+        ],
+
+        [
+          "Item Type",
+
+          delivery.item_type ??
+            "—",
+        ],
+
+        [
+          "Emergency Contact",
+
+          delivery.emergency_contact ??
+            "—",
+        ],
+
+        [
+          isGeneralService
+            ? "Delivery Reference"
+            : "EMS Tracking",
+
+          delivery.ems_tracking_number ??
+            "Not assigned",
+        ],
+
+        [
+          "Dispatch Date",
+
+          delivery.dispatch_date
+            ? formatDateTime(
+                delivery.dispatch_date,
+              )
+            : "Not dispatched",
+        ],
+
+        [
+          "Delivered Date",
+
+          delivery.delivered_date
+            ? formatDateTime(
+                delivery.delivered_date,
+              )
+            : "Not delivered",
+        ],
+      ]}
+    />
+  ) : (
+    <div>
+      <p className="text-sm font-medium text-slate-700">
+        No Physical Delivery
+      </p>
+
+
+      <p className="mt-1 text-sm leading-6 text-slate-500">
+        {isGeneralService
+          ? "No additional physical delivery was requested for this service."
+          : "Physical EMS delivery was not requested for this application."}
+      </p>
+    </div>
+  )}
+</SectionCard>
 
 
           {/* =============================================
@@ -1064,14 +1127,15 @@ const deliveryRequired =
   }
 />
 
-            {request.status ===
-  "DOCUMENT_READY" && (
-  <RequestDocumentUpload
-    requestId={
-      request.id
-    }
-  />
-)}
+  {!isGeneralService &&
+  request.status ===
+    "DOCUMENT_READY" && (
+    <RequestDocumentUpload
+      requestId={
+        request.id
+      }
+    />
+  )}
 <RequestDeliveryActions
   requestId={
     request.id
@@ -1110,9 +1174,10 @@ const deliveryRequired =
               )}
             </div>
 
-            {request.status ===
-              "DOCUMENT_READY" && (
-              <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+            {!isGeneralService &&
+  request.status ===
+    "DOCUMENT_READY" && (
+  <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
                 <p className="text-xs font-semibold text-blue-900">
                   Document upload is next
                 </p>
