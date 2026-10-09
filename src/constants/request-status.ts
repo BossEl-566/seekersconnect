@@ -8,6 +8,33 @@ export const REQUEST_STATUSES = {
   },
 
 
+  AWAITING_QUOTE: {
+    label:
+      "Awaiting Price Confirmation",
+
+    description:
+      "Your request is being reviewed so the final amount can be confirmed.",
+  },
+
+
+  QUOTE_READY: {
+    label:
+      "Price Confirmed",
+
+    description:
+      "The price for your request has been confirmed.",
+  },
+
+
+  AWAITING_PAYMENT: {
+    label:
+      "Awaiting Payment",
+
+    description:
+      "Your request is ready for payment.",
+  },
+
+
   AWAITING_PAYMENT_VERIFICATION: {
     label:
       "Payment Verification",

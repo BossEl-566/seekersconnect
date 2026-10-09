@@ -22,11 +22,6 @@ export const runtime =
 
 // =========================================================
 // PAYMENT PROOF
-//
-// This remains 5 MB.
-//
-// The future 10 MB service-document limit is separate from
-// payment-proof uploads.
 // =========================================================
 
 const MAX_FILE_SIZE =
@@ -49,7 +44,7 @@ const ALLOWED_FILES = {
 
 
 // =========================================================
-// DYNAMIC FIELD TYPES
+// FIELD TYPES
 // =========================================================
 
 const SUPPORTED_FIELD_TYPES =
@@ -61,6 +56,30 @@ const SUPPORTED_FIELD_TYPES =
     "date",
     "textarea",
     "select",
+  ]);
+
+
+// =========================================================
+// PRICING MODES
+// =========================================================
+
+type PricingMode =
+  | "FIXED"
+  | "PER_UNIT"
+  | "STARTING_FROM"
+  | "QUOTE_REQUIRED"
+  | "FREE"
+  | "MANUAL_PRICE";
+
+
+const PRICING_MODES =
+  new Set<PricingMode>([
+    "FIXED",
+    "PER_UNIT",
+    "STARTING_FROM",
+    "QUOTE_REQUIRED",
+    "FREE",
+    "MANUAL_PRICE",
   ]);
 
 
@@ -92,7 +111,7 @@ type DatabaseService = {
     string;
 
   service_scope:
-    "general"
+    | "general"
     | "academic";
 
   slug:
@@ -137,6 +156,41 @@ type DatabaseFormField = {
 };
 
 
+type DatabasePricing = {
+  pricing_mode:
+    string;
+
+  currency:
+    string;
+
+  amount:
+    string
+    | number
+    | null;
+
+  unit_label:
+    | string
+    | null;
+
+  minimum_quantity:
+    string
+    | number
+    | null;
+
+  maximum_quantity:
+    string
+    | number
+    | null;
+
+  display_note:
+    | string
+    | null;
+
+  active:
+    boolean;
+};
+
+
 // =========================================================
 // REQUEST NUMBER
 // =========================================================
@@ -167,7 +221,9 @@ function generateRequestNumber(
 
 
   const suffix =
-    randomBytes(5)
+    randomBytes(
+      5,
+    )
       .toString(
         "hex",
       )
@@ -181,7 +237,43 @@ function generateRequestNumber(
 
 
 // =========================================================
-// JSONB SELECT OPTIONS
+// NUMBER
+// =========================================================
+
+function nullableNumber(
+  value:
+    string
+    | number
+    | null
+    | undefined,
+):
+  number | null {
+  if (
+    value ===
+      null ||
+    value ===
+      undefined
+  ) {
+    return null;
+  }
+
+
+  const number =
+    Number(
+      value,
+    );
+
+
+  return Number.isFinite(
+    number,
+  )
+    ? number
+    : null;
+}
+
+
+// =========================================================
+// OPTIONS
 // =========================================================
 
 function normalizeOptions(
@@ -244,10 +336,6 @@ function validateDynamicValue(
   }
 
 
-  // -------------------------------------------------------
-  // SELECT
-  // -------------------------------------------------------
-
   if (
     field.field_type ===
     "select"
@@ -270,10 +358,6 @@ function validateDynamicValue(
   }
 
 
-  // -------------------------------------------------------
-  // EMAIL
-  // -------------------------------------------------------
-
   if (
     field.field_type ===
     "email"
@@ -293,10 +377,6 @@ function validateDynamicValue(
     }
   }
 
-
-  // -------------------------------------------------------
-  // NUMBER
-  // -------------------------------------------------------
 
   if (
     field.field_type ===
@@ -319,10 +399,6 @@ function validateDynamicValue(
     }
   }
 
-
-  // -------------------------------------------------------
-  // DATE
-  // -------------------------------------------------------
 
   if (
     field.field_type ===
@@ -364,7 +440,7 @@ export async function POST(
 
   try {
     // =====================================================
-    // READ MULTIPART REQUEST
+    // READ MULTIPART
     // =====================================================
 
     const formData =
@@ -381,6 +457,13 @@ export async function POST(
       formData.get(
         "paymentProof",
       );
+
+
+    const paymentProof =
+      paymentProofValue instanceof
+        File
+        ? paymentProofValue
+        : null;
 
 
     if (
@@ -400,27 +483,8 @@ export async function POST(
     }
 
 
-    if (
-      !(
-        paymentProofValue instanceof
-        File
-      )
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Please upload proof of payment.",
-        },
-        {
-          status:
-            400,
-        },
-      );
-    }
-
-
     // =====================================================
-    // PARSE DRAFT
+    // PARSE
     // =====================================================
 
     let parsedJson:
@@ -445,10 +509,6 @@ export async function POST(
       );
     }
 
-
-    // =====================================================
-    // STRUCTURAL VALIDATION
-    // =====================================================
 
     const validation =
       requestSubmissionSchema.safeParse(
@@ -484,14 +544,7 @@ export async function POST(
 
 
     // =====================================================
-    // RESOLVE ACTIVE SERVICE FIRST
-    //
-    // This is the architectural change.
-    //
-    // The browser no longer determines whether a university
-    // is required.
-    //
-    // services.service_scope determines it.
+    // AUTHORITATIVE SERVICE
     // =====================================================
 
     const {
@@ -569,9 +622,7 @@ export async function POST(
 
 
     // =====================================================
-    // ACADEMIC SERVICE
-    //
-    // Academic services require an institution.
+    // SERVICE SCOPE
     // =====================================================
 
     let university:
@@ -588,7 +639,7 @@ export async function POST(
         !service.university_id
       ) {
         console.error(
-          "Academic service missing university:",
+          "Academic service missing institution:",
           service.id,
         );
 
@@ -621,9 +672,6 @@ export async function POST(
         );
       }
 
-
-      // Prevent a browser from combining a service belonging
-      // to one institution with another institution.
 
       if (
         draft.universityId !==
@@ -707,29 +755,53 @@ export async function POST(
       }
 
 
+      if (
+        universityData.code
+          .toUpperCase() ===
+        "SC247"
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The selected institution is unavailable.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
       university =
         universityData as
           DatabaseUniversity;
-    }
-
-
-    // =====================================================
-    // GENERAL SERVICE
-    //
-    // universityId from the browser is intentionally ignored.
-    //
-    // This supports:
-    //
-    // - legacy SC247 services
-    // - normalized university_id = NULL services
-    // =====================================================
-
-    if (
-      service.service_scope !==
-        "general" &&
-      service.service_scope !==
-        "academic"
+    } else if (
+      service.service_scope ===
+      "general"
     ) {
+      if (
+        service.university_id !==
+        null
+      ) {
+        console.error(
+          "General service still has university:",
+          service.id,
+        );
+
+
+        return NextResponse.json(
+          {
+            message:
+              "The selected service is not configured correctly.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+    } else {
       return NextResponse.json(
         {
           message:
@@ -744,7 +816,273 @@ export async function POST(
 
 
     // =====================================================
-    // LOAD ACTIVE SERVICE FIELDS
+    // AUTHORITATIVE CURRENT PRICING
+    // =====================================================
+
+    const {
+      data:
+        pricingData,
+
+      error:
+        pricingError,
+    } =
+      await supabase
+        .from(
+          "service_pricing",
+        )
+        .select(`
+          pricing_mode,
+          currency,
+          amount,
+          unit_label,
+          minimum_quantity,
+          maximum_quantity,
+          display_note,
+          active
+        `)
+        .eq(
+          "service_id",
+          service.id,
+        )
+        .maybeSingle();
+
+
+    if (
+      pricingError
+    ) {
+      console.error(
+        "Service pricing validation failed:",
+        pricingError,
+      );
+
+
+      return NextResponse.json(
+        {
+          message:
+            "We could not validate the pricing for this service.",
+        },
+        {
+          status:
+            500,
+        },
+      );
+    }
+
+
+    const pricing =
+      pricingData as
+        DatabasePricing
+        | null;
+
+
+    let pricingMode:
+      PricingMode =
+      "MANUAL_PRICE";
+
+
+    let pricingCurrency =
+      "GHS";
+
+
+    let unitAmount:
+      number | null =
+      null;
+
+
+    let minimumQuantity:
+      number | null =
+      null;
+
+
+    let maximumQuantity:
+      number | null =
+      null;
+
+
+    if (
+      pricing &&
+      pricing.active
+    ) {
+      if (
+        !PRICING_MODES.has(
+          pricing.pricing_mode as
+            PricingMode,
+        )
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The selected service has an invalid pricing configuration.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      pricingMode =
+        pricing.pricing_mode as
+          PricingMode;
+
+
+      pricingCurrency =
+        pricing.currency
+          .trim()
+          .toUpperCase() ||
+        "GHS";
+
+
+      unitAmount =
+        nullableNumber(
+          pricing.amount,
+        );
+
+
+      minimumQuantity =
+        nullableNumber(
+          pricing.minimum_quantity,
+        );
+
+
+      maximumQuantity =
+        nullableNumber(
+          pricing.maximum_quantity,
+        );
+    }
+
+
+    const paymentRequiredNow =
+      pricingMode ===
+        "FIXED" ||
+      pricingMode ===
+        "PER_UNIT";
+
+
+    // =====================================================
+    // PRICING MODE VALIDATION
+    // =====================================================
+
+    let pricingQuantity:
+      number | null =
+      null;
+
+
+    if (
+      pricingMode ===
+      "FIXED"
+    ) {
+      if (
+        unitAmount ===
+          null ||
+        unitAmount <=
+          0
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "This service does not currently have a valid fixed price.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+    }
+
+
+    if (
+      pricingMode ===
+      "PER_UNIT"
+    ) {
+      if (
+        unitAmount ===
+          null ||
+        unitAmount <=
+          0
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "This service does not currently have a valid unit price.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      pricingQuantity =
+        Number(
+          draft.pricingQuantity,
+        );
+
+
+      if (
+        !Number.isFinite(
+          pricingQuantity,
+        ) ||
+        pricingQuantity <=
+          0
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Enter a valid quantity for this service.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      if (
+        minimumQuantity !==
+          null &&
+        pricingQuantity <
+          minimumQuantity
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              `The minimum quantity for this service is ${minimumQuantity}.`,
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      if (
+        maximumQuantity !==
+          null &&
+        pricingQuantity >
+          maximumQuantity
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              `The maximum quantity for this service is ${maximumQuantity}.`,
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+    }
+
+
+    // =====================================================
+    // SERVICE FORM FIELDS
     // =====================================================
 
     const {
@@ -823,10 +1161,6 @@ export async function POST(
         DatabaseFormField[];
 
 
-    // =====================================================
-    // REJECT UNKNOWN RESPONSES
-    // =====================================================
-
     const allowedFieldKeys =
       new Set(
         fields.map(
@@ -878,10 +1212,6 @@ export async function POST(
     }
 
 
-    // =====================================================
-    // REQUIRED FIELD VALIDATION
-    // =====================================================
-
     const missingFields =
       fields.filter(
         (
@@ -919,10 +1249,6 @@ export async function POST(
     }
 
 
-    // =====================================================
-    // FIELD TYPE VALIDATION
-    // =====================================================
-
     for (
       const field of
       fields
@@ -959,19 +1285,31 @@ export async function POST(
 
 
     // =====================================================
-    // DELIVERY VALIDATION
+    // DELIVERY
     // =====================================================
 
     if (
       draft.delivery.required
     ) {
       const deliveryComplete =
-        draft.delivery.fullName.trim() &&
-        draft.delivery.areaTown.trim() &&
-        draft.delivery.cityDistrict.trim() &&
-        draft.delivery.region.trim() &&
-        draft.delivery.phone.trim() &&
-        draft.delivery.emergencyContact.trim();
+        draft.delivery
+          .fullName
+          .trim() &&
+        draft.delivery
+          .areaTown
+          .trim() &&
+        draft.delivery
+          .cityDistrict
+          .trim() &&
+        draft.delivery
+          .region
+          .trim() &&
+        draft.delivery
+          .phone
+          .trim() &&
+        draft.delivery
+          .emergencyContact
+          .trim();
 
 
       if (
@@ -992,67 +1330,112 @@ export async function POST(
 
 
     // =====================================================
-    // PAYMENT PROOF VALIDATION
+    // PAYMENT
+    //
+    // Only FIXED and PER_UNIT require payment immediately.
     // =====================================================
 
-    if (
-      paymentProofValue.size <=
-      0
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "The uploaded payment proof is empty.",
-        },
-        {
-          status:
-            400,
-        },
-      );
-    }
+    let extension:
+      string | null =
+      null;
 
 
     if (
-      paymentProofValue.size >
-      MAX_FILE_SIZE
+      paymentRequiredNow
     ) {
-      return NextResponse.json(
-        {
-          message:
-            "Payment proof must be 5 MB or smaller.",
-        },
-        {
-          status:
-            400,
-        },
-      );
-    }
+      if (
+        !draft.paymentMethod
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Select a payment method.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
 
 
-    const extension =
-      ALLOWED_FILES[
-        paymentProofValue.type as keyof typeof ALLOWED_FILES
-      ];
+      if (
+        !paymentProof
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Please upload proof of payment.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
 
 
-    if (
-      !extension
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Payment proof must be a JPG, PNG, WEBP or PDF file.",
-        },
-        {
-          status:
-            400,
-        },
-      );
+      if (
+        paymentProof.size <=
+        0
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The uploaded payment proof is empty.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      if (
+        paymentProof.size >
+        MAX_FILE_SIZE
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Payment proof must be 5 MB or smaller.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      extension =
+        ALLOWED_FILES[
+          paymentProof.type as
+            keyof typeof ALLOWED_FILES
+        ] ??
+        null;
+
+
+      if (
+        !extension
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Payment proof must be a JPG, PNG, WEBP or PDF file.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
     }
 
 
     // =====================================================
-    // REQUEST IDENTIFIERS
+    // IDENTIFIERS
     // =====================================================
 
     const requestId =
@@ -1073,64 +1456,76 @@ export async function POST(
       );
 
 
-    const storagePath =
-      `requests/${requestId}/` +
-      `payment-proof.${extension}`;
-
-
     // =====================================================
-    // UPLOAD PRIVATE PAYMENT PROOF
+    // PAYMENT PROOF UPLOAD
     // =====================================================
 
-    const fileBuffer =
-      await paymentProofValue.arrayBuffer();
-
-
-    const {
-      error:
-        uploadError,
-    } =
-      await supabase.storage
-        .from(
-          "payment-proofs",
-        )
-        .upload(
-          storagePath,
-          fileBuffer,
-          {
-            contentType:
-              paymentProofValue.type,
-
-            upsert:
-              false,
-          },
-        );
+    let storagePath:
+      string | null =
+      null;
 
 
     if (
-      uploadError
+      paymentRequiredNow &&
+      paymentProof &&
+      extension
     ) {
-      console.error(
-        "Payment proof upload failed:",
-        uploadError,
-      );
+      storagePath =
+        `requests/${requestId}/` +
+        `payment-proof.${extension}`;
 
 
-      return NextResponse.json(
-        {
-          message:
-            "We could not upload the payment proof. Please try again.",
-        },
-        {
-          status:
-            500,
-        },
-      );
+      const fileBuffer =
+        await paymentProof
+          .arrayBuffer();
+
+
+      const {
+        error:
+          uploadError,
+      } =
+        await supabase.storage
+          .from(
+            "payment-proofs",
+          )
+          .upload(
+            storagePath,
+            fileBuffer,
+            {
+              contentType:
+                paymentProof.type,
+
+              upsert:
+                false,
+            },
+          );
+
+
+      if (
+        uploadError
+      ) {
+        console.error(
+          "Payment proof upload failed:",
+          uploadError,
+        );
+
+
+        return NextResponse.json(
+          {
+            message:
+              "We could not upload the payment proof. Please try again.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      uploadedPath =
+        storagePath;
     }
-
-
-    uploadedPath =
-      storagePath;
 
 
     // =====================================================
@@ -1160,17 +1555,14 @@ export async function POST(
           (
             item,
           ) =>
-            item.value.trim() !==
+            item.value
+              .trim() !==
             "",
         );
 
 
     // =====================================================
     // CREATE REQUEST
-    //
-    // V2 resolves service scope inside PostgreSQL as well.
-    // The API and database therefore both enforce the same
-    // service-driven architecture.
     // =====================================================
 
     const {
@@ -1180,7 +1572,7 @@ export async function POST(
         databaseError,
     } =
       await supabase.rpc(
-        "create_request_submission_v2",
+        "create_pricing_request_submission",
         {
           p_request_id:
             requestId,
@@ -1192,22 +1584,28 @@ export async function POST(
             service.id,
 
           p_first_name:
-            draft.applicant.firstName,
+            draft.applicant
+              .firstName,
 
           p_other_names:
-            draft.applicant.otherNames,
+            draft.applicant
+              .otherNames,
 
           p_surname:
-            draft.applicant.surname,
+            draft.applicant
+              .surname,
 
           p_gender:
-            draft.applicant.gender,
+            draft.applicant
+              .gender,
 
           p_phone:
-            draft.applicant.phone,
+            draft.applicant
+              .phone,
 
           p_email:
-            draft.applicant.email,
+            draft.applicant
+              .email,
 
           p_notes:
             draft.notes,
@@ -1218,11 +1616,18 @@ export async function POST(
           p_delivery:
             draft.delivery,
 
+          p_pricing_quantity:
+            pricingQuantity,
+
           p_payment_method:
-            draft.paymentMethod,
+            paymentRequiredNow
+              ? draft.paymentMethod
+              : null,
 
           p_proof_storage_path:
-            storagePath,
+            paymentRequiredNow
+              ? storagePath
+              : null,
         },
       );
 
@@ -1231,29 +1636,32 @@ export async function POST(
       databaseError
     ) {
       console.error(
-        "Request transaction failed:",
+        "Pricing-aware request transaction failed:",
         databaseError,
       );
 
 
-      // Prevent orphaned payment proofs.
+      if (
+        uploadedPath
+      ) {
+        await supabase.storage
+          .from(
+            "payment-proofs",
+          )
+          .remove([
+            uploadedPath,
+          ]);
 
-      await supabase.storage
-        .from(
-          "payment-proofs",
-        )
-        .remove([
-          storagePath,
-        ]);
 
-
-      uploadedPath =
-        null;
+        uploadedPath =
+          null;
+      }
 
 
       return NextResponse.json(
         {
           message:
+            databaseError.message ||
             "We could not save the request. Please try again.",
         },
         {
@@ -1272,6 +1680,55 @@ export async function POST(
         : data;
 
 
+    const newStatus =
+      created?.new_status ??
+      (
+        paymentRequiredNow
+          ? "AWAITING_PAYMENT_VERIFICATION"
+          : pricingMode ===
+              "FREE"
+            ? "SUBMITTED"
+            : "AWAITING_QUOTE"
+      );
+
+
+    /*
+     * Pricing may theoretically change between the API
+     * validation query and the PostgreSQL transaction.
+     *
+     * If PostgreSQL ultimately decides that payment was not
+     * required, remove any proof uploaded during that race.
+     */
+    if (
+      uploadedPath &&
+      newStatus !==
+        "AWAITING_PAYMENT_VERIFICATION"
+    ) {
+      await supabase.storage
+        .from(
+          "payment-proofs",
+        )
+        .remove([
+          uploadedPath,
+        ]);
+
+
+      uploadedPath =
+        null;
+    }
+
+
+    const totalAmount =
+      created?.total_amount ===
+        null ||
+      created?.total_amount ===
+        undefined
+        ? null
+        : Number(
+            created.total_amount,
+          );
+
+
     return NextResponse.json(
       {
         success:
@@ -1279,17 +1736,30 @@ export async function POST(
 
         request: {
           id:
-            created
-              ?.request_id ??
+            created?.request_id ??
             requestId,
 
           requestNumber:
-            created
-              ?.request_number ??
+            created?.request_number ??
             requestNumber,
 
           status:
-            "AWAITING_PAYMENT_VERIFICATION",
+            newStatus,
+
+          pricingMode:
+            created?.pricing_mode ??
+            pricingMode,
+
+          currency:
+            created?.currency ??
+            pricingCurrency,
+
+          totalAmount:
+            Number.isFinite(
+              totalAmount,
+            )
+              ? totalAmount
+              : null,
         },
       },
       {
@@ -1305,10 +1775,6 @@ export async function POST(
       error,
     );
 
-
-    // =====================================================
-    // BEST-EFFORT FILE CLEANUP
-    // =====================================================
 
     if (
       uploadedPath

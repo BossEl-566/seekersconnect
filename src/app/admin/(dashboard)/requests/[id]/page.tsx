@@ -50,6 +50,10 @@ import {
   RequestDeliveryActions,
 } from "@/components/admin/request-delivery-actions";
 
+import {
+  RequestPricingPanel,
+} from "@/components/admin/request-pricing-panel";
+
 
 type PageProps = {
   params: Promise<{
@@ -1109,68 +1113,137 @@ export default async function RequestDetailPage({
         =============================================== */}
 
         <aside className="space-y-5">
+          <RequestPricingPanel
+  requestId={
+    request.id
+  }
+/>
           {/* =============================================
               PAYMENT REVIEW
           ============================================= */}
 
-          {payment?.status ===
-          "PENDING" ? (
-            <PaymentReviewActions
-              requestId={
-                request.id
-              }
-            />
-          ) : (
-            <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-900">
-                Payment Review
-              </p>
+         {!payment ? (
+  <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+    <p className="text-sm font-semibold text-slate-900">
+      Payment
+    </p>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                This payment has already
-                been reviewed.
-              </p>
 
-              <div
-                className={`mt-4 rounded-xl px-3 py-3 text-sm font-medium ${
-                  payment?.status ===
-                  "CONFIRMED"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : payment?.status ===
-                        "REJECTED"
-                      ? "bg-red-50 text-red-700"
-                      : "bg-slate-50 text-slate-700"
-                }`}
-              >
-                {payment?.status ??
-                  "Unknown"}
-              </div>
+    {request.status ===
+    "SUBMITTED" ? (
+      <>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          No payment is required for this request.
+        </p>
 
-              {payment?.verified_at && (
-                <p className="mt-3 text-xs leading-5 text-slate-400">
-                  Reviewed{" "}
-                  {formatDateTime(
-                    payment.verified_at,
-                  )}
-                </p>
-              )}
 
-              {payment
-                ?.rejection_reason && (
-                <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-red-600">
-                    Rejection Reason
-                  </p>
+        <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-700">
+          Free Service
+        </div>
+      </>
+    ) : request.status ===
+      "AWAITING_QUOTE" ? (
+      <>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Payment is not required yet. The final price must first be
+          confirmed by an administrator.
+        </p>
 
-                  <p className="mt-1 text-xs leading-5 text-red-800">
-                    {
-                      payment.rejection_reason
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+
+        <div className="mt-4 rounded-xl bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">
+          Awaiting Price Confirmation
+        </div>
+      </>
+    ) : request.status ===
+      "AWAITING_PAYMENT" ? (
+      <>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          The final price has been confirmed. The customer has not yet
+          submitted payment proof.
+        </p>
+
+
+        <div className="mt-4 rounded-xl bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
+          Awaiting Customer Payment
+        </div>
+      </>
+    ) : (
+      <>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          No payment record exists for this request.
+        </p>
+
+
+        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-600">
+          No Payment Record
+        </div>
+      </>
+    )}
+  </div>
+) : payment.status ===
+  "PENDING" ? (
+  <PaymentReviewActions
+    requestId={
+      request.id
+    }
+  />
+) : (
+  <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+    <p className="text-sm font-semibold text-slate-900">
+      Payment Review
+    </p>
+
+
+    <p className="mt-2 text-sm leading-6 text-slate-500">
+      This payment has already been reviewed.
+    </p>
+
+
+    <div
+      className={`mt-4 rounded-xl px-3 py-3 text-sm font-medium ${
+        payment.status ===
+        "CONFIRMED"
+          ? "bg-emerald-50 text-emerald-700"
+          : payment.status ===
+              "REJECTED"
+            ? "bg-red-50 text-red-700"
+            : "bg-slate-50 text-slate-700"
+      }`}
+    >
+      {
+        payment.status
+      }
+    </div>
+
+
+    {payment.verified_at && (
+      <p className="mt-3 text-xs leading-5 text-slate-400">
+        Reviewed{" "}
+        {
+          formatDateTime(
+            payment.verified_at,
+          )
+        }
+      </p>
+    )}
+
+
+    {payment.rejection_reason && (
+      <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-red-600">
+          Rejection Reason
+        </p>
+
+
+        <p className="mt-1 text-xs leading-5 text-red-800">
+          {
+            payment.rejection_reason
+          }
+        </p>
+      </div>
+    )}
+  </div>
+)}
 
 
           {/* =============================================

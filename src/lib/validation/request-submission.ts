@@ -36,20 +36,29 @@ const optionalUniversityId =
 
 export const requestSubmissionSchema =
   z.object({
-    /**
-     * Academic services require this.
-     *
-     * General services are allowed to submit an empty string.
-     */
     universityId:
       optionalUniversityId,
 
 
-    /**
-     * Service is now the primary request identifier.
-     */
     serviceId:
       uuidField,
+
+
+    /**
+     * Required by the server only when the selected
+     * service uses PER_UNIT pricing.
+     */
+    pricingQuantity:
+      z
+        .string()
+        .trim()
+        .max(
+          40,
+          "Pricing quantity is invalid.",
+        )
+        .default(
+          "",
+        ),
 
 
     applicant:
@@ -242,10 +251,22 @@ export const requestSubmissionSchema =
       }),
 
 
+    /**
+     * This can now be empty because FREE / QUOTE /
+     * STARTING_FROM / MANUAL requests do not make an
+     * immediate payment.
+     *
+     * The server checks whether the selected pricing mode
+     * actually requires a payment method.
+     */
     paymentMethod:
-      z.enum([
-        "momo",
-        "bank",
+      z.union([
+        z.enum([
+          "momo",
+          "bank",
+        ]),
+
+        z.literal(""),
       ]),
 
 

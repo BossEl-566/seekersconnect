@@ -28,11 +28,21 @@ export type RequestDraft = {
 
   /**
    * Concrete services.id UUID.
-   *
-   * For an academic service this is resolved after the
-   * customer selects the institution.
    */
   serviceId:
+    string;
+
+
+  /**
+   * Used by PER_UNIT pricing.
+   *
+   * Stored as a string in the browser because it is bound
+   * directly to a number input.
+   *
+   * The server/database performs the authoritative
+   * calculation.
+   */
+  pricingQuantity:
     string;
 
 
@@ -99,6 +109,12 @@ export type RequestDraft = {
   };
 
 
+  /**
+   * Payment is only required immediately for:
+   *
+   * FIXED
+   * PER_UNIT
+   */
   paymentMethod:
     | "momo"
     | "bank"

@@ -162,6 +162,8 @@ const initialDraft:
   serviceId:
     "",
 
+  pricingQuantity:
+    "",
 
   applicant: {
     firstName:
@@ -461,6 +463,19 @@ export function RequestWizard() {
     useState<{
       requestNumber:
         string;
+
+      status:
+        string;
+
+      pricingMode:
+        string;
+
+      currency:
+        string;
+
+      totalAmount:
+        number
+        | null;
     } | null>(
       null,
     );
@@ -1057,6 +1072,45 @@ export function RequestWizard() {
       ],
     );
 
+      // =======================================================
+  // PRICING BEHAVIOUR
+  // =======================================================
+
+  const effectivePricingMode =
+    selectedService
+      ?.pricing
+      ?.mode ??
+    "MANUAL_PRICE";
+
+
+  const paymentRequiredNow =
+    selectedService
+      ? (
+          effectivePricingMode ===
+            "FIXED" ||
+          effectivePricingMode ===
+            "PER_UNIT"
+        )
+      : true;
+
+
+  const visibleSteps =
+    useMemo(
+      () =>
+        paymentRequiredNow
+          ? steps
+          : steps.filter(
+              (
+                step,
+              ) =>
+                step.number !==
+                5,
+            ),
+      [
+        paymentRequiredNow,
+      ],
+    );
+
 
   const selectedUniversity =
     useMemo<
@@ -1151,6 +1205,12 @@ export function RequestWizard() {
         serviceId:
           "",
 
+        pricingQuantity:
+          "",
+
+        paymentMethod:
+          "",
+
         responses:
           {},
 
@@ -1161,6 +1221,9 @@ export function RequestWizard() {
             "Service Request",
         },
       }),
+    );
+            setPaymentProof(
+      null,
     );
   }
 
@@ -1188,6 +1251,12 @@ export function RequestWizard() {
         serviceId:
           service.id,
 
+        pricingQuantity:
+          "",
+
+        paymentMethod:
+          "",
+
         responses:
           {},
 
@@ -1200,6 +1269,9 @@ export function RequestWizard() {
             "Service Request",
         },
       }),
+    );
+        setPaymentProof(
+      null,
     );
   }
 
@@ -1227,6 +1299,12 @@ export function RequestWizard() {
         serviceId:
           "",
 
+        pricingQuantity:
+          "",
+
+        paymentMethod:
+          "",
+
         responses:
           {},
 
@@ -1237,6 +1315,9 @@ export function RequestWizard() {
             "Academic Document",
         },
       }),
+    );
+        setPaymentProof(
+      null,
     );
   }
 
@@ -1287,6 +1368,12 @@ export function RequestWizard() {
         serviceId:
           offering.service.id,
 
+        pricingQuantity:
+          "",
+
+        paymentMethod:
+          "",
+
         responses:
           {},
 
@@ -1297,6 +1384,9 @@ export function RequestWizard() {
             "Academic Document",
         },
       }),
+    );
+        setPaymentProof(
+      null,
     );
   }
 
@@ -1472,10 +1562,73 @@ export function RequestWizard() {
     }
 
 
-    if (
+        if (
       currentStep ===
       5
     ) {
+      if (
+        !paymentRequiredNow
+      ) {
+        return true;
+      }
+
+
+      if (
+        effectivePricingMode ===
+        "PER_UNIT"
+      ) {
+        const quantity =
+          Number(
+            draft.pricingQuantity,
+          );
+
+
+        const minimumQuantity =
+          selectedService
+            ?.pricing
+            ?.minimumQuantity ??
+          null;
+
+
+        const maximumQuantity =
+          selectedService
+            ?.pricing
+            ?.maximumQuantity ??
+          null;
+
+
+        if (
+          !Number.isFinite(
+            quantity,
+          ) ||
+          quantity <=
+            0
+        ) {
+          return false;
+        }
+
+
+        if (
+          minimumQuantity !==
+            null &&
+          quantity <
+            minimumQuantity
+        ) {
+          return false;
+        }
+
+
+        if (
+          maximumQuantity !==
+            null &&
+          quantity >
+            maximumQuantity
+        ) {
+          return false;
+        }
+      }
+
+
       return Boolean(
         draft.paymentMethod &&
         paymentProof,
@@ -1491,7 +1644,7 @@ export function RequestWizard() {
   // NAVIGATION
   // =======================================================
 
-  function nextStep() {
+    function nextStep() {
     if (
       !canContinue()
     ) {
@@ -1502,11 +1655,21 @@ export function RequestWizard() {
     setCurrentStep(
       (
         step,
-      ) =>
-        Math.min(
+      ) => {
+        if (
+          step ===
+            4 &&
+          !paymentRequiredNow
+        ) {
+          return 6;
+        }
+
+
+        return Math.min(
           step + 1,
-          steps.length,
-        ),
+          6,
+        );
+      },
     );
 
 
@@ -1520,15 +1683,25 @@ export function RequestWizard() {
   }
 
 
-  function previousStep() {
+    function previousStep() {
     setCurrentStep(
       (
         step,
-      ) =>
-        Math.max(
+      ) => {
+        if (
+          step ===
+            6 &&
+          !paymentRequiredNow
+        ) {
+          return 4;
+        }
+
+
+        return Math.max(
           step - 1,
           1,
-        ),
+        );
+      },
     );
 
 
@@ -1546,9 +1719,8 @@ export function RequestWizard() {
   // SUBMIT REQUEST
   // =======================================================
 
-  async function submitRequest() {
+    async function submitRequest() {
     if (
-      !paymentProof ||
       submitting
     ) {
       return;
@@ -1580,9 +1752,49 @@ export function RequestWizard() {
     }
 
 
+    if (
+      paymentRequiredNow &&
+      !paymentProof
+    ) {
+      setSubmitError(
+        "Please upload proof of payment before submitting.",
+      );
+
+      return;
+    }
+
+
+    if (
+      paymentRequiredNow &&
+      effectivePricingMode ===
+        "PER_UNIT"
+    ) {
+      const quantity =
+        Number(
+          draft.pricingQuantity,
+        );
+
+
+      if (
+        !Number.isFinite(
+          quantity,
+        ) ||
+        quantity <=
+          0
+      ) {
+        setSubmitError(
+          "Enter a valid quantity for this service.",
+        );
+
+        return;
+      }
+    }
+
+
     setSubmitting(
       true,
     );
+
 
     setSubmitError(
       "",
@@ -1603,10 +1815,15 @@ export function RequestWizard() {
       );
 
 
-      formData.append(
-        "paymentProof",
-        paymentProof,
-      );
+      if (
+        paymentRequiredNow &&
+        paymentProof
+      ) {
+        formData.append(
+          "paymentProof",
+          paymentProof,
+        );
+      }
 
 
       const response =
@@ -1645,6 +1862,22 @@ export function RequestWizard() {
         requestNumber:
           result.request
             .requestNumber,
+
+        status:
+          result.request
+            .status,
+
+        pricingMode:
+          result.request
+            .pricingMode,
+
+        currency:
+          result.request
+            .currency,
+
+        totalAmount:
+          result.request
+            .totalAmount,
       });
     } catch (
       error
@@ -1668,27 +1901,44 @@ export function RequestWizard() {
   // =======================================================
 
   function clearDraft() {
-    setDraft(
-      initialDraft,
-    );
-
-    setPaymentProof(
-      null,
-    );
-
-    setSubmitError(
-      "",
-    );
-
-    setCurrentStep(
-      1,
-    );
+  setDraft(
+    initialDraft,
+  );
 
 
-    localStorage.removeItem(
-      STORAGE_KEY,
-    );
-  }
+  setPaymentProof(
+    null,
+  );
+
+
+  setSubmitError(
+    "",
+  );
+
+
+  setSubmittedRequest(
+    null,
+  );
+
+
+  setCurrentStep(
+    1,
+  );
+
+
+  localStorage.removeItem(
+    STORAGE_KEY,
+  );
+
+
+  window.scrollTo({
+    top:
+      0,
+
+    behavior:
+      "smooth",
+  });
+}
 
 
   // =======================================================
@@ -1799,14 +2049,15 @@ export function RequestWizard() {
           </h1>
 
 
-          <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
-            Your payment proof is now awaiting verification by{" "}
-            {
-              publicSettings
-                .company
-                .shortName
-            }.
-          </p>
+<p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
+  {submittedRequest.status ===
+  "AWAITING_PAYMENT_VERIFICATION"
+    ? `Your payment proof is now awaiting verification by ${publicSettings.company.shortName}.`
+    : submittedRequest.pricingMode ===
+        "FREE"
+      ? "Your request has been submitted successfully. No service payment is required."
+      : "Your request has been submitted successfully. Our team will review it and confirm the amount before payment."}
+</p>
 
 
           <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1829,10 +2080,14 @@ export function RequestWizard() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-blue-800">
-              Our team will verify your payment. Once payment is
-              confirmed, your secure tracking details will be
-              generated and provided to you.
-            </p>
+  {submittedRequest.status ===
+  "AWAITING_PAYMENT_VERIFICATION"
+    ? "Our team will verify your payment. Once payment is confirmed, processing can begin and your secure tracking details will be issued."
+    : submittedRequest.pricingMode ===
+        "FREE"
+      ? "Our team can now review and begin processing your request without waiting for payment."
+      : "Our team will review the request and confirm the final price. Payment will only be required after the amount has been finalized."}
+</p>
           </div>
 
 
@@ -1867,9 +2122,10 @@ export function RequestWizard() {
 
 
             <div className="mt-4 space-y-1">
-              {steps.map(
+              {visibleSteps.map(
                 (
                   step,
+                  index,
                 ) => {
                   const Icon =
                     step.icon;
@@ -1916,9 +2172,9 @@ export function RequestWizard() {
                       <div>
                         <p className="text-xs text-slate-400">
                           Step{" "}
-                          {
-                            step.number
-                          }
+{
+  index + 1
+}
                         </p>
 
                         <p
@@ -1948,13 +2204,13 @@ export function RequestWizard() {
 
         <div>
           <MobileProgress
-            currentStep={
-              currentStep
-            }
-            totalSteps={
-              steps.length
-            }
-          />
+  currentStep={
+    currentStep
+  }
+  visibleSteps={
+    visibleSteps
+  }
+/>
 
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -2053,13 +2309,17 @@ export function RequestWizard() {
 
 
             {currentStep ===
-              5 && (
-              <PaymentStep
+  5 &&
+  paymentRequiredNow && (
+  <PaymentStep
                 draft={
                   draft
                 }
                 setDraft={
                   setDraft
+                }
+                  selectedService={
+                  selectedService
                 }
                 paymentProof={
                   paymentProof
@@ -2152,10 +2412,13 @@ export function RequestWizard() {
                 <Button
                   type="button"
                   className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                  disabled={
-                    submitting ||
-                    !paymentProof
-                  }
+disabled={
+  submitting ||
+  (
+    paymentRequiredNow &&
+    !paymentProof
+  )
+}
                   onClick={
                     submitRequest
                   }
@@ -2203,18 +2466,34 @@ export function RequestWizard() {
 
 function MobileProgress({
   currentStep,
-  totalSteps,
+  visibleSteps,
 }: {
   currentStep:
     number;
 
-  totalSteps:
-    number;
+  visibleSteps:
+    typeof steps;
 }) {
+  const currentIndex =
+    Math.max(
+      visibleSteps.findIndex(
+        (
+          step,
+        ) =>
+          step.number ===
+          currentStep,
+      ),
+      0,
+    );
+
+
   const progress =
     (
-      currentStep /
-      totalSteps
+      (
+        currentIndex +
+        1
+      ) /
+      visibleSteps.length
     ) * 100;
 
 
@@ -2223,17 +2502,17 @@ function MobileProgress({
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">
           Step{" "}
-          {currentStep}{" "}
+          {currentIndex + 1}{" "}
           of{" "}
-          {totalSteps}
+          {visibleSteps.length}
         </p>
+
 
         <p className="text-xs text-slate-500">
           {
-            steps[
-              currentStep -
-              1
-            ].label
+            visibleSteps[
+              currentIndex
+            ]?.label
           }
         </p>
       </div>
@@ -2468,14 +2747,16 @@ function ServiceStep({
         <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
           <FileText className="mx-auto h-7 w-7 text-slate-400" />
 
+
           <p className="mt-4 font-semibold text-slate-800">
             No active services are currently available in this category.
           </p>
         </div>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-
-          {/* GENERAL SERVICES */}
+          {/* ===========================================
+              GENERAL SERVICES
+          =========================================== */}
 
           {generalServices.map(
             (
@@ -2501,7 +2782,7 @@ function ServiceStep({
                       service,
                     )
                   }
-                  className={`flex min-h-[160px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                  className={`flex min-h-[180px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
                       : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
@@ -2544,13 +2825,24 @@ function ServiceStep({
                     {service.description ||
                       "Service provided by Seekers Connect 247."}
                   </p>
+
+
+                  <div className="mt-auto pt-4">
+                    <ServicePricingLabel
+                      service={
+                        service
+                      }
+                    />
+                  </div>
                 </button>
               );
             },
           )}
 
 
-          {/* ACADEMIC SERVICE FAMILIES */}
+          {/* ===========================================
+              ACADEMIC SERVICE FAMILIES
+          =========================================== */}
 
           {academicFamilies.map(
             (
@@ -2572,7 +2864,7 @@ function ServiceStep({
                       family,
                     )
                   }
-                  className={`flex min-h-[160px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                  className={`flex min-h-[180px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
                       : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
@@ -2617,21 +2909,28 @@ function ServiceStep({
                   </p>
 
 
-                  <p className="mt-3 text-xs font-medium text-violet-600">
-                    Available from{" "}
-                    {
-                      family
+                  <div className="mt-auto pt-4">
+                    <p className="text-xs font-medium text-violet-600">
+                      Available from{" "}
+                      {
+                        family
+                          .offerings
+                          .length
+                      }{" "}
+                      institution
+                      {family
                         .offerings
-                        .length
-                    }{" "}
-                    institution
-                    {family
-                      .offerings
-                      .length ===
-                    1
-                      ? ""
-                      : "s"}
-                  </p>
+                        .length ===
+                      1
+                        ? ""
+                        : "s"}
+                    </p>
+
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Select the service to view institution-specific pricing.
+                    </p>
+                  </div>
                 </button>
               );
             },
@@ -2641,7 +2940,10 @@ function ServiceStep({
 
 
       {/* ===============================================
-          INSTITUTION SELECTION
+          ACADEMIC INSTITUTION SELECTION
+
+          Each institution can have its own services row,
+          therefore its own pricing configuration.
       =============================================== */}
 
       {selectedAcademicFamily && (
@@ -2656,13 +2958,15 @@ function ServiceStep({
             {
               selectedAcademicFamily
                 .shortName
-            }?
+            }
+            ?
           </h2>
 
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
             Select the institution where the academic record or
-            document is held.
+            document is held. The price shown below belongs to that
+            institution&apos;s specific service configuration.
           </p>
 
 
@@ -2695,7 +2999,7 @@ function ServiceStep({
                             .id,
                         )
                       }
-                      className={`relative rounded-2xl border p-5 text-left transition ${
+                      className={`relative flex min-h-[190px] flex-col rounded-2xl border p-5 text-left transition ${
                         selected
                           ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
                           : "border-slate-200 bg-white hover:border-violet-200 hover:shadow-md"
@@ -2734,12 +3038,43 @@ function ServiceStep({
                       <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
                         <MapPin className="h-3.5 w-3.5" />
 
+
                         {
                           offering
                             .university
                             .location ||
                           "Ghana"
                         }
+                      </div>
+
+
+                      {/* =================================
+                          INSTITUTION-SPECIFIC PRICE
+                      ================================= */}
+
+                      <div className="mt-auto pt-5">
+                        <div className="border-t border-slate-100 pt-4">
+                          <ServicePricingLabel
+                            service={
+                              offering.service
+                            }
+                          />
+
+
+                          {offering
+                            .service
+                            .pricing
+                            ?.displayNote && (
+                            <p className="mt-1 text-xs leading-5 text-slate-400">
+                              {
+                                offering
+                                  .service
+                                  .pricing
+                                  .displayNote
+                              }
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </button>
                   );
@@ -3340,6 +3675,7 @@ function DeliveryStep({
 function PaymentStep({
   draft,
   setDraft,
+  selectedService,
   paymentProof,
   onPaymentProofChange,
   paymentSettings,
@@ -3352,6 +3688,9 @@ function PaymentStep({
     Dispatch<
       SetStateAction<RequestDraft>
     >;
+
+  selectedService?:
+    RequestCatalogService;
 
   paymentProof:
     File
@@ -3370,17 +3709,203 @@ function PaymentStep({
   requestSettings:
     SystemSettings["request"];
 }) {
+  const pricing =
+    selectedService
+      ?.pricing;
+
+
+  const pricingMode =
+    pricing?.mode ??
+    "MANUAL_PRICE";
+
+
+  const quantity =
+    Number(
+      draft.pricingQuantity,
+    );
+
+
+  const unitAmount =
+    pricing?.amount ??
+    null;
+
+
+  const calculatedTotal =
+    pricingMode ===
+      "PER_UNIT" &&
+    unitAmount !==
+      null &&
+    Number.isFinite(
+      quantity,
+    ) &&
+    quantity >
+      0
+      ? unitAmount *
+        quantity
+      : pricingMode ===
+          "FIXED"
+        ? unitAmount
+        : null;
+
+
   return (
     <>
       <StepHeading
         eyebrow="Payment"
-        title="Make payment and upload your proof."
+        title="Confirm the amount and make payment."
         description={
           requestSettings
             .paymentInstructions
         }
       />
 
+
+      {/* =============================================
+          PRICE
+      ============================================= */}
+
+      <div className="mt-8 rounded-[22px] border border-blue-100 bg-blue-50 p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
+          Amount Due
+        </p>
+
+
+        {pricingMode ===
+        "PER_UNIT" ? (
+          <>
+            <p className="mt-2 text-xl font-semibold text-blue-950">
+              {formatMoney(
+                pricing?.currency ??
+                  "GHS",
+                unitAmount,
+              )}{" "}
+              per{" "}
+              {pricing?.unitLabel ||
+                "unit"}
+            </p>
+
+
+            <div className="mt-5 max-w-xs space-y-2">
+              <Label htmlFor="pricingQuantity">
+                Quantity
+              </Label>
+
+
+              <Input
+                id="pricingQuantity"
+                type="number"
+                min={
+                  pricing?.minimumQuantity ??
+                  0.01
+                }
+                max={
+                  pricing?.maximumQuantity ??
+                  undefined
+                }
+                step="0.01"
+                value={
+                  draft.pricingQuantity
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setDraft(
+                    (
+                      current,
+                    ) => ({
+                      ...current,
+
+                      pricingQuantity:
+                        event.target
+                          .value,
+                    }),
+                  )
+                }
+                placeholder="Enter quantity"
+              />
+
+
+              {(pricing?.minimumQuantity !==
+                null ||
+                pricing?.maximumQuantity !==
+                  null) && (
+                <p className="text-xs text-blue-700">
+                  {pricing &&
+  (
+    pricing.minimumQuantity !==
+      null ||
+    pricing.maximumQuantity !==
+      null
+  ) && (
+    <p className="text-xs text-blue-700">
+      {pricing.minimumQuantity !==
+        null &&
+        `Minimum: ${pricing.minimumQuantity}`}
+
+      {pricing.minimumQuantity !==
+        null &&
+        pricing.maximumQuantity !==
+          null &&
+        " · "}
+
+      {pricing.maximumQuantity !==
+        null &&
+        `Maximum: ${pricing.maximumQuantity}`}
+    </p>
+  )}
+                </p>
+              )}
+            </div>
+
+
+            <div className="mt-5 border-t border-blue-200 pt-4">
+              <p className="text-sm text-blue-700">
+                Calculated Total
+              </p>
+
+              <p className="mt-1 text-3xl font-semibold tracking-tight text-blue-950">
+                {
+                  formatMoney(
+                    pricing?.currency ??
+                      "GHS",
+                    calculatedTotal,
+                  )
+                }
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-blue-950">
+            {
+              formatMoney(
+                pricing?.currency ??
+                  "GHS",
+                calculatedTotal,
+              )
+            }
+          </p>
+        )}
+
+
+        {pricing?.displayNote && (
+          <p className="mt-3 text-sm leading-6 text-blue-800">
+            {
+              pricing.displayNote
+            }
+          </p>
+        )}
+
+
+        <p className="mt-4 text-xs leading-5 text-blue-700">
+          Pay in the currency shown above. The system does not
+          automatically convert between Ghana cedis and US dollars.
+        </p>
+      </div>
+
+
+      {/* =============================================
+          PAYMENT METHOD
+      ============================================= */}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <button
@@ -3405,6 +3930,7 @@ function PaymentStep({
           }`}
         >
           <CreditCard className="h-5 w-5 text-blue-600" />
+
 
           <h3 className="mt-4 font-semibold">
             Mobile Money
@@ -3494,6 +4020,10 @@ function PaymentStep({
       </div>
 
 
+      {/* =============================================
+          PROOF
+      ============================================= */}
+
       <div className="mt-7">
         <Label>
           Proof of Payment
@@ -3540,7 +4070,7 @@ function PaymentStep({
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                JPG, PNG, WEBP or PDF • Maximum 5 MB
+                JPG, PNG, WEBP or PDF · Maximum 5 MB
               </p>
             </>
           )}
@@ -3616,6 +4146,26 @@ function ReviewStep({
       ?.serviceScope ===
     "general";
 
+      const pricingMode =
+    selectedService
+      ?.pricing
+      ?.mode ??
+    "MANUAL_PRICE";
+
+
+  const paymentRequiredNow =
+    pricingMode ===
+      "FIXED" ||
+    pricingMode ===
+      "PER_UNIT";
+
+
+  const pricingRows =
+    buildPricingReviewRows(
+      selectedService,
+      draft,
+    );
+
 
   const requestRows:
     [string, string][] =
@@ -3662,6 +4212,13 @@ function ReviewStep({
             requestRows
           }
         />
+
+        <ReviewCard
+  title="Pricing"
+  rows={
+    pricingRows
+  }
+/>
 
 
         <ReviewCard
@@ -3836,20 +4393,6 @@ function ReviewStep({
         )}
 
 
-        <ReviewCard
-          title="Payment"
-          rows={[
-            [
-              "Method",
-
-              draft.paymentMethod ===
-              "momo"
-                ? "Mobile Money"
-                : "Bank Transfer",
-            ],
-          ]}
-        />
-
 
         <div className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
@@ -3859,11 +4402,14 @@ function ReviewStep({
               Ready for submission
             </p>
 
-            <p className="mt-1 text-sm leading-6 text-emerald-800">
-              Your information and payment proof are ready to be
-              submitted. Please confirm that all details are correct
-              before continuing.
-            </p>
+<p className="mt-1 text-sm leading-6 text-emerald-800">
+  {paymentRequiredNow
+    ? "Your information and payment proof are ready. Please confirm that all details are correct before submitting."
+    : pricingMode ===
+        "FREE"
+      ? "No service payment is required. Please confirm your details before submitting."
+      : "No payment is required at this stage. Submit your request and our team will confirm the final amount before payment."}
+</p>
           </div>
         </div>
       </div>
@@ -4200,6 +4746,325 @@ function ReviewCard({
   );
 }
 
+// =========================================================
+// PRICING HELPERS
+// =========================================================
+
+function formatMoney(
+  currency:
+    string,
+
+  amount:
+    number
+    | null
+    | undefined,
+) {
+  if (
+    amount ===
+      null ||
+    amount ===
+      undefined ||
+    !Number.isFinite(
+      amount,
+    )
+  ) {
+    return `${currency} —`;
+  }
+
+
+  return `${currency} ${amount.toFixed(
+    2,
+  )}`;
+}
+
+
+function ServicePricingLabel({
+  service,
+}: {
+  service:
+    RequestCatalogService;
+}) {
+  const pricing =
+    service.pricing;
+
+
+  if (
+    !pricing
+  ) {
+    return (
+      <p className="text-xs font-semibold text-slate-500">
+        Price confirmed after review
+      </p>
+    );
+  }
+
+
+  switch (
+    pricing.mode
+  ) {
+    case "FIXED":
+      return (
+        <p className="text-sm font-semibold text-blue-700">
+          {
+            formatMoney(
+              pricing.currency,
+              pricing.amount,
+            )
+          }
+        </p>
+      );
+
+
+    case "PER_UNIT":
+      return (
+        <p className="text-sm font-semibold text-blue-700">
+          {
+            formatMoney(
+              pricing.currency,
+              pricing.amount,
+            )
+          }{" "}
+          per{" "}
+          {
+            pricing.unitLabel ||
+            "unit"
+          }
+        </p>
+      );
+
+
+    case "STARTING_FROM":
+      return (
+        <p className="text-sm font-semibold text-blue-700">
+          From{" "}
+          {
+            formatMoney(
+              pricing.currency,
+              pricing.amount,
+            )
+          }
+        </p>
+      );
+
+
+    case "FREE":
+      return (
+        <p className="text-sm font-semibold text-emerald-700">
+          Free
+        </p>
+      );
+
+
+    case "QUOTE_REQUIRED":
+      return (
+        <p className="text-sm font-semibold text-amber-700">
+          Quote required
+        </p>
+      );
+
+
+    case "MANUAL_PRICE":
+    default:
+      return (
+        <p className="text-sm font-semibold text-slate-500">
+          Price confirmed after review
+        </p>
+      );
+  }
+}
+
+
+function buildPricingReviewRows(
+  service:
+    RequestCatalogService
+    | undefined,
+
+  draft:
+    RequestDraft,
+):
+  [string, string][] {
+  const pricing =
+    service?.pricing;
+
+
+  if (
+    !pricing
+  ) {
+    return [
+      [
+        "Pricing",
+        "Price confirmed after review",
+      ],
+
+      [
+        "Payment",
+        "Not required yet",
+      ],
+    ];
+  }
+
+
+  if (
+    pricing.mode ===
+    "FREE"
+  ) {
+    return [
+      [
+        "Price",
+        "Free",
+      ],
+
+      [
+        "Payment",
+        "Not required",
+      ],
+    ];
+  }
+
+
+  if (
+    pricing.mode ===
+    "FIXED"
+  ) {
+    return [
+      [
+        "Price",
+        formatMoney(
+          pricing.currency,
+          pricing.amount,
+        ),
+      ],
+
+      [
+        "Payment Method",
+        draft.paymentMethod ===
+        "momo"
+          ? "Mobile Money"
+          : draft.paymentMethod ===
+              "bank"
+            ? "Bank Transfer"
+            : "—",
+      ],
+    ];
+  }
+
+
+  if (
+    pricing.mode ===
+    "PER_UNIT"
+  ) {
+    const quantity =
+      Number(
+        draft.pricingQuantity,
+      );
+
+
+    const total =
+      pricing.amount !==
+        null &&
+      Number.isFinite(
+        quantity,
+      ) &&
+      quantity >
+        0
+        ? pricing.amount *
+          quantity
+        : null;
+
+
+    return [
+      [
+        "Unit Price",
+
+        `${formatMoney(
+          pricing.currency,
+          pricing.amount,
+        )} per ${
+          pricing.unitLabel ||
+          "unit"
+        }`,
+      ],
+
+      [
+        "Quantity",
+        draft.pricingQuantity ||
+        "—",
+      ],
+
+      [
+        "Total",
+        formatMoney(
+          pricing.currency,
+          total,
+        ),
+      ],
+
+      [
+        "Payment Method",
+        draft.paymentMethod ===
+        "momo"
+          ? "Mobile Money"
+          : draft.paymentMethod ===
+              "bank"
+            ? "Bank Transfer"
+            : "—",
+      ],
+    ];
+  }
+
+
+  if (
+    pricing.mode ===
+    "STARTING_FROM"
+  ) {
+    return [
+      [
+        "Starting Price",
+
+        `From ${formatMoney(
+          pricing.currency,
+          pricing.amount,
+        )}`,
+      ],
+
+      [
+        "Payment",
+        "After final price confirmation",
+      ],
+    ];
+  }
+
+
+  if (
+    pricing.mode ===
+    "QUOTE_REQUIRED"
+  ) {
+    return [
+      [
+        "Pricing",
+        `Quote required · ${pricing.currency}`,
+      ],
+
+      [
+        "Payment",
+        "After quote confirmation",
+      ],
+    ];
+  }
+
+
+  return [
+    [
+      "Pricing",
+      `Price confirmed manually · ${pricing.currency}`,
+    ],
+
+    [
+      "Payment",
+      "After price confirmation",
+    ],
+  ];
+}
 
 // =========================================================
 // RECONCILE SAVED DRAFT
@@ -4213,6 +5078,10 @@ function reconcileDraftWithCatalog(
     RequestCatalog,
 ):
   RequestDraft {
+  // =======================================================
+  // CATEGORY
+  // =======================================================
+
   const category =
     catalog.categories.find(
       (
@@ -4223,9 +5092,16 @@ function reconcileDraftWithCatalog(
     );
 
 
+  // =======================================================
+  // INVALID / REMOVED CATEGORY
+  // =======================================================
+
   if (
     !category
   ) {
+    /*
+     * A completely untouched draft can remain as-is.
+     */
     if (
       !draft.categoryId &&
       !draft.serviceId
@@ -4234,6 +5110,10 @@ function reconcileDraftWithCatalog(
     }
 
 
+    /*
+     * Otherwise clear everything that depends on the old
+     * category/service selection.
+     */
     return {
       ...draft,
 
@@ -4249,23 +5129,56 @@ function reconcileDraftWithCatalog(
       serviceId:
         "",
 
+      pricingQuantity:
+        "",
+
+      paymentMethod:
+        "",
+
       responses:
         {},
+
+      delivery: {
+        ...draft.delivery,
+
+        itemType:
+          "Service Request",
+      },
     };
   }
 
 
+  // =======================================================
+  // CATEGORY SELECTED, SERVICE NOT YET SELECTED
+  // =======================================================
+
   if (
     !draft.serviceId
   ) {
-    return draft;
+    return {
+      ...draft,
+
+      pricingQuantity:
+        "",
+
+      paymentMethod:
+        "",
+    };
   }
 
 
+  // =======================================================
+  // LOCATE CONCRETE SERVICE
+  // =======================================================
+
   let service:
-    RequestCatalogService
+    | RequestCatalogService
     | undefined;
 
+
+  // -------------------------------------------------------
+  // GENERAL SERVICE
+  // -------------------------------------------------------
 
   service =
     catalog.generalServices.find(
@@ -4276,6 +5189,10 @@ function reconcileDraftWithCatalog(
         draft.serviceId,
     );
 
+
+  // -------------------------------------------------------
+  // ACADEMIC SERVICE
+  // -------------------------------------------------------
 
   if (
     !service
@@ -4303,6 +5220,10 @@ function reconcileDraftWithCatalog(
   }
 
 
+  // =======================================================
+  // SERVICE REMOVED / MOVED TO ANOTHER CATEGORY
+  // =======================================================
+
   if (
     !service ||
     service.serviceCategoryId !==
@@ -4320,11 +5241,28 @@ function reconcileDraftWithCatalog(
       serviceId:
         "",
 
+      pricingQuantity:
+        "",
+
+      paymentMethod:
+        "",
+
       responses:
         {},
+
+      delivery: {
+        ...draft.delivery,
+
+        itemType:
+          "Service Request",
+      },
     };
   }
 
+
+  // =======================================================
+  // REMOVE RESPONSES FOR FIELDS THAT NO LONGER EXIST
+  // =======================================================
 
   const activeFieldKeys =
     new Set(
@@ -4352,12 +5290,20 @@ function reconcileDraftWithCatalog(
     );
 
 
+  // =======================================================
+  // NORMALIZE SERVICE KEY
+  // =======================================================
+
   const expectedServiceKey =
     service.serviceScope ===
     "general"
       ? `general:${service.id}`
       : `academic:${service.slug}`;
 
+
+  // =======================================================
+  // NORMALIZE INSTITUTION
+  // =======================================================
 
   const expectedUniversityId =
     service.serviceScope ===
@@ -4366,6 +5312,57 @@ function reconcileDraftWithCatalog(
       : service.universityId ??
         "";
 
+
+  // =======================================================
+  // NORMALIZE PRICING
+  //
+  // If an admin changes the pricing mode while a customer
+  // still has an older saved localStorage draft, stale
+  // quantities/payment choices must not leak into the new
+  // pricing flow.
+  // =======================================================
+
+  const currentPricingMode =
+    service.pricing?.mode ??
+    "MANUAL_PRICE";
+
+
+  const paymentRequiredNow =
+    currentPricingMode ===
+      "FIXED" ||
+    currentPricingMode ===
+      "PER_UNIT";
+
+
+  const nextPricingQuantity =
+    currentPricingMode ===
+    "PER_UNIT"
+      ? draft.pricingQuantity
+      : "";
+
+
+  const nextPaymentMethod =
+    paymentRequiredNow
+      ? draft.paymentMethod
+      : "";
+
+
+  // =======================================================
+  // NORMALIZE ITEM TYPE
+  // =======================================================
+
+  const nextItemType =
+    service.serviceScope ===
+    "academic"
+      ? "Academic Document"
+      : service.shortName ||
+        service.name ||
+        "Service Request";
+
+
+  // =======================================================
+  // RESULT
+  // =======================================================
 
   return {
     ...draft,
@@ -4376,7 +5373,24 @@ function reconcileDraftWithCatalog(
     universityId:
       expectedUniversityId,
 
+    pricingQuantity:
+      nextPricingQuantity,
+
+    paymentMethod:
+      nextPaymentMethod,
+
     responses:
       nextResponses,
+
+    delivery: {
+      ...draft.delivery,
+
+      itemType:
+        draft.delivery
+          .itemType
+          .trim()
+          ? draft.delivery.itemType
+          : nextItemType,
+    },
   };
 }
