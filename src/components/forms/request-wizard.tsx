@@ -20,129 +20,285 @@ import {
   MapPin,
   Package,
   RefreshCw,
+  Shapes,
   ShieldCheck,
   Upload,
   UserRound,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Button,
+} from "@/components/ui/button";
 
-import type { SystemSettings } from "@/lib/validation/system-settings";
+import {
+  Input,
+} from "@/components/ui/input";
 
-import type { RequestDraft } from "@/types/request";
+import {
+  Label,
+} from "@/components/ui/label";
+
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+
+import type {
+  SystemSettings,
+} from "@/lib/validation/system-settings";
+
+import type {
+  RequestDraft,
+} from "@/types/request";
 
 import type {
   RequestCatalog,
+  RequestCatalogCategory,
   RequestCatalogField,
   RequestCatalogService,
   RequestCatalogUniversity,
 } from "@/types/request-catalog";
 
-import {
-  UniversityLogo,
-} from "@/components/public/university-logo";
 
+// =========================================================
+// LOCAL STORAGE
+//
+// V2 deliberately uses a new key because the selection model
+// changed from university-first to category-first.
+// =========================================================
 
 const STORAGE_KEY =
-  "seekers-connect-request-draft";
+  "seekers-connect-request-draft-v2";
 
+
+// =========================================================
+// STEPS
+// =========================================================
 
 const steps = [
   {
-  number: 1,
-  label: "Service Area",
-  icon: Package,
-},
+    number:
+      1,
 
-  {
-    number: 2,
-    label: "Service",
-    icon: FileText,
+    label:
+      "Category",
+
+    icon:
+      Shapes,
   },
 
   {
-    number: 3,
-    label: "Details",
-    icon: UserRound,
+    number:
+      2,
+
+    label:
+      "Service",
+
+    icon:
+      FileText,
   },
 
   {
-    number: 4,
-    label: "Delivery",
-    icon: Package,
+    number:
+      3,
+
+    label:
+      "Details",
+
+    icon:
+      UserRound,
   },
 
   {
-    number: 5,
-    label: "Payment",
-    icon: CreditCard,
+    number:
+      4,
+
+    label:
+      "Delivery",
+
+    icon:
+      Package,
   },
 
   {
-    number: 6,
-    label: "Review",
-    icon: ShieldCheck,
+    number:
+      5,
+
+    label:
+      "Payment",
+
+    icon:
+      CreditCard,
+  },
+
+  {
+    number:
+      6,
+
+    label:
+      "Review",
+
+    icon:
+      ShieldCheck,
   },
 ];
 
 
-const initialDraft: RequestDraft = {
-  universityId: "",
-  serviceId: "",
+// =========================================================
+// INITIAL DRAFT
+// =========================================================
+
+const initialDraft:
+  RequestDraft =
+{
+  categoryId:
+    "",
+
+  serviceKey:
+    "",
+
+  universityId:
+    "",
+
+  serviceId:
+    "",
+
 
   applicant: {
-    firstName: "",
-    otherNames: "",
-    surname: "",
-    gender: "",
-    phone: "",
-    email: "",
+    firstName:
+      "",
+
+    otherNames:
+      "",
+
+    surname:
+      "",
+
+    gender:
+      "",
+
+    phone:
+      "",
+
+    email:
+      "",
   },
 
-  responses: {},
+
+  responses:
+    {},
+
 
   delivery: {
-    required: true,
+    required:
+      true,
 
-    fullName: "",
-    houseNumber: "",
-    areaTown: "",
-    cityDistrict: "",
-    region: "",
-    digitalAddress: "",
+    fullName:
+      "",
 
-    phone: "",
-    email: "",
+    houseNumber:
+      "",
 
-    itemType: "Academic Document",
+    areaTown:
+      "",
 
-    emergencyContact: "",
+    cityDistrict:
+      "",
+
+    region:
+      "",
+
+    digitalAddress:
+      "",
+
+    phone:
+      "",
+
+    email:
+      "",
+
+    itemType:
+      "Service Request",
+
+    emergencyContact:
+      "",
   },
 
-  paymentMethod: "",
 
-  notes: "",
+  paymentMethod:
+    "",
+
+
+  notes:
+    "",
 };
 
 
+// =========================================================
+// API RESPONSE TYPES
+// =========================================================
+
 type CatalogApiResponse = {
-  success?: boolean;
+  success?:
+    boolean;
 
-  catalog?: RequestCatalog;
+  catalog?:
+    RequestCatalog;
 
-  message?: string;
+  message?:
+    string;
 };
 
 
 type PublicSettingsApiResponse = {
-  success?: boolean;
+  success?:
+    boolean;
 
-  settings?: SystemSettings;
+  settings?:
+    SystemSettings;
 
-  message?: string;
+  message?:
+    string;
+};
+
+
+// =========================================================
+// ACADEMIC SERVICE FAMILY
+//
+// An academic service such as "Transcript" can exist as
+// separate database service rows for UCC, UG, KNUST, etc.
+//
+// The customer should see one "Transcript" card first, then
+// choose the institution.
+// =========================================================
+
+type AcademicServiceOffering = {
+  university:
+    RequestCatalogUniversity;
+
+  service:
+    RequestCatalogService;
+};
+
+
+type AcademicServiceFamily = {
+  key:
+    string;
+
+  slug:
+    string;
+
+  name:
+    string;
+
+  shortName:
+    string;
+
+  description:
+    | string
+    | null;
+
+  offerings:
+    AcademicServiceOffering[];
 };
 
 
@@ -155,7 +311,9 @@ export function RequestWizard() {
     currentStep,
     setCurrentStep,
   ] =
-    useState(1);
+    useState(
+      1,
+    );
 
 
   const [
@@ -171,18 +329,23 @@ export function RequestWizard() {
     hydrated,
     setHydrated,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
 
   // =======================================================
-  // REQUEST CATALOG STATE
+  // CATALOG
   // =======================================================
 
   const [
     catalog,
     setCatalog,
   ] =
-    useState<RequestCatalog | null>(
+    useState<
+      RequestCatalog
+      | null
+    >(
       null,
     );
 
@@ -191,32 +354,41 @@ export function RequestWizard() {
     catalogLoading,
     setCatalogLoading,
   ] =
-    useState(true);
+    useState(
+      true,
+    );
 
 
   const [
     catalogError,
     setCatalogError,
   ] =
-    useState("");
+    useState(
+      "",
+    );
 
 
   const [
     catalogReloadKey,
     setCatalogReloadKey,
   ] =
-    useState(0);
+    useState(
+      0,
+    );
 
 
   // =======================================================
-  // PUBLIC SETTINGS STATE
+  // SETTINGS
   // =======================================================
 
   const [
     publicSettings,
     setPublicSettings,
   ] =
-    useState<SystemSettings | null>(
+    useState<
+      SystemSettings
+      | null
+    >(
       null,
     );
 
@@ -225,32 +397,41 @@ export function RequestWizard() {
     settingsLoading,
     setSettingsLoading,
   ] =
-    useState(true);
+    useState(
+      true,
+    );
 
 
   const [
     settingsError,
     setSettingsError,
   ] =
-    useState("");
+    useState(
+      "",
+    );
 
 
   const [
     settingsReloadKey,
     setSettingsReloadKey,
   ] =
-    useState(0);
+    useState(
+      0,
+    );
 
 
   // =======================================================
-  // REQUEST SUBMISSION STATE
+  // PAYMENT / SUBMISSION
   // =======================================================
 
   const [
     paymentProof,
     setPaymentProof,
   ] =
-    useState<File | null>(
+    useState<
+      File
+      | null
+    >(
       null,
     );
 
@@ -259,14 +440,18 @@ export function RequestWizard() {
     submitting,
     setSubmitting,
   ] =
-    useState(false);
+    useState(
+      false,
+    );
 
 
   const [
     submitError,
     setSubmitError,
   ] =
-    useState("");
+    useState(
+      "",
+    );
 
 
   const [
@@ -274,14 +459,15 @@ export function RequestWizard() {
     setSubmittedRequest,
   ] =
     useState<{
-      requestNumber: string;
+      requestNumber:
+        string;
     } | null>(
       null,
     );
 
 
   // =======================================================
-  // RESTORE SAVED DRAFT
+  // RESTORE DRAFT
   // =======================================================
 
   useEffect(
@@ -302,8 +488,6 @@ export function RequestWizard() {
             ) as Partial<RequestDraft>;
 
 
-          // Preserve newly introduced properties when
-          // restoring a draft created by an older version.
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setDraft({
             ...initialDraft,
@@ -311,14 +495,18 @@ export function RequestWizard() {
 
             applicant: {
               ...initialDraft.applicant,
-              ...(parsed.applicant ??
-                {}),
+              ...(
+                parsed.applicant ??
+                {}
+              ),
             },
 
             delivery: {
               ...initialDraft.delivery,
-              ...(parsed.delivery ??
-                {}),
+              ...(
+                parsed.delivery ??
+                {}
+              ),
             },
 
             responses:
@@ -370,7 +558,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // LOAD DYNAMIC REQUEST CATALOG
+  // LOAD CATALOG
   // =======================================================
 
   useEffect(
@@ -401,8 +589,9 @@ export function RequestWizard() {
 
 
           const result =
-            (await response.json()) as
-              CatalogApiResponse;
+            (
+              await response.json()
+            ) as CatalogApiResponse;
 
 
           if (
@@ -506,8 +695,9 @@ export function RequestWizard() {
 
 
           const result =
-            (await response.json()) as
-              PublicSettingsApiResponse;
+            (
+              await response.json()
+            ) as PublicSettingsApiResponse;
 
 
           if (
@@ -580,13 +770,332 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // RECONCILE OLD / STALE SAVED DRAFTS
-  //
-  // Old localStorage drafts may contain university IDs such
-  // as "ucc" while the dynamic catalog now uses UUIDs.
-  //
-  // It also removes responses belonging to fields that were
-  // later disabled by a Super Admin.
+  // CATEGORIES
+  // =======================================================
+
+  const availableCategories =
+    useMemo(
+      () =>
+        [
+          ...(
+            catalog
+              ?.categories ??
+            []
+          ),
+        ].sort(
+          (
+            first,
+            second,
+          ) =>
+            first.displayOrder -
+              second.displayOrder ||
+            first.name.localeCompare(
+              second.name,
+            ),
+        ),
+      [
+        catalog,
+      ],
+    );
+
+
+  const selectedCategory =
+    useMemo<
+      RequestCatalogCategory
+      | undefined
+    >(
+      () =>
+        availableCategories.find(
+          (
+            category,
+          ) =>
+            category.id ===
+            draft.categoryId,
+        ),
+      [
+        availableCategories,
+        draft.categoryId,
+      ],
+    );
+
+
+  // =======================================================
+  // ACADEMIC SERVICE FAMILIES FOR SELECTED CATEGORY
+  // =======================================================
+
+  const academicFamilies =
+    useMemo<
+      AcademicServiceFamily[]
+    >(
+      () => {
+        if (
+          !catalog ||
+          !selectedCategory
+        ) {
+          return [];
+        }
+
+
+        const familyMap =
+          new Map<
+            string,
+            AcademicServiceFamily
+          >();
+
+
+        for (
+          const university of
+          catalog.universities
+        ) {
+          if (
+            university.code ===
+            "SC247"
+          ) {
+            continue;
+          }
+
+
+          for (
+            const service of
+            university.services
+          ) {
+            if (
+              service.serviceScope !==
+                "academic" ||
+              service.serviceCategoryId !==
+                selectedCategory.id
+            ) {
+              continue;
+            }
+
+
+            const key =
+              service.slug;
+
+
+            const existing =
+              familyMap.get(
+                key,
+              );
+
+
+            if (
+              existing
+            ) {
+              existing.offerings.push({
+                university,
+                service,
+              });
+
+              continue;
+            }
+
+
+            familyMap.set(
+              key,
+              {
+                key:
+                  `academic:${service.slug}`,
+
+                slug:
+                  service.slug,
+
+                name:
+                  service.name,
+
+                shortName:
+                  service.shortName,
+
+                description:
+                  service.description,
+
+                offerings: [
+                  {
+                    university,
+                    service,
+                  },
+                ],
+              },
+            );
+          }
+        }
+
+
+        return Array.from(
+          familyMap.values(),
+        ).sort(
+          (
+            first,
+            second,
+          ) =>
+            first.name.localeCompare(
+              second.name,
+            ),
+        );
+      },
+      [
+        catalog,
+        selectedCategory,
+      ],
+    );
+
+
+  // =======================================================
+  // GENERAL SERVICES FOR SELECTED CATEGORY
+  // =======================================================
+
+  const categoryGeneralServices =
+    useMemo(
+      () =>
+        selectedCategory
+          ?.generalServices ??
+        [],
+      [
+        selectedCategory,
+      ],
+    );
+
+
+  // =======================================================
+  // SELECTED ACADEMIC FAMILY
+  // =======================================================
+
+  const selectedAcademicFamily =
+    useMemo<
+      AcademicServiceFamily
+      | undefined
+    >(
+      () =>
+        academicFamilies.find(
+          (
+            family,
+          ) =>
+            family.key ===
+            draft.serviceKey,
+        ),
+      [
+        academicFamilies,
+        draft.serviceKey,
+      ],
+    );
+
+
+  // =======================================================
+  // ALL CONCRETE SERVICES
+  // =======================================================
+
+  const allConcreteServices =
+    useMemo(
+      () => {
+        if (
+          !catalog
+        ) {
+          return [];
+        }
+
+
+        const map =
+          new Map<
+            string,
+            RequestCatalogService
+          >();
+
+
+        for (
+          const service of
+          catalog.generalServices
+        ) {
+          map.set(
+            service.id,
+            service,
+          );
+        }
+
+
+        for (
+          const university of
+          catalog.universities
+        ) {
+          for (
+            const service of
+            university.services
+          ) {
+            map.set(
+              service.id,
+              service,
+            );
+          }
+        }
+
+
+        return Array.from(
+          map.values(),
+        );
+      },
+      [
+        catalog,
+      ],
+    );
+
+
+  const selectedService =
+    useMemo<
+      RequestCatalogService
+      | undefined
+    >(
+      () =>
+        allConcreteServices.find(
+          (
+            service,
+          ) =>
+            service.id ===
+            draft.serviceId,
+        ),
+      [
+        allConcreteServices,
+        draft.serviceId,
+      ],
+    );
+
+
+  const selectedUniversity =
+    useMemo<
+      RequestCatalogUniversity
+      | undefined
+    >(
+      () =>
+        catalog
+          ?.universities
+          .find(
+            (
+              university,
+            ) =>
+              university.id ===
+              draft.universityId,
+          ),
+      [
+        catalog,
+        draft.universityId,
+      ],
+    );
+
+
+  const dynamicFields =
+    useMemo<
+      RequestCatalogField[]
+    >(
+      () =>
+        selectedService
+          ?.fields ??
+        [],
+      [
+        selectedService,
+      ],
+    );
+
+
+  // =======================================================
+  // RECONCILE SAVED V2 DRAFT WITH CURRENT CATALOG
   // =======================================================
 
   useEffect(
@@ -618,127 +1127,178 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // CATALOG SELECTIONS
+  // CATEGORY SELECTION
   // =======================================================
 
-  const availableUniversities =
-  useMemo(
-    () => {
-      const items =
-        (
-          catalog
-            ?.universities ??
-          []
-        ).filter(
+  function selectCategory(
+    categoryId:
+      string,
+  ) {
+    setDraft(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        categoryId,
+
+        serviceKey:
+          "",
+
+        universityId:
+          "",
+
+        serviceId:
+          "",
+
+        responses:
+          {},
+
+        delivery: {
+          ...current.delivery,
+
+          itemType:
+            "Service Request",
+        },
+      }),
+    );
+  }
+
+
+  // =======================================================
+  // GENERAL SERVICE SELECTION
+  // =======================================================
+
+  function selectGeneralService(
+    service:
+      RequestCatalogService,
+  ) {
+    setDraft(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        serviceKey:
+          `general:${service.id}`,
+
+        universityId:
+          "",
+
+        serviceId:
+          service.id,
+
+        responses:
+          {},
+
+        delivery: {
+          ...current.delivery,
+
+          itemType:
+            service.shortName ||
+            service.name ||
+            "Service Request",
+        },
+      }),
+    );
+  }
+
+
+  // =======================================================
+  // ACADEMIC SERVICE FAMILY SELECTION
+  // =======================================================
+
+  function selectAcademicFamily(
+    family:
+      AcademicServiceFamily,
+  ) {
+    setDraft(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        serviceKey:
+          family.key,
+
+        universityId:
+          "",
+
+        serviceId:
+          "",
+
+        responses:
+          {},
+
+        delivery: {
+          ...current.delivery,
+
+          itemType:
+            "Academic Document",
+        },
+      }),
+    );
+  }
+
+
+  // =======================================================
+  // ACADEMIC INSTITUTION SELECTION
+  // =======================================================
+
+  function selectAcademicInstitution(
+    universityId:
+      string,
+  ) {
+    if (
+      !selectedAcademicFamily
+    ) {
+      return;
+    }
+
+
+    const offering =
+      selectedAcademicFamily
+        .offerings
+        .find(
           (
-            university,
+            item,
           ) =>
-            university
-              .services
-              .length >
-            0,
+            item.university.id ===
+            universityId,
         );
 
 
-      return [
-        ...items,
-      ].sort(
-        (
-          first,
-          second,
-        ) => {
-          if (
-            first.code ===
-            "SC247"
-          ) {
-            return -1;
-          }
+    if (
+      !offering
+    ) {
+      return;
+    }
 
 
-          if (
-            second.code ===
-            "SC247"
-          ) {
-            return 1;
-          }
+    setDraft(
+      (
+        current,
+      ) => ({
+        ...current,
 
+        universityId:
+          offering.university.id,
 
-          return first.name.localeCompare(
-            second.name,
-          );
+        serviceId:
+          offering.service.id,
+
+        responses:
+          {},
+
+        delivery: {
+          ...current.delivery,
+
+          itemType:
+            "Academic Document",
         },
-      );
-    },
-    [
-      catalog,
-    ],
-  );
-
-
-  const selectedUniversity =
-    useMemo<
-      | RequestCatalogUniversity
-      | undefined
-    >(
-      () =>
-        availableUniversities.find(
-          (
-            university,
-          ) =>
-            university.id ===
-            draft.universityId,
-        ),
-      [
-        availableUniversities,
-        draft.universityId,
-      ],
+      }),
     );
-
-
-  const availableServices =
-    useMemo(
-      () =>
-        selectedUniversity
-          ?.services ??
-        [],
-      [
-        selectedUniversity,
-      ],
-    );
-
-
-  const selectedService =
-    useMemo<
-      | RequestCatalogService
-      | undefined
-    >(
-      () =>
-        availableServices.find(
-          (
-            service,
-          ) =>
-            service.id ===
-            draft.serviceId,
-        ),
-      [
-        availableServices,
-        draft.serviceId,
-      ],
-    );
-
-
-  const dynamicFields =
-    useMemo<
-      RequestCatalogField[]
-    >(
-      () =>
-        selectedService
-          ?.fields ??
-        [],
-      [
-        selectedService,
-      ],
-    );
+  }
 
 
   // =======================================================
@@ -770,7 +1330,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // UPDATE DYNAMIC RESPONSE
+  // UPDATE RESPONSE
   // =======================================================
 
   function updateResponse(
@@ -806,7 +1366,7 @@ export function RequestWizard() {
       keyof RequestDraft["delivery"],
 
     value:
-      | string
+      string
       | boolean,
   ) {
     setDraft(
@@ -827,84 +1387,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // UNIVERSITY SELECTION
-  // =======================================================
-
-  function selectUniversity(
-    universityId:
-      string,
-  ) {
-    setDraft(
-      (
-        current,
-      ) => ({
-        ...current,
-
-        universityId,
-
-        serviceId:
-          "",
-
-        responses:
-          {},
-      }),
-    );
-  }
-
-
-  // =======================================================
-  // SERVICE SELECTION
-  // =======================================================
-
-  function selectService(
-  serviceId:
-    string,
-) {
-  const service =
-    availableServices.find(
-      (
-        item,
-      ) =>
-        item.id ===
-        serviceId,
-    );
-
-
-  const isGeneralService =
-    selectedUniversity
-      ?.code ===
-    "SC247";
-
-
-  setDraft(
-    (
-      current,
-    ) => ({
-      ...current,
-
-      serviceId,
-
-      responses:
-        {},
-
-      delivery: {
-        ...current.delivery,
-
-        itemType:
-          isGeneralService
-            ? service
-                ?.shortName ||
-              service?.name ||
-              "Service Request"
-            : "Academic Document",
-      },
-    }),
-  );
-}
-
-
-  // =======================================================
-  // STEP VALIDATION
+  // VALIDATION
   // =======================================================
 
   function canContinue() {
@@ -913,7 +1396,7 @@ export function RequestWizard() {
       1
     ) {
       return Boolean(
-        selectedUniversity,
+        selectedCategory,
       );
     }
 
@@ -962,7 +1445,7 @@ export function RequestWizard() {
 
       return Boolean(
         applicantComplete &&
-          requiredDynamicFieldsComplete,
+        requiredDynamicFieldsComplete,
       );
     }
 
@@ -980,11 +1463,11 @@ export function RequestWizard() {
 
       return Boolean(
         draft.delivery.fullName.trim() &&
-          draft.delivery.areaTown.trim() &&
-          draft.delivery.cityDistrict.trim() &&
-          draft.delivery.region.trim() &&
-          draft.delivery.phone.trim() &&
-          draft.delivery.emergencyContact.trim(),
+        draft.delivery.areaTown.trim() &&
+        draft.delivery.cityDistrict.trim() &&
+        draft.delivery.region.trim() &&
+        draft.delivery.phone.trim() &&
+        draft.delivery.emergencyContact.trim(),
       );
     }
 
@@ -995,7 +1478,7 @@ export function RequestWizard() {
     ) {
       return Boolean(
         draft.paymentMethod &&
-          paymentProof,
+        paymentProof,
       );
     }
 
@@ -1073,11 +1556,24 @@ export function RequestWizard() {
 
 
     if (
-      !selectedUniversity ||
+      !selectedCategory ||
       !selectedService
     ) {
       setSubmitError(
-        "The selected university or service is no longer available. Please start the request again.",
+        "The selected service is no longer available. Please start the request again.",
+      );
+
+      return;
+    }
+
+
+    if (
+      selectedService.serviceScope ===
+        "academic" &&
+      !selectedUniversity
+    ) {
+      setSubmitError(
+        "Please select the institution for this academic service.",
       );
 
       return;
@@ -1168,7 +1664,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // CLEAR SAVED REQUEST
+  // CLEAR DRAFT
   // =======================================================
 
   function clearDraft() {
@@ -1196,7 +1692,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // INITIAL LOADING STATE
+  // INITIAL LOADING
   // =======================================================
 
   if (
@@ -1219,7 +1715,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // CATALOG / SETTINGS FAILURE STATE
+  // FAILURE
   // =======================================================
 
   if (
@@ -1279,7 +1775,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // SUCCESS SCREEN
+  // SUCCESS
   // =======================================================
 
   if (
@@ -1333,8 +1829,8 @@ export function RequestWizard() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-blue-800">
-              Our team will verify your payment. Once the payment has
-              been confirmed, your secure tracking details will be
+              Our team will verify your payment. Once payment is
+              confirmed, your secure tracking details will be
               generated and provided to you.
             </p>
           </div>
@@ -1448,7 +1944,7 @@ export function RequestWizard() {
         </aside>
 
 
-        {/* MAIN CONTENT */}
+        {/* MAIN */}
 
         <div>
           <MobileProgress
@@ -1463,57 +1959,61 @@ export function RequestWizard() {
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
 
-            {/* DATABASE CONTROLLED GENERAL REQUEST NOTICE */}
-
             {currentStep ===
               1 && (
-              <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-                {
-                  publicSettings
-                    .request
-                    .requestNotice
-                }
-              </div>
-            )}
+              <>
+                <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+                  {
+                    publicSettings
+                      .request
+                      .requestNotice
+                  }
+                </div>
 
 
-            {currentStep ===
-              1 && (
-              <UniversityStep
-                universities={
-                  availableUniversities
-                }
-                selectedId={
-                  draft.universityId
-                }
-                onSelect={
-                  selectUniversity
-                }
-              />
+                <CategoryStep
+                  categories={
+                    availableCategories
+                  }
+                  selectedId={
+                    draft.categoryId
+                  }
+                  onSelect={
+                    selectCategory
+                  }
+                />
+              </>
             )}
 
 
             {currentStep ===
               2 && (
               <ServiceStep
-  providerCode={
-    selectedUniversity
-      ?.code
-  }
-  universityName={
-    selectedUniversity
-      ?.name
-  }
-  services={
-    availableServices
-  }
-  selectedId={
-    draft.serviceId
-  }
-  onSelect={
-    selectService
-  }
-/>
+                category={
+                  selectedCategory
+                }
+                generalServices={
+                  categoryGeneralServices
+                }
+                academicFamilies={
+                  academicFamilies
+                }
+                selectedServiceKey={
+                  draft.serviceKey
+                }
+                selectedUniversityId={
+                  draft.universityId
+                }
+                onSelectGeneral={
+                  selectGeneralService
+                }
+                onSelectAcademic={
+                  selectAcademicFamily
+                }
+                onSelectInstitution={
+                  selectAcademicInstitution
+                }
+              />
             )}
 
 
@@ -1582,25 +2082,24 @@ export function RequestWizard() {
             {currentStep ===
               6 && (
               <ReviewStep
-  draft={
-    draft
-  }
-  providerCode={
-    selectedUniversity
-      ?.code
-  }
-  universityName={
-    selectedUniversity
-      ?.name
-  }
-  serviceName={
-    selectedService
-      ?.name
-  }
-  dynamicFields={
-    dynamicFields
-  }
-/>
+                draft={
+                  draft
+                }
+                categoryName={
+                  selectedCategory
+                    ?.name
+                }
+                universityName={
+                  selectedUniversity
+                    ?.name
+                }
+                selectedService={
+                  selectedService
+                }
+                dynamicFields={
+                  dynamicFields
+                }
+              />
             )}
 
 
@@ -1733,7 +2232,7 @@ function MobileProgress({
           {
             steps[
               currentStep -
-                1
+              1
             ].label
           }
         </p>
@@ -1755,231 +2254,134 @@ function MobileProgress({
 
 
 // =========================================================
-// UNIVERSITY STEP
+// CATEGORY STEP
 // =========================================================
 
-function UniversityStep({
-  universities,
+function CategoryStep({
+  categories,
   selectedId,
   onSelect,
 }: {
-  universities:
-    RequestCatalogUniversity[];
+  categories:
+    RequestCatalogCategory[];
 
   selectedId:
     string;
 
   onSelect:
     (
-      id:
+      categoryId:
         string,
     ) => void;
 }) {
-  const generalProvider =
-    universities.find(
-      (
-        university,
-      ) =>
-        university.code ===
-        "SC247",
-    );
-
-
-  const academicUniversities =
-    universities.filter(
-      (
-        university,
-      ) =>
-        university.code !==
-        "SC247",
-    );
-
-
   return (
     <>
       <StepHeading
-        eyebrow="Service Area"
+        eyebrow="Service Category"
         title="What do you need help with?"
-        description="Choose an errand, delivery or shopping service, or select your university for an academic document request."
+        description="Choose a service area to see the services currently available from Seekers Connect 247."
       />
 
 
-      {/* ================================================
-          GENERAL SERVICES
-      ================================================ */}
+      {categories.length ===
+      0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+          <Shapes className="mx-auto h-7 w-7 text-slate-400" />
 
-      {generalProvider && (
-        <div className="mt-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
-            Errands & Delivery
-          </p>
-
-
-          <button
-            type="button"
-            onClick={() =>
-              onSelect(
-                generalProvider.id,
-              )
-            }
-            className={`relative w-full overflow-hidden rounded-[24px] border p-6 text-left transition ${
-              selectedId ===
-              generalProvider.id
-                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-slate-50 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
-            }`}
-          >
-            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-blue-100/70 blur-3xl" />
-
-
-            {selectedId ===
-              generalProvider.id && (
-              <div className="absolute right-5 top-5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white">
-                <Check className="h-4 w-4" />
-              </div>
-            )}
-
-
-            <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200">
-                <Package className="h-5 w-5" />
-              </div>
-
-
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">
-                Errands, Delivery & Shopping
-              </h3>
-
-
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Let Seekers Connect run errands, pick up and deliver
-                items, handle document errands or shop on your behalf.
-              </p>
-
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {generalProvider.services.map(
-                  (
-                    service,
-                  ) => (
-                    <span
-                      key={
-                        service.id
-                      }
-                      className="rounded-full border border-blue-100 bg-white px-3 py-1.5 text-xs font-medium text-blue-700"
-                    >
-                      {
-                        service.shortName
-                      }
-                    </span>
-                  ),
-                )}
-              </div>
-            </div>
-          </button>
-        </div>
-      )}
-
-
-      {/* ================================================
-          ACADEMIC SERVICES
-      ================================================ */}
-
-      <div className="mt-8 border-t border-slate-200 pt-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-            Academic Documents
-          </p>
-
-          <h3 className="mt-2 font-semibold text-slate-900">
-            Request from a university
-          </h3>
-
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            Select the institution that holds the academic record or
-            document you need.
+          <p className="mt-4 font-semibold text-slate-800">
+            No service categories are currently available.
           </p>
         </div>
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {categories.map(
+            (
+              category,
+            ) => {
+              const selected =
+                selectedId ===
+                category.id;
 
 
-        {academicUniversities.length ===
-        0 ? (
-          <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-            <Building2 className="mx-auto h-6 w-6 text-slate-400" />
-
-            <p className="mt-3 text-sm text-slate-500">
-              No academic institutions are currently available.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {academicUniversities.map(
-              (
-                university,
-              ) => {
-                const selected =
-                  selectedId ===
-                  university.id;
+              const serviceCount =
+                category
+                  .generalServices
+                  .length +
+                category
+                  .academicServiceCount;
 
 
-                return (
-                  <button
-                    key={
-                      university.id
-                    }
-                    type="button"
-                    onClick={() =>
-                      onSelect(
-                        university.id,
-                      )
-                    }
-                    className={`relative rounded-2xl border p-5 text-left transition ${
+              return (
+                <button
+                  key={
+                    category.id
+                  }
+                  type="button"
+                  onClick={() =>
+                    onSelect(
+                      category.id,
+                    )
+                  }
+                  className={`relative min-h-[180px] rounded-[24px] border p-5 text-left transition ${
+                    selected
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                  }`}
+                >
+                  {selected && (
+                    <div className="absolute right-5 top-5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white">
+                      <Check className="h-4 w-4" />
+                    </div>
+                  )}
+
+
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                       selected
-                        ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                        : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
+                        ? "bg-blue-600 text-white"
+                        : "bg-blue-50 text-blue-600"
                     }`}
                   >
-                    {selected && (
-                      <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
-                        <Check className="h-3.5 w-3.5" />
-                      </div>
+                    {category.slug ===
+                    "errands-delivery" ? (
+                      <Package className="h-5 w-5" />
+                    ) : category.slug ===
+                      "academic-documents" ? (
+                      <FileText className="h-5 w-5" />
+                    ) : (
+                      <Shapes className="h-5 w-5" />
                     )}
+                  </div>
 
 
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                      <Building2 className="h-5 w-5" />
-                    </div>
+                  <h3 className="mt-5 pr-8 text-lg font-semibold text-slate-950">
+                    {
+                      category.name
+                    }
+                  </h3>
 
 
-                    <h3 className="mt-5 text-lg font-semibold text-slate-950">
-                      {
-                        university.code
-                      }
-                    </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {category.description ||
+                      "Services provided by Seekers Connect 247."}
+                  </p>
 
 
-                    <p className="mt-1 pr-6 text-sm leading-6 text-slate-500">
-                      {
-                        university.name
-                      }
-                    </p>
-
-
-                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-                      <MapPin className="h-3.5 w-3.5" />
-
-                      {
-                        university.location ||
-                        "Ghana"
-                      }
-                    </div>
-                  </button>
-                );
-              },
-            )}
-          </div>
-        )}
-      </div>
+                  <p className="mt-4 text-xs font-medium text-blue-600">
+                    {serviceCount}{" "}
+                    service
+                    {serviceCount ===
+                    1
+                      ? ""
+                      : "s"}{" "}
+                    available
+                  </p>
+                </button>
+              );
+            },
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -1990,33 +2392,62 @@ function UniversityStep({
 // =========================================================
 
 function ServiceStep({
-  providerCode,
-  universityName,
-  services,
-  selectedId,
-  onSelect,
+  category,
+  generalServices,
+  academicFamilies,
+  selectedServiceKey,
+  selectedUniversityId,
+  onSelectGeneral,
+  onSelectAcademic,
+  onSelectInstitution,
 }: {
-  providerCode?:
-    string;
+  category:
+    | RequestCatalogCategory
+    | undefined;
 
-  universityName?:
-    string;
-
-  services:
+  generalServices:
     RequestCatalogService[];
 
-  selectedId:
+  academicFamilies:
+    AcademicServiceFamily[];
+
+  selectedServiceKey:
     string;
 
-  onSelect:
+  selectedUniversityId:
+    string;
+
+  onSelectGeneral:
     (
-      id:
+      service:
+        RequestCatalogService,
+    ) => void;
+
+  onSelectAcademic:
+    (
+      family:
+        AcademicServiceFamily,
+    ) => void;
+
+  onSelectInstitution:
+    (
+      universityId:
         string,
     ) => void;
 }) {
-  const isGeneralServices =
-    providerCode ===
-    "SC247";
+  const selectedAcademicFamily =
+    academicFamilies.find(
+      (
+        family,
+      ) =>
+        family.key ===
+        selectedServiceKey,
+    );
+
+
+  const totalServices =
+    generalServices.length +
+    academicFamilies.length;
 
 
   return (
@@ -2024,40 +2455,39 @@ function ServiceStep({
       <StepHeading
         eyebrow="Service"
         title={
-          isGeneralServices
-            ? "What would you like us to handle?"
-            : "What academic document do you need?"
+          category
+            ? `Choose a service under ${category.name}.`
+            : "Choose a service."
         }
-        description={
-          isGeneralServices
-            ? "Choose the errand, delivery, document or shopping service you need."
-            : `Choose the academic request you want us to process${
-                universityName
-                  ? ` for ${universityName}`
-                  : ""
-              }.`
-        }
+        description="Select the service you need. If the service is institution-specific, you will then choose the institution that should handle the request."
       />
 
 
-      {services.length ===
+      {totalServices ===
       0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
           <FileText className="mx-auto h-7 w-7 text-slate-400" />
 
           <p className="mt-4 font-semibold text-slate-800">
-            No active services are currently available.
+            No active services are currently available in this category.
           </p>
         </div>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {services.map(
+
+          {/* GENERAL SERVICES */}
+
+          {generalServices.map(
             (
               service,
             ) => {
+              const key =
+                `general:${service.id}`;
+
+
               const selected =
-                selectedId ===
-                service.id;
+                selectedServiceKey ===
+                key;
 
 
               return (
@@ -2067,11 +2497,11 @@ function ServiceStep({
                   }
                   type="button"
                   onClick={() =>
-                    onSelect(
-                      service.id,
+                    onSelectGeneral(
+                      service,
                     )
                   }
-                  className={`flex min-h-[150px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                  className={`flex min-h-[160px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
                       : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
@@ -2085,11 +2515,7 @@ function ServiceStep({
                           : "bg-blue-50 text-blue-600"
                       }`}
                     >
-                      {isGeneralServices ? (
-                        <Package className="h-5 w-5" />
-                      ) : (
-                        <FileText className="h-5 w-5" />
-                      )}
+                      <Package className="h-5 w-5" />
                     </div>
 
 
@@ -2122,6 +2548,204 @@ function ServiceStep({
               );
             },
           )}
+
+
+          {/* ACADEMIC SERVICE FAMILIES */}
+
+          {academicFamilies.map(
+            (
+              family,
+            ) => {
+              const selected =
+                selectedServiceKey ===
+                family.key;
+
+
+              return (
+                <button
+                  key={
+                    family.key
+                  }
+                  type="button"
+                  onClick={() =>
+                    onSelectAcademic(
+                      family,
+                    )
+                  }
+                  className={`flex min-h-[160px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                    selected
+                      ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
+                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                        selected
+                          ? "bg-violet-600 text-white"
+                          : "bg-violet-50 text-violet-600"
+                      }`}
+                    >
+                      <FileText className="h-5 w-5" />
+                    </div>
+
+
+                    <div
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                        selected
+                          ? "border-violet-600 bg-violet-600 text-white"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {selected && (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                    </div>
+                  </div>
+
+
+                  <h3 className="mt-5 font-semibold text-slate-950">
+                    {
+                      family.name
+                    }
+                  </h3>
+
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {family.description ||
+                      "Institution-based academic service."}
+                  </p>
+
+
+                  <p className="mt-3 text-xs font-medium text-violet-600">
+                    Available from{" "}
+                    {
+                      family
+                        .offerings
+                        .length
+                    }{" "}
+                    institution
+                    {family
+                      .offerings
+                      .length ===
+                    1
+                      ? ""
+                      : "s"}
+                  </p>
+                </button>
+              );
+            },
+          )}
+        </div>
+      )}
+
+
+      {/* ===============================================
+          INSTITUTION SELECTION
+      =============================================== */}
+
+      {selectedAcademicFamily && (
+        <div className="mt-10 border-t border-slate-200 pt-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600">
+            Institution Required
+          </p>
+
+
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">
+            Which institution should handle{" "}
+            {
+              selectedAcademicFamily
+                .shortName
+            }?
+          </h2>
+
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Select the institution where the academic record or
+            document is held.
+          </p>
+
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {selectedAcademicFamily
+              .offerings
+              .map(
+                (
+                  offering,
+                ) => {
+                  const selected =
+                    selectedUniversityId ===
+                    offering
+                      .university
+                      .id;
+
+
+                  return (
+                    <button
+                      key={
+                        offering
+                          .university
+                          .id
+                      }
+                      type="button"
+                      onClick={() =>
+                        onSelectInstitution(
+                          offering
+                            .university
+                            .id,
+                        )
+                      }
+                      className={`relative rounded-2xl border p-5 text-left transition ${
+                        selected
+                          ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
+                          : "border-slate-200 bg-white hover:border-violet-200 hover:shadow-md"
+                      }`}
+                    >
+                      {selected && (
+                        <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-white">
+                          <Check className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+
+
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+
+
+                      <h3 className="mt-5 text-lg font-semibold text-slate-950">
+                        {
+                          offering
+                            .university
+                            .code
+                        }
+                      </h3>
+
+
+                      <p className="mt-1 pr-6 text-sm leading-6 text-slate-500">
+                        {
+                          offering
+                            .university
+                            .name
+                        }
+                      </p>
+
+
+                      <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                        <MapPin className="h-3.5 w-3.5" />
+
+                        {
+                          offering
+                            .university
+                            .location ||
+                          "Ghana"
+                        }
+                      </div>
+                    </button>
+                  );
+                },
+              )}
+          </div>
         </div>
       )}
     </>
@@ -2167,45 +2791,39 @@ function DetailsStep({
         string,
     ) => void;
 }) {
-    const isGeneralService =
-  Boolean(
-    selectedService &&
-      [
-        "general_errand",
-        "pickup_delivery",
-        "document_errand",
-        "shop_for_me",
-      ].includes(
-        selectedService.formType,
-      ),
-  );
+  const isGeneralService =
+    selectedService
+      ?.serviceScope ===
+    "general";
+
+
   return (
     <>
       <StepHeading
-  eyebrow={
-    isGeneralService
-      ? "Customer Information"
-      : "Applicant Information"
-  }
-  title={
-    isGeneralService
-      ? "Tell us about yourself."
-      : "Tell us about the applicant."
-  }
-  description={
-    isGeneralService
-      ? `Provide your contact details and the information we need to handle ${
-          selectedService
-            ?.shortName ||
-          "your request"
-        }.`
-      : `Enter the information carefully. ${
-          selectedService
-            ? `These details will be used for ${selectedService.shortName}.`
-            : ""
-        }`
-  }
-/>
+        eyebrow={
+          isGeneralService
+            ? "Customer Information"
+            : "Applicant Information"
+        }
+        title={
+          isGeneralService
+            ? "Tell us about yourself."
+            : "Tell us about the applicant."
+        }
+        description={
+          isGeneralService
+            ? `Provide your contact details and the information we need to handle ${
+                selectedService
+                  ?.shortName ||
+                "your request"
+              }.`
+            : `Enter the information carefully. ${
+                selectedService
+                  ? `These details will be used for ${selectedService.shortName}.`
+                  : ""
+              }`
+        }
+      />
 
 
       <div className="mt-8">
@@ -2357,12 +2975,12 @@ function DetailsStep({
 
 
         <SectionHeading
-  title={
-    isGeneralService
-      ? "Service Details"
-      : "Academic Information"
-  }
-/>
+          title={
+            isGeneralService
+              ? "Service Details"
+              : "Academic Information"
+          }
+        />
 
 
         {dynamicFields.length ===
@@ -2438,17 +3056,17 @@ function DeliveryStep({
         keyof RequestDraft["delivery"],
 
       value:
-        | string
+        string
         | boolean,
     ) => void;
 }) {
   return (
     <>
       <StepHeading
-  eyebrow="Delivery"
-  title="Do you need a final physical delivery?"
-  description="Provide delivery information if an item, document, package or purchase should be delivered to you or another recipient."
-/>
+        eyebrow="Delivery"
+        title="Do you need a final physical delivery?"
+        description="Provide delivery information if an item, document, package or purchase should be delivered to you or another recipient."
+      />
 
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -2514,8 +3132,8 @@ function DeliveryStep({
         .required && (
         <div className="mt-8">
           <SectionHeading
-  title="Delivery Information"
-/>
+            title="Delivery Information"
+          />
 
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -2736,12 +3354,14 @@ function PaymentStep({
     >;
 
   paymentProof:
-    File | null;
+    File
+    | null;
 
   onPaymentProofChange:
     (
       file:
-        File | null,
+        File
+        | null,
     ) => void;
 
   paymentSettings:
@@ -2966,34 +3586,66 @@ function PaymentStep({
 
 
 // =========================================================
-// REVIEW STEP
+// REVIEW
 // =========================================================
 
 function ReviewStep({
   draft,
-  providerCode,
+  categoryName,
   universityName,
-  serviceName,
+  selectedService,
   dynamicFields,
 }: {
   draft:
     RequestDraft;
 
-  providerCode?:
+  categoryName?:
     string;
 
   universityName?:
     string;
 
-  serviceName?:
-    string;
+  selectedService?:
+    RequestCatalogService;
 
   dynamicFields:
     RequestCatalogField[];
 }) {
-    const isGeneralService =
-  providerCode ===
-  "SC247";
+  const isGeneralService =
+    selectedService
+      ?.serviceScope ===
+    "general";
+
+
+  const requestRows:
+    [string, string][] =
+  [
+    [
+      "Category",
+      categoryName ??
+        "—",
+    ],
+
+    [
+      "Service",
+      selectedService
+        ?.name ??
+        "—",
+    ],
+  ];
+
+
+  if (
+    !isGeneralService
+  ) {
+    requestRows.push([
+      "Institution",
+      universityName ??
+        "—",
+    ]);
+  }
+
+
   return (
     <>
       <StepHeading
@@ -3005,34 +3657,19 @@ function ReviewStep({
 
       <div className="mt-8 space-y-5">
         <ReviewCard
-  title="Request"
-  rows={[
-    [
-      isGeneralService
-        ? "Service Area"
-        : "University",
-
-      isGeneralService
-        ? "Errands, Delivery & Shopping"
-        : universityName ??
-          "—",
-    ],
-
-    [
-      "Service",
-      serviceName ??
-        "—",
-    ],
-  ]}
-/>
+          title="Request"
+          rows={
+            requestRows
+          }
+        />
 
 
         <ReviewCard
           title={
-  isGeneralService
-    ? "Customer"
-    : "Applicant"
-}
+            isGeneralService
+              ? "Customer"
+              : "Applicant"
+          }
           rows={[
             [
               "Name",
@@ -3084,10 +3721,10 @@ function ReviewStep({
 
         <ReviewCard
           title={
-  isGeneralService
-    ? "Service Details"
-    : "Academic Information"
-}
+            isGeneralService
+              ? "Service Details"
+              : "Academic Information"
+          }
           rows={
             dynamicFields.map(
               (
@@ -3300,7 +3937,7 @@ function SectionHeading({
 
 
 // =========================================================
-// STANDARD FORM INPUT
+// STANDARD INPUT
 // =========================================================
 
 function FormInput({
@@ -3371,7 +4008,7 @@ function FormInput({
 
 
 // =========================================================
-// DYNAMIC DATABASE FIELD
+// DYNAMIC FIELD
 // =========================================================
 
 function DynamicField({
@@ -3565,7 +4202,7 @@ function ReviewCard({
 
 
 // =========================================================
-// RECONCILE LOCAL STORAGE WITH CURRENT CATALOG
+// RECONCILE SAVED DRAFT
 // =========================================================
 
 function reconcileDraftWithCatalog(
@@ -3576,32 +4213,35 @@ function reconcileDraftWithCatalog(
     RequestCatalog,
 ):
   RequestDraft {
-  if (
-    !draft.universityId
-  ) {
-    return draft;
-  }
-
-
-  const university =
-    catalog.universities.find(
+  const category =
+    catalog.categories.find(
       (
         item,
       ) =>
         item.id ===
-        draft.universityId,
+        draft.categoryId,
     );
 
 
-  // Old static IDs such as "ucc" arrive here, as do
-  // universities disabled after a draft was saved.
   if (
-    !university ||
-    university.services.length ===
-      0
+    !category
   ) {
+    if (
+      !draft.categoryId &&
+      !draft.serviceId
+    ) {
+      return draft;
+    }
+
+
     return {
       ...draft,
+
+      categoryId:
+        "",
+
+      serviceKey:
+        "",
 
       universityId:
         "",
@@ -3622,8 +4262,13 @@ function reconcileDraftWithCatalog(
   }
 
 
-  const service =
-    university.services.find(
+  let service:
+    RequestCatalogService
+    | undefined;
+
+
+  service =
+    catalog.generalServices.find(
       (
         item,
       ) =>
@@ -3635,8 +4280,42 @@ function reconcileDraftWithCatalog(
   if (
     !service
   ) {
+    for (
+      const university of
+      catalog.universities
+    ) {
+      service =
+        university.services.find(
+          (
+            item,
+          ) =>
+            item.id ===
+            draft.serviceId,
+        );
+
+
+      if (
+        service
+      ) {
+        break;
+      }
+    }
+  }
+
+
+  if (
+    !service ||
+    service.serviceCategoryId !==
+      category.id
+  ) {
     return {
       ...draft,
+
+      serviceKey:
+        "",
+
+      universityId:
+        "",
 
       serviceId:
         "",
@@ -3673,41 +4352,29 @@ function reconcileDraftWithCatalog(
     );
 
 
-  const previousKeys =
-    Object.keys(
-      draft.responses,
-    );
+  const expectedServiceKey =
+    service.serviceScope ===
+    "general"
+      ? `general:${service.id}`
+      : `academic:${service.slug}`;
 
 
-  const nextKeys =
-    Object.keys(
-      nextResponses,
-    );
-
-
-  const responsesChanged =
-    previousKeys.length !==
-      nextKeys.length ||
-    previousKeys.some(
-      (
-        key,
-      ) =>
-        !Object.hasOwn(
-          nextResponses,
-          key,
-        ),
-    );
-
-
-  if (
-    !responsesChanged
-  ) {
-    return draft;
-  }
+  const expectedUniversityId =
+    service.serviceScope ===
+    "general"
+      ? ""
+      : service.universityId ??
+        "";
 
 
   return {
     ...draft,
+
+    serviceKey:
+      expectedServiceKey,
+
+    universityId:
+      expectedUniversityId,
 
     responses:
       nextResponses,

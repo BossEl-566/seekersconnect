@@ -3,6 +3,10 @@ import {
 } from "zod";
 
 
+// =========================================================
+// SHARED IDENTIFIERS
+// =========================================================
+
 const uuidField =
   z
     .string()
@@ -12,48 +16,81 @@ const uuidField =
     );
 
 
+const optionalUniversityId =
+  z
+    .union([
+      z.literal(""),
+
+      z
+        .string()
+        .trim()
+        .uuid(
+          "Invalid institution identifier.",
+        ),
+    ]);
+
+
+// =========================================================
+// REQUEST SUBMISSION
+// =========================================================
+
 export const requestSubmissionSchema =
   z.object({
+    /**
+     * Academic services require this.
+     *
+     * General services are allowed to submit an empty string.
+     */
     universityId:
-      uuidField,
+      optionalUniversityId,
 
+
+    /**
+     * Service is now the primary request identifier.
+     */
     serviceId:
       uuidField,
 
 
     applicant:
       z.object({
-        firstName: z
-          .string()
-          .trim()
-          .min(
-            1,
-            "First name is required.",
-          )
-          .max(
-            100,
-            "First name is too long.",
-          ),
+        firstName:
+          z
+            .string()
+            .trim()
+            .min(
+              1,
+              "First name is required.",
+            )
+            .max(
+              100,
+              "First name is too long.",
+            ),
 
-        otherNames: z
-          .string()
-          .trim()
-          .max(
-            150,
-            "Other names are too long.",
-          ),
 
-        surname: z
-          .string()
-          .trim()
-          .min(
-            1,
-            "Surname is required.",
-          )
-          .max(
-            100,
-            "Surname is too long.",
-          ),
+        otherNames:
+          z
+            .string()
+            .trim()
+            .max(
+              150,
+              "Other names are too long.",
+            ),
+
+
+        surname:
+          z
+            .string()
+            .trim()
+            .min(
+              1,
+              "Surname is required.",
+            )
+            .max(
+              100,
+              "Surname is too long.",
+            ),
+
 
         gender:
           z.enum([
@@ -61,39 +98,44 @@ export const requestSubmissionSchema =
             "Female",
           ]),
 
-        phone: z
-          .string()
-          .trim()
-          .min(
-            8,
-            "Enter a valid phone number.",
-          )
-          .max(
-            20,
-            "Phone number is too long.",
-          ),
 
-        email: z
-          .string()
-          .trim()
-          .email(
-            "Enter a valid email address.",
-          )
-          .max(
-            200,
-            "Email address is too long.",
-          ),
+        phone:
+          z
+            .string()
+            .trim()
+            .min(
+              8,
+              "Enter a valid phone number.",
+            )
+            .max(
+              20,
+              "Phone number is too long.",
+            ),
+
+
+        email:
+          z
+            .string()
+            .trim()
+            .email(
+              "Enter a valid email address.",
+            )
+            .max(
+              200,
+              "Email address is too long.",
+            ),
       }),
 
 
     responses:
       z.record(
         z.string(),
+
         z
           .string()
           .max(
             5000,
-            "Academic response is too long.",
+            "Service response is too long.",
           ),
       ),
 
@@ -103,40 +145,69 @@ export const requestSubmissionSchema =
         required:
           z.boolean(),
 
-        fullName: z
-          .string()
-          .trim()
-          .max(200),
 
-        houseNumber: z
-          .string()
-          .trim()
-          .max(100),
+        fullName:
+          z
+            .string()
+            .trim()
+            .max(
+              200,
+            ),
 
-        areaTown: z
-          .string()
-          .trim()
-          .max(200),
 
-        cityDistrict: z
-          .string()
-          .trim()
-          .max(200),
+        houseNumber:
+          z
+            .string()
+            .trim()
+            .max(
+              100,
+            ),
 
-        region: z
-          .string()
-          .trim()
-          .max(200),
 
-        digitalAddress: z
-          .string()
-          .trim()
-          .max(100),
+        areaTown:
+          z
+            .string()
+            .trim()
+            .max(
+              200,
+            ),
 
-        phone: z
-          .string()
-          .trim()
-          .max(20),
+
+        cityDistrict:
+          z
+            .string()
+            .trim()
+            .max(
+              200,
+            ),
+
+
+        region:
+          z
+            .string()
+            .trim()
+            .max(
+              200,
+            ),
+
+
+        digitalAddress:
+          z
+            .string()
+            .trim()
+            .max(
+              100,
+            ),
+
+
+        phone:
+          z
+            .string()
+            .trim()
+            .max(
+              20,
+            ),
+
 
         email:
           z.union([
@@ -146,19 +217,28 @@ export const requestSubmissionSchema =
               .string()
               .trim()
               .email()
-              .max(200),
+              .max(
+                200,
+              ),
           ]),
 
-        itemType: z
-          .string()
-          .trim()
-          .max(200),
+
+        itemType:
+          z
+            .string()
+            .trim()
+            .max(
+              200,
+            ),
+
 
         emergencyContact:
           z
             .string()
             .trim()
-            .max(20),
+            .max(
+              20,
+            ),
       }),
 
 
@@ -169,13 +249,14 @@ export const requestSubmissionSchema =
       ]),
 
 
-    notes: z
-      .string()
-      .trim()
-      .max(
-        2000,
-        "Notes are too long.",
-      ),
+    notes:
+      z
+        .string()
+        .trim()
+        .max(
+          2000,
+          "Notes are too long.",
+        ),
   });
 
 

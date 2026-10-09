@@ -4,18 +4,21 @@ import type {
 
 
 export type TrackingHistoryItem = {
-  status: RequestStatus;
+  status:
+    RequestStatus;
 
   message:
     | string
     | null;
 
-  createdAt: string;
+  createdAt:
+    string;
 };
 
 
 export type TrackingDocument = {
-  id: string;
+  id:
+    string;
 
   documentType:
     | "SCANNED_TRANSCRIPT"
@@ -35,40 +38,100 @@ export type TrackingDocument = {
     | number
     | null;
 
-  createdAt: string;
+  createdAt:
+    string;
 };
 
 
 export type TrackingResult = {
-  requestNumber: string;
+  requestNumber:
+    string;
 
-  trackingNumber: string;
+  trackingNumber:
+    string;
 
-  status: RequestStatus;
+  status:
+    RequestStatus;
 
-  submittedAt: string;
+  submittedAt:
+    string;
 
   trackingIssuedAt:
     | string
     | null;
 
 
+  /**
+   * Academic institution.
+   *
+   * Migration 021 temporarily continues returning an SC247
+   * compatibility object for historical general requests,
+   * but application logic must NOT use this to determine
+   * service type.
+   */
   university: {
-    code: string;
+    code:
+      string;
 
-    name: string;
+    name:
+      string;
   };
 
 
+  /**
+   * Service is now authoritative for request classification.
+   */
   service: {
-    name: string;
+    id:
+      string;
 
-    shortName: string;
+    name:
+      string;
+
+    shortName:
+      string;
+
+    scope:
+      "general"
+      | "academic";
+
+    category: {
+      slug:
+        | string
+        | null;
+
+      name:
+        | string
+        | null;
+    };
+  };
+
+
+  /**
+   * Convenience metadata returned by the Phase 13 tracking
+   * function.
+   */
+  serviceArea: {
+    scope:
+      "general"
+      | "academic";
+
+    categorySlug:
+      | string
+      | null;
+
+    categoryName:
+      | string
+      | null;
+
+    institutionRequired:
+      boolean;
   };
 
 
   delivery: {
-    required: boolean;
+    required:
+      boolean;
 
     emsTrackingNumber:
       | string

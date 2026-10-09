@@ -20,6 +20,15 @@ export const runtime =
   "nodejs";
 
 
+// =========================================================
+// PAYMENT PROOF
+//
+// This remains 5 MB.
+//
+// The future 10 MB service-document limit is separate from
+// payment-proof uploads.
+// =========================================================
+
 const MAX_FILE_SIZE =
   5 * 1024 * 1024;
 
@@ -39,6 +48,10 @@ const ALLOWED_FILES = {
 } as const;
 
 
+// =========================================================
+// DYNAMIC FIELD TYPES
+// =========================================================
+
 const SUPPORTED_FIELD_TYPES =
   new Set([
     "text",
@@ -51,29 +64,51 @@ const SUPPORTED_FIELD_TYPES =
   ]);
 
 
+// =========================================================
+// DATABASE TYPES
+// =========================================================
+
 type DatabaseUniversity = {
-  id: string;
+  id:
+    string;
 
-  code: string;
+  code:
+    string;
 
-  name: string;
+  name:
+    string;
 };
 
 
 type DatabaseService = {
-  id: string;
-
-  university_id:
+  id:
     string;
 
-  slug: string;
+  university_id:
+    | string
+    | null;
 
-  name: string;
+  service_category_id:
+    string;
+
+  service_scope:
+    "general"
+    | "academic";
+
+  slug:
+    string;
+
+  name:
+    string;
+
+  short_name:
+    string;
 };
 
 
 type DatabaseFormField = {
-  id: string;
+  id:
+    string;
 
   service_id:
     string;
@@ -107,7 +142,7 @@ type DatabaseFormField = {
 // =========================================================
 
 function generateRequestNumber(
-  universityCode:
+  prefix:
     string,
 ) {
   const now =
@@ -140,7 +175,7 @@ function generateRequestNumber(
 
 
   return (
-    `SC247-${universityCode}-${date}-${suffix}`
+    `SC247-${prefix}-${date}-${suffix}`
   );
 }
 
@@ -175,7 +210,7 @@ function normalizeOptions(
 
 
 // =========================================================
-// DYNAMIC FIELD VALUE VALIDATION
+// DYNAMIC VALUE VALIDATION
 // =========================================================
 
 function validateDynamicValue(
@@ -191,7 +226,9 @@ function validateDynamicValue(
     value.trim();
 
 
-  if (!trimmed) {
+  if (
+    !trimmed
+  ) {
     return null;
   }
 
@@ -206,6 +243,10 @@ function validateDynamicValue(
     );
   }
 
+
+  // -------------------------------------------------------
+  // SELECT
+  // -------------------------------------------------------
 
   if (
     field.field_type ===
@@ -229,6 +270,10 @@ function validateDynamicValue(
   }
 
 
+  // -------------------------------------------------------
+  // EMAIL
+  // -------------------------------------------------------
+
   if (
     field.field_type ===
     "email"
@@ -248,6 +293,10 @@ function validateDynamicValue(
     }
   }
 
+
+  // -------------------------------------------------------
+  // NUMBER
+  // -------------------------------------------------------
 
   if (
     field.field_type ===
@@ -270,6 +319,10 @@ function validateDynamicValue(
     }
   }
 
+
+  // -------------------------------------------------------
+  // DATE
+  // -------------------------------------------------------
 
   if (
     field.field_type ===
@@ -305,12 +358,13 @@ export async function POST(
 ) {
   let uploadedPath:
     | string
-    | null = null;
+    | null =
+    null;
 
 
   try {
     // =====================================================
-    // READ MULTIPART FORM
+    // READ MULTIPART REQUEST
     // =====================================================
 
     const formData =
@@ -339,7 +393,8 @@ export async function POST(
             "Request information is missing.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -357,14 +412,15 @@ export async function POST(
             "Please upload proof of payment.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
 
 
     // =====================================================
-    // PARSE JSON
+    // PARSE DRAFT
     // =====================================================
 
     let parsedJson:
@@ -383,14 +439,15 @@ export async function POST(
             "The submitted request information is invalid.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
 
 
     // =====================================================
-    // BASE STRUCTURAL VALIDATION
+    // STRUCTURAL VALIDATION
     // =====================================================
 
     const validation =
@@ -411,7 +468,8 @@ export async function POST(
             validation.error.flatten(),
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -426,84 +484,14 @@ export async function POST(
 
 
     // =====================================================
-    // VERIFY ACTIVE UNIVERSITY
+    // RESOLVE ACTIVE SERVICE FIRST
     //
-    // Never trust the university information sent by the
-    // browser.
-    // =====================================================
-
-    const {
-      data:
-        universityData,
-
-      error:
-        universityError,
-    } = await supabase
-      .from(
-        "universities",
-      )
-      .select(`
-        id,
-        code,
-        name
-      `)
-      .eq(
-        "id",
-        draft.universityId,
-      )
-      .eq(
-        "active",
-        true,
-      )
-      .maybeSingle();
-
-
-    if (
-      universityError
-    ) {
-      console.error(
-        "University validation failed:",
-        universityError,
-      );
-
-
-      return NextResponse.json(
-        {
-          message:
-            "We could not validate the selected university.",
-        },
-        {
-          status: 500,
-        },
-      );
-    }
-
-
-    if (
-      !universityData
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "The selected university is unavailable.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-
-    const university =
-      universityData as
-        DatabaseUniversity;
-
-
-    // =====================================================
-    // VERIFY ACTIVE SERVICE AND OWNERSHIP
+    // This is the architectural change.
     //
-    // This prevents somebody from combining a valid service
-    // UUID with the wrong university UUID.
+    // The browser no longer determines whether a university
+    // is required.
+    //
+    // services.service_scope determines it.
     // =====================================================
 
     const {
@@ -512,27 +500,29 @@ export async function POST(
 
       error:
         serviceError,
-    } = await supabase
-      .from("services")
-      .select(`
-        id,
-        university_id,
-        slug,
-        name
-      `)
-      .eq(
-        "id",
-        draft.serviceId,
-      )
-      .eq(
-        "university_id",
-        draft.universityId,
-      )
-      .eq(
-        "active",
-        true,
-      )
-      .maybeSingle();
+    } =
+      await supabase
+        .from(
+          "services",
+        )
+        .select(`
+          id,
+          university_id,
+          service_category_id,
+          service_scope,
+          slug,
+          name,
+          short_name
+        `)
+        .eq(
+          "id",
+          draft.serviceId,
+        )
+        .eq(
+          "active",
+          true,
+        )
+        .maybeSingle();
 
 
     if (
@@ -550,7 +540,8 @@ export async function POST(
             "We could not validate the selected service.",
         },
         {
-          status: 500,
+          status:
+            500,
         },
       );
     }
@@ -565,7 +556,8 @@ export async function POST(
             "The selected service is unavailable.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -577,7 +569,182 @@ export async function POST(
 
 
     // =====================================================
-    // LOAD ACTIVE SERVICE FORM FIELDS
+    // ACADEMIC SERVICE
+    //
+    // Academic services require an institution.
+    // =====================================================
+
+    let university:
+      DatabaseUniversity
+      | null =
+      null;
+
+
+    if (
+      service.service_scope ===
+      "academic"
+    ) {
+      if (
+        !service.university_id
+      ) {
+        console.error(
+          "Academic service missing university:",
+          service.id,
+        );
+
+
+        return NextResponse.json(
+          {
+            message:
+              "The selected academic service is not configured correctly.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      if (
+        !draft.universityId
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Please select the institution for this academic service.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      // Prevent a browser from combining a service belonging
+      // to one institution with another institution.
+
+      if (
+        draft.universityId !==
+        service.university_id
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The selected service does not belong to the selected institution.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      const {
+        data:
+          universityData,
+
+        error:
+          universityError,
+      } =
+        await supabase
+          .from(
+            "universities",
+          )
+          .select(`
+            id,
+            code,
+            name
+          `)
+          .eq(
+            "id",
+            service.university_id,
+          )
+          .eq(
+            "active",
+            true,
+          )
+          .maybeSingle();
+
+
+      if (
+        universityError
+      ) {
+        console.error(
+          "Institution validation failed:",
+          universityError,
+        );
+
+
+        return NextResponse.json(
+          {
+            message:
+              "We could not validate the selected institution.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      if (
+        !universityData
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The selected institution is unavailable.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      university =
+        universityData as
+          DatabaseUniversity;
+    }
+
+
+    // =====================================================
+    // GENERAL SERVICE
+    //
+    // universityId from the browser is intentionally ignored.
+    //
+    // This supports:
+    //
+    // - legacy SC247 services
+    // - normalized university_id = NULL services
+    // =====================================================
+
+    if (
+      service.service_scope !==
+        "general" &&
+      service.service_scope !==
+        "academic"
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "The selected service type is not supported.",
+        },
+        {
+          status:
+            400,
+        },
+      );
+    }
+
+
+    // =====================================================
+    // LOAD ACTIVE SERVICE FIELDS
     // =====================================================
 
     const {
@@ -586,43 +753,44 @@ export async function POST(
 
       error:
         fieldsError,
-    } = await supabase
-      .from(
-        "service_form_fields",
-      )
-      .select(`
-        id,
-        service_id,
-        field_key,
-        label,
-        field_type,
-        placeholder,
-        required,
-        options,
-        sort_order
-      `)
-      .eq(
-        "service_id",
-        service.id,
-      )
-      .eq(
-        "active",
-        true,
-      )
-      .order(
-        "sort_order",
-        {
-          ascending:
-            true,
-        },
-      )
-      .order(
-        "created_at",
-        {
-          ascending:
-            true,
-        },
-      );
+    } =
+      await supabase
+        .from(
+          "service_form_fields",
+        )
+        .select(`
+          id,
+          service_id,
+          field_key,
+          label,
+          field_type,
+          placeholder,
+          required,
+          options,
+          sort_order
+        `)
+        .eq(
+          "service_id",
+          service.id,
+        )
+        .eq(
+          "active",
+          true,
+        )
+        .order(
+          "sort_order",
+          {
+            ascending:
+              true,
+          },
+        )
+        .order(
+          "created_at",
+          {
+            ascending:
+              true,
+          },
+        );
 
 
     if (
@@ -637,32 +805,34 @@ export async function POST(
       return NextResponse.json(
         {
           message:
-            "We could not validate the academic information for this service.",
+            "We could not validate the information required for this service.",
         },
         {
-          status: 500,
+          status:
+            500,
         },
       );
     }
 
 
     const fields =
-      (fieldsData ??
-        []) as
+      (
+        fieldsData ??
+        []
+      ) as
         DatabaseFormField[];
 
 
     // =====================================================
-    // REJECT UNKNOWN NON-EMPTY RESPONSES
-    //
-    // A malicious browser must not be able to inject its own
-    // arbitrary field keys into request_form_responses.
+    // REJECT UNKNOWN RESPONSES
     // =====================================================
 
     const allowedFieldKeys =
       new Set(
         fields.map(
-          (field) =>
+          (
+            field,
+          ) =>
             field.field_key,
         ),
       );
@@ -684,7 +854,9 @@ export async function POST(
             ),
         )
         .map(
-          ([key]) =>
+          ([
+            key,
+          ]) =>
             key,
         );
 
@@ -696,10 +868,11 @@ export async function POST(
       return NextResponse.json(
         {
           message:
-            "The submitted academic information does not match the selected service.",
+            "The submitted information does not match the selected service.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -711,7 +884,9 @@ export async function POST(
 
     const missingFields =
       fields.filter(
-        (field) =>
+        (
+          field,
+        ) =>
           field.required &&
           !draft.responses[
             field.field_key
@@ -726,28 +901,31 @@ export async function POST(
       return NextResponse.json(
         {
           message:
-            "Required academic information is missing.",
+            "Required service information is missing.",
 
           fields:
             missingFields.map(
-              (field) =>
+              (
+                field,
+              ) =>
                 field.label,
             ),
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
 
 
     // =====================================================
-    // FIELD-TYPE VALIDATION
+    // FIELD TYPE VALIDATION
     // =====================================================
 
     for (
-      const field
-      of fields
+      const field of
+      fields
     ) {
       const value =
         draft.responses[
@@ -772,7 +950,8 @@ export async function POST(
               fieldError,
           },
           {
-            status: 400,
+            status:
+              400,
           },
         );
       }
@@ -801,10 +980,11 @@ export async function POST(
         return NextResponse.json(
           {
             message:
-              "Please complete the required EMS delivery information.",
+              "Please complete the required physical delivery information.",
           },
           {
-            status: 400,
+            status:
+              400,
           },
         );
       }
@@ -825,7 +1005,8 @@ export async function POST(
             "The uploaded payment proof is empty.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -841,7 +1022,8 @@ export async function POST(
             "Payment proof must be 5 MB or smaller.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
@@ -862,23 +1044,32 @@ export async function POST(
             "Payment proof must be a JPG, PNG, WEBP or PDF file.",
         },
         {
-          status: 400,
+          status:
+            400,
         },
       );
     }
 
 
     // =====================================================
-    // GENERATE REQUEST IDENTIFIERS
+    // REQUEST IDENTIFIERS
     // =====================================================
 
     const requestId =
       randomUUID();
 
 
+    const requestPrefix =
+      service.service_scope ===
+        "academic"
+        ? university?.code ??
+          "ACADEMIC"
+        : "SC247";
+
+
     const requestNumber =
       generateRequestNumber(
-        university.code,
+        requestPrefix,
       );
 
 
@@ -931,7 +1122,8 @@ export async function POST(
             "We could not upload the payment proof. Please try again.",
         },
         {
-          status: 500,
+          status:
+            500,
         },
       );
     }
@@ -943,15 +1135,14 @@ export async function POST(
 
     // =====================================================
     // IMMUTABLE RESPONSE SNAPSHOT
-    //
-    // Labels are taken from the database, not from the
-    // browser.
     // =====================================================
 
     const responses =
       fields
         .map(
-          (field) => ({
+          (
+            field,
+          ) => ({
             fieldKey:
               field.field_key,
 
@@ -966,18 +1157,20 @@ export async function POST(
           }),
         )
         .filter(
-          (item) =>
+          (
+            item,
+          ) =>
             item.value.trim() !==
             "",
         );
 
 
     // =====================================================
-    // CREATE REQUEST TRANSACTION
+    // CREATE REQUEST
     //
-    // Existing RPC can remain unchanged because we have
-    // securely resolved the university code and service slug
-    // from the database.
+    // V2 resolves service scope inside PostgreSQL as well.
+    // The API and database therefore both enforce the same
+    // service-driven architecture.
     // =====================================================
 
     const {
@@ -987,7 +1180,7 @@ export async function POST(
         databaseError,
     } =
       await supabase.rpc(
-        "create_request_submission",
+        "create_request_submission_v2",
         {
           p_request_id:
             requestId,
@@ -995,11 +1188,8 @@ export async function POST(
           p_request_number:
             requestNumber,
 
-          p_university_code:
-            university.code,
-
-          p_service_slug:
-            service.slug,
+          p_service_id:
+            service.id,
 
           p_first_name:
             draft.applicant.firstName,
@@ -1047,6 +1237,7 @@ export async function POST(
 
 
       // Prevent orphaned payment proofs.
+
       await supabase.storage
         .from(
           "payment-proofs",
@@ -1066,7 +1257,8 @@ export async function POST(
             "We could not save the request. Please try again.",
         },
         {
-          status: 500,
+          status:
+            500,
         },
       );
     }
@@ -1101,7 +1293,8 @@ export async function POST(
         },
       },
       {
-        status: 201,
+        status:
+          201,
       },
     );
   } catch (
@@ -1113,7 +1306,10 @@ export async function POST(
     );
 
 
-    // Best-effort cleanup for an uploaded proof.
+    // =====================================================
+    // BEST-EFFORT FILE CLEANUP
+    // =====================================================
+
     if (
       uploadedPath
     ) {
@@ -1146,7 +1342,8 @@ export async function POST(
           "Something went wrong while submitting your request.",
       },
       {
-        status: 500,
+        status:
+          500,
       },
     );
   }

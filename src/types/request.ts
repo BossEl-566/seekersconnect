@@ -1,40 +1,62 @@
 export type RequestDraft = {
   /**
-   * Supabase universities.id UUID.
-   *
-   * For the current compatibility wizard this is still used.
-   * In the next phase it will become optional for general
-   * services.
+   * Phase 13 service category.
    */
-  universityId: string;
+  categoryId:
+    string;
 
 
   /**
-   * Supabase services.id UUID.
+   * UI selection identifier.
+   *
+   * General:
+   * general:<service UUID>
+   *
+   * Academic:
+   * academic:<service slug>
    */
-  serviceId: string;
+  serviceKey:
+    string;
+
+
+  /**
+   * Required only for academic services.
+   */
+  universityId:
+    string;
+
+
+  /**
+   * Concrete services.id UUID.
+   *
+   * For an academic service this is resolved after the
+   * customer selects the institution.
+   */
+  serviceId:
+    string;
 
 
   applicant: {
-    firstName: string;
+    firstName:
+      string;
 
-    otherNames: string;
+    otherNames:
+      string;
 
-    surname: string;
+    surname:
+      string;
 
-    gender: string;
+    gender:
+      string;
 
-    phone: string;
+    phone:
+      string;
 
-    email: string;
+    email:
+      string;
   };
 
 
-  /**
-   * Responses to active service_form_fields.
-   *
-   * Key = service_form_fields.field_key
-   */
   responses: Record<
     string,
     string
@@ -42,27 +64,38 @@ export type RequestDraft = {
 
 
   delivery: {
-    required: boolean;
+    required:
+      boolean;
 
-    fullName: string;
+    fullName:
+      string;
 
-    houseNumber: string;
+    houseNumber:
+      string;
 
-    areaTown: string;
+    areaTown:
+      string;
 
-    cityDistrict: string;
+    cityDistrict:
+      string;
 
-    region: string;
+    region:
+      string;
 
-    digitalAddress: string;
+    digitalAddress:
+      string;
 
-    phone: string;
+    phone:
+      string;
 
-    email: string;
+    email:
+      string;
 
-    itemType: string;
+    itemType:
+      string;
 
-    emergencyContact: string;
+    emergencyContact:
+      string;
   };
 
 
@@ -72,5 +105,6 @@ export type RequestDraft = {
     | "";
 
 
-  notes: string;
+  notes:
+    string;
 };

@@ -98,10 +98,34 @@ type RequestDetail = {
       }
     | null;
 
-  services:
+    services:
     | {
-        name: string;
-        short_name: string;
+        name:
+          string;
+
+        short_name:
+          string;
+
+        service_scope:
+          "general"
+          | "academic";
+
+        service_categories:
+          | {
+              name:
+                string;
+
+              slug:
+                string;
+            }
+          | {
+              name:
+                string;
+
+              slug:
+                string;
+            }[]
+          | null;
       }
     | null;
 };
@@ -186,9 +210,15 @@ export default async function RequestDetailPage({
           name
         ),
 
-        services (
+               services (
           name,
-          short_name
+          short_name,
+          service_scope,
+
+          service_categories (
+            name,
+            slug
+          )
         )
       `)
       .eq(
@@ -348,21 +378,54 @@ export default async function RequestDetailPage({
     responsesResult.data ?? [];
 
 
-  const delivery =
+    const delivery =
     deliveryResult.data;
 
+
+  const serviceScope =
+    request
+      .services
+      ?.service_scope;
+
+
+  if (
+    serviceScope !==
+      "general" &&
+    serviceScope !==
+      "academic"
+  ) {
+    notFound();
+  }
+
+
   const isGeneralService =
-  request
-    .universities
-    ?.code ===
-  "SC247";
+    serviceScope ===
+    "general";
 
 
-const deliveryRequired =
-  Boolean(
-    delivery
-      ?.physical_delivery_required,
-  );
+  const serviceCategoryRelation =
+    request
+      .services
+      ?.service_categories;
+
+
+  const serviceCategoryName =
+    Array.isArray(
+      serviceCategoryRelation,
+    )
+      ? serviceCategoryRelation[0]
+          ?.name ??
+        "—"
+      : serviceCategoryRelation
+          ?.name ??
+        "—";
+
+
+  const deliveryRequired =
+    Boolean(
+      delivery
+        ?.physical_delivery_required,
+    );
 
 
   const payment =
@@ -506,15 +569,15 @@ const deliveryRequired =
   icon={FileText}
   title="Request Overview"
 >
-  <InfoGrid
+    <InfoGrid
     rows={[
       [
         isGeneralService
-          ? "Service Area"
+          ? "Service Category"
           : "University",
 
         isGeneralService
-          ? "General Services"
+          ? serviceCategoryName
           : request
               .universities
               ?.name ??
@@ -523,13 +586,15 @@ const deliveryRequired =
 
       [
         isGeneralService
-          ? "Service Area Code"
+          ? "Service Scope"
           : "University Code",
 
-        request
-          .universities
-          ?.code ??
-          "—",
+        isGeneralService
+          ? "General Service"
+          : request
+              .universities
+              ?.code ??
+            "—",
       ],
 
       [

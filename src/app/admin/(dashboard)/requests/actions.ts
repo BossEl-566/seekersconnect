@@ -21,14 +21,14 @@ import {
 // TYPES
 // =========================================================
 
-type ProviderRelation =
+type ServiceRelation =
   | {
-      code:
-        string;
+      service_scope:
+        string | null;
     }
   | {
-      code:
-        string;
+      service_scope:
+        string | null;
     }[]
   | null;
 
@@ -40,8 +40,8 @@ type RequestWorkflowRow = {
   status:
     string;
 
-  universities:
-    ProviderRelation;
+  services:
+    ServiceRelation;
 };
 
 
@@ -61,9 +61,9 @@ export type AdvanceRequestState = {
 // HELPERS
 // =========================================================
 
-function getProviderCode(
+function getServiceScope(
   relation:
-    ProviderRelation,
+    ServiceRelation,
 ) {
   if (
     !relation
@@ -79,14 +79,14 @@ function getProviderCode(
   ) {
     return (
       relation[0]
-        ?.code ??
+        ?.service_scope ??
       null
     );
   }
 
 
   return (
-    relation.code ??
+    relation.service_scope ??
     null
   );
 }
@@ -112,7 +112,7 @@ export async function advanceRequest(
 
 
   // -------------------------------------------------------
-  // Load request and provider
+  // Load request + authoritative service scope
   // -------------------------------------------------------
 
   const {
@@ -130,8 +130,8 @@ export async function advanceRequest(
         id,
         status,
 
-        universities (
-          code
+        services (
+          service_scope
         )
       `)
       .eq(
@@ -160,15 +160,40 @@ export async function advanceRequest(
       RequestWorkflowRow;
 
 
-  const providerCode =
-    getProviderCode(
-      request.universities,
+  const serviceScope =
+    getServiceScope(
+      request.services,
     );
 
 
+  if (
+    serviceScope !==
+      "general" &&
+    serviceScope !==
+      "academic"
+  ) {
+    console.error(
+      "Request service scope is invalid:",
+      {
+        requestId,
+        serviceScope,
+      },
+    );
+
+
+    return {
+      success:
+        false,
+
+      error:
+        "The service workflow is not configured correctly.",
+    };
+  }
+
+
   const isGeneralService =
-    providerCode ===
-    "SC247";
+    serviceScope ===
+    "general";
 
 
   if (
@@ -352,7 +377,7 @@ export async function advanceDeliveryWorkflow(
 
 
   // -------------------------------------------------------
-  // Load request + provider
+  // Load request + authoritative service scope
   // -------------------------------------------------------
 
   const {
@@ -370,8 +395,8 @@ export async function advanceDeliveryWorkflow(
         id,
         status,
 
-        universities (
-          code
+        services (
+          service_scope
         )
       `)
       .eq(
@@ -400,15 +425,40 @@ export async function advanceDeliveryWorkflow(
       RequestWorkflowRow;
 
 
-  const providerCode =
-    getProviderCode(
-      request.universities,
+  const serviceScope =
+    getServiceScope(
+      request.services,
     );
 
 
+  if (
+    serviceScope !==
+      "general" &&
+    serviceScope !==
+      "academic"
+  ) {
+    console.error(
+      "Delivery service scope is invalid:",
+      {
+        requestId,
+        serviceScope,
+      },
+    );
+
+
+    return {
+      success:
+        false,
+
+      error:
+        "The service delivery workflow is not configured correctly.",
+    };
+  }
+
+
   const isGeneralService =
-    providerCode ===
-    "SC247";
+    serviceScope ===
+    "general";
 
 
   // -------------------------------------------------------
@@ -447,7 +497,7 @@ export async function advanceDeliveryWorkflow(
 
 
   // -------------------------------------------------------
-  // General delivery workflow
+  // Run correct delivery workflow
   // -------------------------------------------------------
 
   let data:

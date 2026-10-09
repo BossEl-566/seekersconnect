@@ -552,9 +552,9 @@ function TrackingDetails({
     );
 
 
-  const isGeneralService =
-    result.university.code ===
-    "SC247";
+    const isGeneralService =
+    result.service.scope ===
+    "general";
 
 
   return (
@@ -736,12 +736,12 @@ function TrackingDetails({
           ============================================= */}
 
           <aside className="space-y-4">
-            {/* SERVICE AREA / UNIVERSITY */}
+            {/* SERVICE CATEGORY / UNIVERSITY */}
 
             <SummaryCard
               title={
                 isGeneralService
-                  ? "Service Area"
+                  ? "Service Category"
                   : "University"
               }
               icon={
@@ -753,7 +753,14 @@ function TrackingDetails({
               {isGeneralService ? (
                 <>
                   <p className="font-semibold text-slate-900">
-                    General Services
+                    {
+                      result.service
+                        .category
+                        .name ??
+                      result.serviceArea
+                        .categoryName ??
+                      "General Services"
+                    }
                   </p>
 
 
