@@ -11,6 +11,8 @@ import type {
   RequestCatalogCategory,
   RequestCatalogField,
   RequestCatalogFieldType,
+  RequestCatalogPricing,
+  RequestCatalogPricingMode,
   RequestCatalogService,
   RequestCatalogServiceCategorySummary,
   RequestCatalogUniversity,
@@ -29,96 +31,116 @@ export const dynamic =
 // =========================================================
 
 type RawField = {
-  id: string;
+  id:
+    string;
 
-  service_id: string;
+  service_id:
+    string;
 
-  field_key: string;
+  field_key:
+    string;
 
-  label: string;
+  label:
+    string;
 
-  field_type: string;
+  field_type:
+    string;
 
   placeholder:
     | string
     | null;
 
-  required: boolean;
+  required:
+    boolean;
 
-  options: unknown;
+  options:
+    unknown;
 
-  sort_order: number;
+  sort_order:
+    number;
 
-  active: boolean;
+  active:
+    boolean;
 };
 
 
 type RawService = {
-  id: string;
+  id:
+    string;
 
   university_id:
     | string
     | null;
 
-  service_category_id: string;
+  service_category_id:
+    string;
 
   service_scope:
     | "general"
     | "academic";
 
-  slug: string;
+  slug:
+    string;
 
-  name: string;
+  name:
+    string;
 
-  short_name: string;
+  short_name:
+    string;
 
   description:
     | string
     | null;
 
-  /**
-   * Legacy services.category column.
-   *
-   * Retained temporarily for compatibility with older
-   * application code.
-   */
-  category: string;
+  category:
+    string;
 
-  form_type: string;
+  form_type:
+    string;
 
-  display_order: number;
+  display_order:
+    number;
 
-  featured: boolean;
+  featured:
+    boolean;
 
   image_url:
     | string
     | null;
 
-  active: boolean;
+  active:
+    boolean;
 };
 
 
 type RawUniversity = {
-  id: string;
+  id:
+    string;
 
-  code: string;
+  code:
+    string;
 
-  name: string;
+  name:
+    string;
 
   location:
     | string
     | null;
 
-  active: boolean;
+  active:
+    boolean;
 };
 
 
 type RawCategory = {
-  id: string;
+  id:
+    string;
 
-  slug: string;
+  slug:
+    string;
 
-  name: string;
+  name:
+    string;
 
   description:
     | string
@@ -128,14 +150,57 @@ type RawCategory = {
     | string
     | null;
 
-  display_order: number;
+  display_order:
+    number;
 
-  active: boolean;
+  active:
+    boolean;
+};
+
+
+type RawPricing = {
+  id:
+    string;
+
+  service_id:
+    string;
+
+  pricing_mode:
+    string;
+
+  currency:
+    string;
+
+  amount:
+    string
+    | number
+    | null;
+
+  unit_label:
+    | string
+    | null;
+
+  minimum_quantity:
+    string
+    | number
+    | null;
+
+  maximum_quantity:
+    string
+    | number
+    | null;
+
+  display_note:
+    | string
+    | null;
+
+  active:
+    boolean;
 };
 
 
 // =========================================================
-// SUPPORTED DYNAMIC FIELD TYPES
+// SUPPORTED FIELD TYPES
 // =========================================================
 
 const allowedFieldTypes =
@@ -151,11 +216,27 @@ const allowedFieldTypes =
 
 
 // =========================================================
-// NORMALIZE FIELD OPTIONS
+// SUPPORTED PRICING MODES
+// =========================================================
+
+const allowedPricingModes =
+  new Set<RequestCatalogPricingMode>([
+    "FIXED",
+    "PER_UNIT",
+    "STARTING_FROM",
+    "QUOTE_REQUIRED",
+    "FREE",
+    "MANUAL_PRICE",
+  ]);
+
+
+// =========================================================
+// NORMALIZE OPTIONS
 // =========================================================
 
 function normalizeOptions(
-  value: unknown,
+  value:
+    unknown,
 ): string[] {
   if (
     !Array.isArray(
@@ -183,7 +264,8 @@ function normalizeOptions(
 // =========================================================
 
 function normalizeFieldType(
-  value: string,
+  value:
+    string,
 ): RequestCatalogFieldType {
   if (
     allowedFieldTypes.has(
@@ -199,11 +281,12 @@ function normalizeFieldType(
 
 
 // =========================================================
-// BUILD PUBLIC FIELD
+// BUILD FIELD
 // =========================================================
 
 function buildField(
-  field: RawField,
+  field:
+    RawField,
 ): RequestCatalogField {
   return {
     id:
@@ -238,7 +321,98 @@ function buildField(
 
 
 // =========================================================
-// STANDARD ERROR RESPONSE
+// NUMBER HELPER
+// =========================================================
+
+function nullableNumber(
+  value:
+    string
+    | number
+    | null,
+) {
+  if (
+    value ===
+    null
+  ) {
+    return null;
+  }
+
+
+  const number =
+    Number(
+      value,
+    );
+
+
+  return Number.isFinite(
+    number,
+  )
+    ? number
+    : null;
+}
+
+
+// =========================================================
+// BUILD PRICING
+// =========================================================
+
+function buildPricing(
+  pricing:
+    RawPricing
+    | undefined,
+):
+  RequestCatalogPricing
+  | null {
+  if (
+    !pricing ||
+    !pricing.active
+  ) {
+    return null;
+  }
+
+
+  if (
+    !allowedPricingModes.has(
+      pricing.pricing_mode as RequestCatalogPricingMode,
+    )
+  ) {
+    return null;
+  }
+
+
+  return {
+    mode:
+      pricing.pricing_mode as RequestCatalogPricingMode,
+
+    currency:
+      pricing.currency,
+
+    amount:
+      nullableNumber(
+        pricing.amount,
+      ),
+
+    unitLabel:
+      pricing.unit_label,
+
+    minimumQuantity:
+      nullableNumber(
+        pricing.minimum_quantity,
+      ),
+
+    maximumQuantity:
+      nullableNumber(
+        pricing.maximum_quantity,
+      ),
+
+    displayNote:
+      pricing.display_note,
+  };
+}
+
+
+// =========================================================
+// STANDARD ERROR
 // =========================================================
 
 function catalogErrorResponse() {
@@ -259,7 +433,7 @@ function catalogErrorResponse() {
 
 
 // =========================================================
-// GET PUBLIC REQUEST CATALOG
+// GET REQUEST CATALOG
 // =========================================================
 
 export async function GET() {
@@ -269,7 +443,7 @@ export async function GET() {
 
 
     // =====================================================
-    // LOAD ACTIVE DATA
+    // LOAD CATALOG
     // =====================================================
 
     const [
@@ -277,6 +451,7 @@ export async function GET() {
       categoriesResult,
       servicesResult,
       fieldsResult,
+      pricingResult,
     ] =
       await Promise.all([
         // -------------------------------------------------
@@ -308,7 +483,7 @@ export async function GET() {
 
 
         // -------------------------------------------------
-        // SERVICE CATEGORIES
+        // CATEGORIES
         // -------------------------------------------------
 
         supabase
@@ -389,7 +564,7 @@ export async function GET() {
 
 
         // -------------------------------------------------
-        // DYNAMIC FORM FIELDS
+        // FORM FIELDS
         // -------------------------------------------------
 
         supabase
@@ -426,6 +601,28 @@ export async function GET() {
                 true,
             },
           ),
+
+
+        // -------------------------------------------------
+        // PRICING
+        // -------------------------------------------------
+
+        supabase
+          .from(
+            "service_pricing",
+          )
+          .select(`
+            id,
+            service_id,
+            pricing_mode,
+            currency,
+            amount,
+            unit_label,
+            minimum_quantity,
+            maximum_quantity,
+            display_note,
+            active
+          `),
       ]);
 
 
@@ -481,8 +678,20 @@ export async function GET() {
     }
 
 
+    if (
+      pricingResult.error
+    ) {
+      console.error(
+        "Request catalog pricing failed:",
+        pricingResult.error,
+      );
+
+      return catalogErrorResponse();
+    }
+
+
     // =====================================================
-    // NORMALIZE DATABASE RESULTS
+    // NORMALIZE RESULTS
     // =====================================================
 
     const universities =
@@ -513,8 +722,15 @@ export async function GET() {
       ) as RawField[];
 
 
+    const pricingRows =
+      (
+        pricingResult.data ??
+        []
+      ) as RawPricing[];
+
+
     // =====================================================
-    // LOOKUP MAPS
+    // LOOKUPS
     // =====================================================
 
     const universityById =
@@ -549,22 +765,27 @@ export async function GET() {
       );
 
 
+    const pricingByServiceId =
+      new Map<
+        string,
+        RawPricing
+      >(
+        pricingRows.map(
+          (
+            pricing,
+          ) => [
+            pricing.service_id,
+            pricing,
+          ],
+        ),
+      );
+
+
     // =====================================================
     // VALID SERVICES
     //
-    // NORMALIZED PHASE 13 RULES
-    //
-    // GENERAL:
-    //
-    // service_scope = general
-    // university_id = NULL
-    //
-    // ACADEMIC:
-    //
-    // service_scope = academic
-    // university_id = active real institution
-    //
-    // SC247 is no longer used as an active service provider.
+    // general  -> university_id NULL
+    // academic -> active real institution
     // =====================================================
 
     const validServices =
@@ -572,9 +793,6 @@ export async function GET() {
         (
           service,
         ) => {
-          // Every public service must belong to an active
-          // service category.
-
           const category =
             categoryById.get(
               service.service_category_id,
@@ -588,10 +806,6 @@ export async function GET() {
           }
 
 
-          // -----------------------------------------------
-          // GENERAL SERVICES
-          // -----------------------------------------------
-
           if (
             service.service_scope ===
             "general"
@@ -602,10 +816,6 @@ export async function GET() {
             );
           }
 
-
-          // -----------------------------------------------
-          // ACADEMIC SERVICES
-          // -----------------------------------------------
 
           if (
             service.service_scope ===
@@ -631,10 +841,6 @@ export async function GET() {
             }
 
 
-            // SC247 remains historical compatibility data.
-            // It must not be exposed as an academic
-            // institution.
-
             return (
               institution.code
                 .toUpperCase() !==
@@ -648,10 +854,6 @@ export async function GET() {
       );
 
 
-    // =====================================================
-    // ACTIVE SERVICE IDS
-    // =====================================================
-
     const activeServiceIds =
       new Set(
         validServices.map(
@@ -664,7 +866,7 @@ export async function GET() {
 
 
     // =====================================================
-    // GROUP FORM FIELDS BY SERVICE
+    // FIELDS BY SERVICE
     // =====================================================
 
     const fieldsByService =
@@ -678,9 +880,6 @@ export async function GET() {
       const field of
       fields
     ) {
-      // Ignore fields belonging to inactive / invalid
-      // services.
-
       if (
         !activeServiceIds.has(
           field.service_id,
@@ -690,31 +889,32 @@ export async function GET() {
       }
 
 
-      const currentFields =
+      const current =
         fieldsByService.get(
           field.service_id,
         ) ??
         [];
 
 
-      currentFields.push(
+      current.push(
         field,
       );
 
 
       fieldsByService.set(
         field.service_id,
-        currentFields,
+        current,
       );
     }
 
 
     // =====================================================
-    // BUILD PUBLIC SERVICE
+    // BUILD SERVICE
     // =====================================================
 
     function buildService(
-      service: RawService,
+      service:
+        RawService,
     ): RequestCatalogService {
       const category =
         categoryById.get(
@@ -801,12 +1001,6 @@ export async function GET() {
         description:
           service.description,
 
-        /**
-         * Legacy compatibility field.
-         *
-         * Keep until the remaining legacy services.category
-         * architecture is removed in a later phase.
-         */
         category:
           service.category,
 
@@ -824,6 +1018,13 @@ export async function GET() {
         imageUrl:
           service.image_url,
 
+        pricing:
+          buildPricing(
+            pricingByServiceId.get(
+              service.id,
+            ),
+          ),
+
         fields:
           serviceFields,
       };
@@ -831,7 +1032,7 @@ export async function GET() {
 
 
     // =====================================================
-    // BUILD PUBLIC SERVICE OBJECTS
+    // PUBLIC SERVICES
     // =====================================================
 
     const publicServices =
@@ -842,11 +1043,6 @@ export async function GET() {
 
     // =====================================================
     // GENERAL SERVICES
-    //
-    // Every service in this array is now guaranteed to be:
-    //
-    // service_scope = general
-    // university_id = NULL
     // =====================================================
 
     const generalServices =
@@ -872,7 +1068,7 @@ export async function GET() {
 
 
     // =====================================================
-    // ACADEMIC SERVICES GROUPED BY UNIVERSITY
+    // ACADEMIC SERVICES BY UNIVERSITY
     // =====================================================
 
     const academicServicesByUniversity =
@@ -895,32 +1091,27 @@ export async function GET() {
       }
 
 
-      const currentServices =
+      const current =
         academicServicesByUniversity.get(
           service.universityId,
         ) ??
         [];
 
 
-      currentServices.push(
+      current.push(
         service,
       );
 
 
       academicServicesByUniversity.set(
         service.universityId,
-        currentServices,
+        current,
       );
     }
 
 
     // =====================================================
-    // PUBLIC ACADEMIC UNIVERSITY CATALOG
-    //
-    // SC247 no longer participates in the active catalog.
-    //
-    // Universities returned here are real institutions with
-    // at least one active academic service.
+    // PUBLIC UNIVERSITIES
     // =====================================================
 
     const publicUniversities:
@@ -987,10 +1178,7 @@ export async function GET() {
 
 
     // =====================================================
-    // PUBLIC CATEGORY CATALOG
-    //
-    // Categories become the first-level customer-facing
-    // service grouping.
+    // CATEGORIES
     // =====================================================
 
     const publicCategories:
@@ -1048,9 +1236,6 @@ export async function GET() {
             };
           },
         )
-
-        // Do not expose empty categories.
-
         .filter(
           (
             category,
@@ -1063,7 +1248,6 @@ export async function GET() {
               .academicServiceCount >
               0,
         )
-
         .sort(
           (
             first,
@@ -1078,7 +1262,7 @@ export async function GET() {
 
 
     // =====================================================
-    // FINAL PUBLIC CATALOG
+    // RESPONSE
     // =====================================================
 
     const catalog:
@@ -1093,10 +1277,6 @@ export async function GET() {
         publicUniversities,
     };
 
-
-    // =====================================================
-    // RESPONSE
-    // =====================================================
 
     return NextResponse.json(
       {

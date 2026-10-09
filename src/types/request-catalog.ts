@@ -9,27 +9,83 @@ export type RequestCatalogFieldType =
 
 
 // =========================================================
-// DYNAMIC FORM FIELD
+// DYNAMIC FIELD
 // =========================================================
 
 export type RequestCatalogField = {
-  id: string;
+  id:
+    string;
 
-  key: string;
+  key:
+    string;
 
-  label: string;
+  label:
+    string;
 
-  type: RequestCatalogFieldType;
+  type:
+    RequestCatalogFieldType;
 
   placeholder:
     | string
     | null;
 
-  required: boolean;
+  required:
+    boolean;
 
-  options: string[];
+  options:
+    string[];
 
-  sortOrder: number;
+  sortOrder:
+    number;
+};
+
+
+// =========================================================
+// PRICING
+// =========================================================
+
+export type RequestCatalogPricingMode =
+  | "FIXED"
+  | "PER_UNIT"
+  | "STARTING_FROM"
+  | "QUOTE_REQUIRED"
+  | "FREE"
+  | "MANUAL_PRICE";
+
+
+export type RequestCatalogPricing = {
+  mode:
+    RequestCatalogPricingMode;
+
+  /**
+   * Current admin UI supports GHS and USD.
+   *
+   * Keep this as a string so the public catalog does not
+   * require a TypeScript migration if another ISO currency
+   * is supported later.
+   */
+  currency:
+    string;
+
+  amount:
+    | number
+    | null;
+
+  unitLabel:
+    | string
+    | null;
+
+  minimumQuantity:
+    | number
+    | null;
+
+  maximumQuantity:
+    | number
+    | null;
+
+  displayNote:
+    | string
+    | null;
 };
 
 
@@ -38,11 +94,14 @@ export type RequestCatalogField = {
 // =========================================================
 
 export type RequestCatalogServiceCategorySummary = {
-  id: string;
+  id:
+    string;
 
-  slug: string;
+  slug:
+    string;
 
-  name: string;
+  name:
+    string;
 
   description:
     | string
@@ -52,7 +111,8 @@ export type RequestCatalogServiceCategorySummary = {
     | string
     | null;
 
-  displayOrder: number;
+  displayOrder:
+    number;
 };
 
 
@@ -61,44 +121,60 @@ export type RequestCatalogServiceCategorySummary = {
 // =========================================================
 
 export type RequestCatalogService = {
-  id: string;
+  id:
+    string;
 
   universityId:
     | string
     | null;
 
-  serviceCategoryId: string;
+  serviceCategoryId:
+    string;
 
   serviceScope:
     | "general"
     | "academic";
 
-  slug: string;
+  slug:
+    string;
 
-  name: string;
+  name:
+    string;
 
-  shortName: string;
+  shortName:
+    string;
 
   description:
     | string
     | null;
 
   /**
-   * Legacy compatibility value.
+   * Legacy compatibility column.
    */
-  category: string;
+  category:
+    string;
 
   serviceCategory:
     RequestCatalogServiceCategorySummary;
 
-  formType: string;
+  formType:
+    string;
 
-  displayOrder: number;
+  displayOrder:
+    number;
 
-  featured: boolean;
+  featured:
+    boolean;
 
   imageUrl:
     | string
+    | null;
+
+  /**
+   * Null means pricing is currently not published.
+   */
+  pricing:
+    | RequestCatalogPricing
     | null;
 
   fields:
@@ -107,17 +183,21 @@ export type RequestCatalogService = {
 
 
 // =========================================================
-// UNIVERSITY / INSTITUTION
+// UNIVERSITY
 // =========================================================
 
 export type RequestCatalogUniversity = {
-  id: string;
+  id:
+    string;
 
-  code: string;
+  code:
+    string;
 
-  name: string;
+  name:
+    string;
 
-  location: string;
+  location:
+    string;
 
   services:
     RequestCatalogService[];
@@ -125,15 +205,18 @@ export type RequestCatalogUniversity = {
 
 
 // =========================================================
-// SERVICE CATEGORY
+// CATEGORY
 // =========================================================
 
 export type RequestCatalogCategory = {
-  id: string;
+  id:
+    string;
 
-  slug: string;
+  slug:
+    string;
 
-  name: string;
+  name:
+    string;
 
   description:
     | string
@@ -143,37 +226,28 @@ export type RequestCatalogCategory = {
     | string
     | null;
 
-  displayOrder: number;
+  displayOrder:
+    number;
 
   generalServices:
     RequestCatalogService[];
 
-  academicServiceCount: number;
+  academicServiceCount:
+    number;
 };
 
 
 // =========================================================
-// PUBLIC REQUEST CATALOG
+// COMPLETE CATALOG
 // =========================================================
 
 export type RequestCatalog = {
-  /**
-   * New Phase 13 category-driven catalog.
-   */
   categories:
     RequestCatalogCategory[];
 
-
-  /**
-   * All active general services.
-   */
   generalServices:
     RequestCatalogService[];
 
-
-  /**
-   * Academic institutions plus temporary SC247 compatibility.
-   */
   universities:
     RequestCatalogUniversity[];
 };
