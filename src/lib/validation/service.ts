@@ -3,155 +3,223 @@ import {
 } from "zod";
 
 
+// =========================================================
+// SHARED FIELDS
+// =========================================================
+
+const serviceScopeSchema =
+  z.enum([
+    "general",
+    "academic",
+  ]);
+
+
+const optionalUniversitySchema =
+  z
+    .union([
+      z
+        .string()
+        .uuid(),
+      z.literal(""),
+      z.null(),
+    ])
+    .transform(
+      (
+        value,
+      ) =>
+        value || null,
+    );
+
+
+const serviceCategoryIdSchema =
+  z
+    .string()
+    .uuid(
+      "Select a valid service category.",
+    );
+
+
+const serviceNameSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      2,
+      "Enter the service name.",
+    )
+    .max(
+      150,
+      "Service name is too long.",
+    );
+
+
+const shortNameSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      2,
+      "Enter a short name.",
+    )
+    .max(
+      80,
+      "Short name is too long.",
+    );
+
+
+const descriptionSchema =
+  z
+    .string()
+    .trim()
+    .max(
+      3000,
+      "Description is too long.",
+    );
+
+
+const slugSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      2,
+      "Enter a service slug.",
+    )
+    .max(
+      120,
+      "Service slug is too long.",
+    )
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Use lowercase letters, numbers and hyphens only.",
+    );
+
+
+const formTypeSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      1,
+      "Select a form type.",
+    )
+    .max(
+      100,
+      "Form type is too long.",
+    );
+
+
+const displayOrderSchema =
+  z
+    .coerce
+    .number()
+    .int()
+    .min(0)
+    .max(10000);
+
+
+// =========================================================
+// CREATE SERVICE
+// =========================================================
+
 export const createServiceSchema =
-  z.object({
-    universityId: z
-      .string()
-      .uuid(
-        "Select a valid university.",
-      ),
+  z
+    .object({
+      serviceScope:
+        serviceScopeSchema,
 
-    slug: z
-      .string()
-      .trim()
-      .min(
-        2,
-        "Service slug must contain at least 2 characters.",
-      )
-      .max(
-        80,
-        "Service slug is too long.",
-      )
-      .regex(
-        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-        "Slug can only contain lowercase letters, numbers and hyphens.",
-      ),
+      universityId:
+        optionalUniversitySchema,
 
-    name: z
-      .string()
-      .trim()
-      .min(
-        2,
-        "Service name is required.",
-      )
-      .max(
-        150,
-        "Service name is too long.",
-      ),
+      serviceCategoryId:
+        serviceCategoryIdSchema,
 
-    shortName: z
-      .string()
-      .trim()
-      .min(
-        2,
-        "Short name is required.",
-      )
-      .max(
-        80,
-        "Short name is too long.",
-      ),
+      slug:
+        slugSchema,
 
-    description: z
-      .string()
-      .trim()
-      .max(
-        1000,
-        "Description is too long.",
-      ),
+      name:
+        serviceNameSchema,
 
-    category: z
-      .string()
-      .trim()
-      .min(
-        1,
-        "Select a service category.",
-      )
-      .max(
-        100,
-        "Category is invalid.",
-      ),
+      shortName:
+        shortNameSchema,
 
-    formType: z
-      .string()
-      .trim()
-      .min(
-        1,
-        "Select a form type.",
-      )
-      .max(
-        100,
-        "Form type is invalid.",
-      ),
-  });
+      description:
+        descriptionSchema,
 
+      formType:
+        formTypeSchema,
 
-export const updateServiceSchema =
-  z.object({
-    name: z
-      .string()
-      .trim()
-      .min(
-        2,
-        "Service name is required.",
-      )
-      .max(
-        150,
-        "Service name is too long.",
-      ),
+      displayOrder:
+        displayOrderSchema,
 
-    shortName: z
-      .string()
-      .trim()
-      .min(
-        2,
-        "Short name is required.",
-      )
-      .max(
-        80,
-        "Short name is too long.",
-      ),
+      featured:
+        z.boolean(),
+    })
+    .superRefine(
+      (
+        value,
+        context,
+      ) => {
+        if (
+          value.serviceScope ===
+            "academic" &&
+          !value.universityId
+        ) {
+          context.addIssue({
+            code:
+              "custom",
 
-    description: z
-      .string()
-      .trim()
-      .max(
-        1000,
-        "Description is too long.",
-      ),
+            path: [
+              "universityId",
+            ],
 
-    category: z
-      .string()
-      .trim()
-      .min(
-        1,
-        "Select a service category.",
-      )
-      .max(
-        100,
-        "Category is invalid.",
-      ),
-
-    formType: z
-      .string()
-      .trim()
-      .min(
-        1,
-        "Select a form type.",
-      )
-      .max(
-        100,
-        "Form type is invalid.",
-      ),
-  });
+            message:
+              "Select an institution for an academic service.",
+          });
+        }
+      },
+    );
 
 
 export type CreateServiceInput =
-  z.infer<
+  z.input<
     typeof createServiceSchema
   >;
 
 
+// =========================================================
+// UPDATE SERVICE
+//
+// Scope, institution and slug are intentionally excluded.
+// Existing customer requests may already depend on them.
+// =========================================================
+
+export const updateServiceSchema =
+  z.object({
+    name:
+      serviceNameSchema,
+
+    shortName:
+      shortNameSchema,
+
+    description:
+      descriptionSchema,
+
+    serviceCategoryId:
+      serviceCategoryIdSchema,
+
+    formType:
+      formTypeSchema,
+
+    displayOrder:
+      displayOrderSchema,
+
+    featured:
+      z.boolean(),
+  });
+
+
 export type UpdateServiceInput =
-  z.infer<
+  z.input<
     typeof updateServiceSchema
   >;

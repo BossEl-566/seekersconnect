@@ -21,20 +21,25 @@ import {
 
 
 export type ServiceActionResult = {
-  success: boolean;
-  error: string;
+  success:
+    boolean;
+
+  error:
+    string;
 };
 
 
 // =========================================================
-// HELPER
+// VALIDATE FORM TYPE
+//
+// form_type remains temporarily for backwards compatibility.
+// The dynamic field builder will eventually replace this
+// dependency.
 // =========================================================
 
-async function validateExistingOption(
-  field:
-    | "category"
-    | "form_type",
-  value: string,
+async function validateFormType(
+  formType:
+    string,
 ) {
   const supabase =
     createAdminClient();
@@ -44,18 +49,24 @@ async function validateExistingOption(
     data,
     error,
   } = await supabase
-    .from("services")
-    .select(field)
+    .from(
+      "services",
+    )
+    .select(
+      "form_type",
+    )
     .eq(
-      field,
-      value,
+      "form_type",
+      formType,
     )
     .limit(1);
 
 
-  if (error) {
+  if (
+    error
+  ) {
     console.error(
-      `Could not validate service ${field}:`,
+      "Could not validate form type:",
       error,
     );
 
@@ -76,7 +87,8 @@ async function validateExistingOption(
 // =========================================================
 
 export async function createService(
-  input: CreateServiceInput,
+  input:
+    CreateServiceInput,
 ): Promise<ServiceActionResult> {
   const admin =
     await requireSuperAdmin();
@@ -92,10 +104,13 @@ export async function createService(
     !validation.success
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
-        validation.error.issues[0]
+        validation
+          .error
+          .issues[0]
           ?.message ??
         "Invalid service information.",
     };
@@ -103,13 +118,16 @@ export async function createService(
 
 
   const {
+    serviceScope,
     universityId,
+    serviceCategoryId,
     slug,
     name,
     shortName,
     description,
-    category,
     formType,
+    displayOrder,
+    featured,
   } =
     validation.data;
 
@@ -118,83 +136,180 @@ export async function createService(
     createAdminClient();
 
 
-  // -------------------------------------------------------
-  // Ensure university exists
-  // -------------------------------------------------------
+  // =======================================================
+  // CATEGORY MUST EXIST
+  // =======================================================
 
   const {
-    data: university,
+    data:
+      serviceCategory,
     error:
-      universityError,
+      categoryError,
   } = await supabase
-    .from("universities")
+    .from(
+      "service_categories",
+    )
     .select(`
       id,
-      code,
-      name
+      slug,
+      name,
+      active
     `)
     .eq(
       "id",
-      universityId,
+      serviceCategoryId,
     )
     .single();
 
 
   if (
-    universityError ||
-    !university
+    categoryError ||
+    !serviceCategory
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
-        "The selected university could not be found.",
+        "The selected service category could not be found.",
     };
   }
-
-
-  // -------------------------------------------------------
-  // We currently reuse values already accepted by the
-  // database schema.
-  //
-  // Later, when we complete the fully dynamic field builder,
-  // form_type will no longer be relied upon by the wizard.
-  // -------------------------------------------------------
-
-  const [
-    categoryValid,
-    formTypeValid,
-  ] =
-    await Promise.all([
-      validateExistingOption(
-        "category",
-        category,
-      ),
-
-      validateExistingOption(
-        "form_type",
-        formType,
-      ),
-    ]);
 
 
   if (
-    !categoryValid
+    !serviceCategory.active
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
-        "The selected service category is not supported.",
+        "The selected service category is disabled.",
     };
   }
+
+
+  // =======================================================
+  // ACADEMIC SERVICE REQUIRES A REAL INSTITUTION
+  // =======================================================
+
+  let university:
+    | {
+        id:
+          string;
+
+        code:
+          string;
+
+        name:
+          string;
+
+        active:
+          boolean;
+      }
+    | null =
+    null;
+
+
+  if (
+    serviceScope ===
+    "academic"
+  ) {
+    if (
+      !universityId
+    ) {
+      return {
+        success:
+          false,
+
+        error:
+          "Select an institution for this academic service.",
+      };
+    }
+
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from(
+        "universities",
+      )
+      .select(`
+        id,
+        code,
+        name,
+        active
+      `)
+      .eq(
+        "id",
+        universityId,
+      )
+      .single();
+
+
+    if (
+      error ||
+      !data
+    ) {
+      return {
+        success:
+          false,
+
+        error:
+          "The selected institution could not be found.",
+      };
+    }
+
+
+    if (
+      data.code ===
+      "SC247"
+    ) {
+      return {
+        success:
+          false,
+
+        error:
+          "SC247 is a legacy compatibility provider and cannot be used for new academic services.",
+      };
+    }
+
+
+    if (
+      !data.active
+    ) {
+      return {
+        success:
+          false,
+
+        error:
+          "The selected institution is disabled.",
+      };
+    }
+
+
+    university =
+      data;
+  }
+
+
+  // =======================================================
+  // FORM TYPE
+  // =======================================================
+
+  const formTypeValid =
+    await validateFormType(
+      formType,
+    );
 
 
   if (
     !formTypeValid
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The selected form type is not supported.",
@@ -202,18 +317,35 @@ export async function createService(
   }
 
 
-  // -------------------------------------------------------
-  // Create service
-  // -------------------------------------------------------
+  // =======================================================
+  // CREATE SERVICE
+  //
+  // The legacy category column remains because older parts
+  // of the application still reference it.
+  //
+  // New category architecture uses service_category_id.
+  // =======================================================
 
   const {
-    data: service,
+    data:
+      service,
     error,
   } = await supabase
-    .from("services")
+    .from(
+      "services",
+    )
     .insert({
       university_id:
-        universityId,
+        serviceScope ===
+        "academic"
+          ? universityId
+          : null,
+
+      service_category_id:
+        serviceCategoryId,
+
+      service_scope:
+        serviceScope,
 
       slug,
 
@@ -226,21 +358,33 @@ export async function createService(
         description ||
         null,
 
-      category,
+      // Compatibility value.
+      category:
+        "other",
 
       form_type:
         formType,
+
+      display_order:
+        displayOrder,
+
+      featured,
 
       active:
         true,
     })
     .select(`
       id,
+      university_id,
+      service_category_id,
+      service_scope,
       slug,
       name,
       short_name,
       category,
       form_type,
+      display_order,
+      featured,
       active
     `)
     .single();
@@ -261,16 +405,21 @@ export async function createService(
       "23505"
     ) {
       return {
-        success: false,
+        success:
+          false,
 
         error:
-          "A service with this slug already exists for this university.",
+          serviceScope ===
+          "general"
+            ? "A general service with this slug already exists."
+            : "A service with this slug already exists for this institution.",
       };
     }
 
 
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The service could not be created.",
@@ -278,14 +427,17 @@ export async function createService(
   }
 
 
-  // -------------------------------------------------------
-  // Audit log
-  // -------------------------------------------------------
+  // =======================================================
+  // AUDIT
+  // =======================================================
 
   const {
-    error: logError,
+    error:
+      logError,
   } = await supabase
-    .from("activity_logs")
+    .from(
+      "activity_logs",
+    )
     .insert({
       actor_id:
         admin.id,
@@ -300,11 +452,24 @@ export async function createService(
         service.id,
 
       metadata: {
+        service_scope:
+          serviceScope,
+
         university_id:
-          universityId,
+          service.university_id,
 
         university_code:
-          university.code,
+          university?.code ??
+          null,
+
+        category_id:
+          serviceCategoryId,
+
+        category_slug:
+          serviceCategory.slug,
+
+        category_name:
+          serviceCategory.name,
 
         slug:
           service.slug,
@@ -312,16 +477,21 @@ export async function createService(
         name:
           service.name,
 
-        category:
-          service.category,
-
         form_type:
           service.form_type,
+
+        display_order:
+          service.display_order,
+
+        featured:
+          service.featured,
       },
     });
 
 
-  if (logError) {
+  if (
+    logError
+  ) {
     console.error(
       "Service creation audit log failed:",
       logError,
@@ -333,10 +503,21 @@ export async function createService(
     "/admin/services",
   );
 
+  revalidatePath(
+    "/services",
+  );
+
+  revalidatePath(
+    "/request",
+  );
+
 
   return {
-    success: true,
-    error: "",
+    success:
+      true,
+
+    error:
+      "",
   };
 }
 
@@ -346,8 +527,11 @@ export async function createService(
 // =========================================================
 
 export async function updateService(
-  serviceId: string,
-  input: UpdateServiceInput,
+  serviceId:
+    string,
+
+  input:
+    UpdateServiceInput,
 ): Promise<ServiceActionResult> {
   const admin =
     await requireSuperAdmin();
@@ -363,10 +547,13 @@ export async function updateService(
     !validation.success
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
-        validation.error.issues[0]
+        validation
+          .error
+          .issues[0]
           ?.message ??
         "Invalid service information.",
     };
@@ -377,46 +564,73 @@ export async function updateService(
     name,
     shortName,
     description,
-    category,
+    serviceCategoryId,
     formType,
+    displayOrder,
+    featured,
   } =
     validation.data;
 
 
-  const [
-    categoryValid,
-    formTypeValid,
-  ] =
-    await Promise.all([
-      validateExistingOption(
-        "category",
-        category,
-      ),
+  const supabase =
+    createAdminClient();
 
-      validateExistingOption(
-        "form_type",
-        formType,
-      ),
-    ]);
+
+  // =======================================================
+  // CATEGORY
+  // =======================================================
+
+  const {
+    data:
+      serviceCategory,
+    error:
+      categoryError,
+  } = await supabase
+    .from(
+      "service_categories",
+    )
+    .select(`
+      id,
+      slug,
+      name
+    `)
+    .eq(
+      "id",
+      serviceCategoryId,
+    )
+    .single();
 
 
   if (
-    !categoryValid
+    categoryError ||
+    !serviceCategory
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
-        "The selected service category is not supported.",
+        "The selected service category could not be found.",
     };
   }
+
+
+  // =======================================================
+  // FORM TYPE
+  // =======================================================
+
+  const formTypeValid =
+    await validateFormType(
+      formType,
+    );
 
 
   if (
     !formTypeValid
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The selected form type is not supported.",
@@ -424,15 +638,18 @@ export async function updateService(
   }
 
 
-  const supabase =
-    createAdminClient();
-
+  // =======================================================
+  // UPDATE
+  // =======================================================
 
   const {
-    data: service,
+    data:
+      service,
     error,
   } = await supabase
-    .from("services")
+    .from(
+      "services",
+    )
     .update({
       name,
 
@@ -443,10 +660,16 @@ export async function updateService(
         description ||
         null,
 
-      category,
+      service_category_id:
+        serviceCategoryId,
 
       form_type:
         formType,
+
+      display_order:
+        displayOrder,
+
+      featured,
     })
     .eq(
       "id",
@@ -455,11 +678,14 @@ export async function updateService(
     .select(`
       id,
       university_id,
+      service_category_id,
+      service_scope,
       slug,
       name,
       short_name,
-      category,
       form_type,
+      display_order,
+      featured,
       active
     `)
     .single();
@@ -476,7 +702,8 @@ export async function updateService(
 
 
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The service could not be updated.",
@@ -484,10 +711,17 @@ export async function updateService(
   }
 
 
+  // =======================================================
+  // AUDIT
+  // =======================================================
+
   const {
-    error: logError,
+    error:
+      logError,
   } = await supabase
-    .from("activity_logs")
+    .from(
+      "activity_logs",
+    )
     .insert({
       actor_id:
         admin.id,
@@ -505,6 +739,18 @@ export async function updateService(
         university_id:
           service.university_id,
 
+        service_scope:
+          service.service_scope,
+
+        category_id:
+          service.service_category_id,
+
+        category_slug:
+          serviceCategory.slug,
+
+        category_name:
+          serviceCategory.name,
+
         slug:
           service.slug,
 
@@ -514,16 +760,21 @@ export async function updateService(
         short_name:
           service.short_name,
 
-        category:
-          service.category,
-
         form_type:
           service.form_type,
+
+        display_order:
+          service.display_order,
+
+        featured:
+          service.featured,
       },
     });
 
 
-  if (logError) {
+  if (
+    logError
+  ) {
     console.error(
       "Service update audit log failed:",
       logError,
@@ -535,10 +786,21 @@ export async function updateService(
     "/admin/services",
   );
 
+  revalidatePath(
+    "/services",
+  );
+
+  revalidatePath(
+    "/request",
+  );
+
 
   return {
-    success: true,
-    error: "",
+    success:
+      true,
+
+    error:
+      "",
   };
 }
 
@@ -548,8 +810,11 @@ export async function updateService(
 // =========================================================
 
 export async function setServiceActive(
-  serviceId: string,
-  active: boolean,
+  serviceId:
+    string,
+
+  active:
+    boolean,
 ): Promise<ServiceActionResult> {
   const admin =
     await requireSuperAdmin();
@@ -560,10 +825,13 @@ export async function setServiceActive(
 
 
   const {
-    data: service,
+    data:
+      service,
     error,
   } = await supabase
-    .from("services")
+    .from(
+      "services",
+    )
     .update({
       active,
     })
@@ -574,6 +842,8 @@ export async function setServiceActive(
     .select(`
       id,
       university_id,
+      service_category_id,
+      service_scope,
       slug,
       name,
       active
@@ -592,7 +862,8 @@ export async function setServiceActive(
 
 
     return {
-      success: false,
+      success:
+        false,
 
       error:
         "The service status could not be updated.",
@@ -601,9 +872,12 @@ export async function setServiceActive(
 
 
   const {
-    error: logError,
+    error:
+      logError,
   } = await supabase
-    .from("activity_logs")
+    .from(
+      "activity_logs",
+    )
     .insert({
       actor_id:
         admin.id,
@@ -623,6 +897,12 @@ export async function setServiceActive(
         university_id:
           service.university_id,
 
+        service_scope:
+          service.service_scope,
+
+        category_id:
+          service.service_category_id,
+
         slug:
           service.slug,
 
@@ -634,7 +914,9 @@ export async function setServiceActive(
     });
 
 
-  if (logError) {
+  if (
+    logError
+  ) {
     console.error(
       "Service status audit log failed:",
       logError,
@@ -646,9 +928,20 @@ export async function setServiceActive(
     "/admin/services",
   );
 
+  revalidatePath(
+    "/services",
+  );
+
+  revalidatePath(
+    "/request",
+  );
+
 
   return {
-    success: true,
-    error: "",
+    success:
+      true,
+
+    error:
+      "",
   };
 }

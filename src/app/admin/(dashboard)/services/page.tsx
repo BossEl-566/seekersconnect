@@ -1,7 +1,9 @@
 import {
+  BookOpen,
   CheckCircle2,
   CircleOff,
   FileText,
+  Shapes,
 } from "lucide-react";
 
 import {
@@ -14,6 +16,7 @@ import {
 
 import {
   ServicesManager,
+  type ServiceCategory,
   type ServiceItem,
   type ServiceUniversity,
 } from "@/components/admin/services-manager";
@@ -30,19 +33,27 @@ export default async function ServicesPage() {
   const [
     servicesResult,
     universitiesResult,
+    categoriesResult,
   ] =
     await Promise.all([
       supabase
-        .from("services")
+        .from(
+          "services",
+        )
         .select(`
           id,
           university_id,
+          service_category_id,
+          service_scope,
           slug,
           name,
           short_name,
           description,
           category,
           form_type,
+          display_order,
+          featured,
+          image_url,
           active,
           created_at,
           updated_at,
@@ -51,23 +62,45 @@ export default async function ServicesPage() {
             code,
             name,
             active
+          ),
+
+          service_categories (
+            id,
+            slug,
+            name,
+            description,
+            icon_key,
+            display_order,
+            active
           )
         `)
         .order(
           "active",
           {
-            ascending: false,
+            ascending:
+              false,
+          },
+        )
+        .order(
+          "display_order",
+          {
+            ascending:
+              true,
           },
         )
         .order(
           "name",
           {
-            ascending: true,
+            ascending:
+              true,
           },
         ),
 
+
       supabase
-        .from("universities")
+        .from(
+          "universities",
+        )
         .select(`
           id,
           code,
@@ -77,13 +110,44 @@ export default async function ServicesPage() {
         .order(
           "active",
           {
-            ascending: false,
+            ascending:
+              false,
           },
         )
         .order(
           "name",
           {
-            ascending: true,
+            ascending:
+              true,
+          },
+        ),
+
+
+      supabase
+        .from(
+          "service_categories",
+        )
+        .select(`
+          id,
+          slug,
+          name,
+          description,
+          icon_key,
+          display_order,
+          active
+        `)
+        .order(
+          "display_order",
+          {
+            ascending:
+              true,
+          },
+        )
+        .order(
+          "name",
+          {
+            ascending:
+              true,
           },
         ),
     ]);
@@ -103,8 +167,18 @@ export default async function ServicesPage() {
     universitiesResult.error
   ) {
     console.error(
-      "Service universities query failed:",
+      "Service institutions query failed:",
       universitiesResult.error,
+    );
+  }
+
+
+  if (
+    categoriesResult.error
+  ) {
+    console.error(
+      "Service categories query failed:",
+      categoriesResult.error,
     );
   }
 
@@ -117,28 +191,21 @@ export default async function ServicesPage() {
 
   const universities =
     (universitiesResult.data ??
-      []) as ServiceUniversity[];
+      []) as
+      ServiceUniversity[];
 
-
-  // =======================================================
-  // BUILD CATEGORY OPTIONS FROM EXISTING DATABASE VALUES
-  // =======================================================
 
   const categories =
-    Array.from(
-      new Set(
-        services
-          .map(
-            (service) =>
-              service.category,
-          )
-          .filter(Boolean),
-      ),
-    ).sort();
+    (categoriesResult.data ??
+      []) as
+      ServiceCategory[];
 
 
   // =======================================================
-  // BUILD FORM TYPE OPTIONS FROM EXISTING DATABASE VALUES
+  // FORM TYPES
+  //
+  // Kept temporarily for compatibility with the existing
+  // request wizard and form field engine.
   // =======================================================
 
   const formTypes =
@@ -146,50 +213,88 @@ export default async function ServicesPage() {
       new Set(
         services
           .map(
-            (service) =>
+            (
+              service,
+            ) =>
               service.form_type,
           )
-          .filter(Boolean),
+          .filter(
+            Boolean,
+          ),
       ),
     ).sort();
 
 
+  if (
+    !formTypes.includes(
+      "generic",
+    )
+  ) {
+    formTypes.push(
+      "generic",
+    );
+  }
+
+
   const activeCount =
     services.filter(
-      (service) =>
+      (
+        service,
+      ) =>
         service.active,
     ).length;
 
 
-  const disabledCount =
-    services.length -
-    activeCount;
+  const generalCount =
+    services.filter(
+      (
+        service,
+      ) =>
+        service.service_scope ===
+        "general",
+    ).length;
+
+
+  const academicCount =
+    services.filter(
+      (
+        service,
+      ) =>
+        service.service_scope ===
+        "academic",
+    ).length;
 
 
   return (
     <>
-      {/* HEADER */}
+      {/* ===============================================
+          HEADER
+      =============================================== */}
 
       <div>
         <p className="text-sm font-medium text-blue-600">
           Super Admin
         </p>
 
+
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
           Services
         </h1>
 
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-          Manage the academic document
-          services offered under each
-          supported university.
+
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          Manage every service offered by Seekers Connect 247,
+          including general services and institution-specific
+          academic services.
         </p>
       </div>
 
 
-      {/* SUMMARY */}
+      {/* ===============================================
+          SUMMARY
+      =============================================== */}
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-3">
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           icon={
             FileText
@@ -199,6 +304,7 @@ export default async function ServicesPage() {
             services.length
           }
         />
+
 
         <SummaryCard
           icon={
@@ -210,19 +316,33 @@ export default async function ServicesPage() {
           }
         />
 
+
         <SummaryCard
           icon={
-            CircleOff
+            Shapes
           }
-          label="Disabled"
+          label="General Services"
           value={
-            disabledCount
+            generalCount
+          }
+        />
+
+
+        <SummaryCard
+          icon={
+            BookOpen
+          }
+          label="Academic Services"
+          value={
+            academicCount
           }
         />
       </div>
 
 
-      {/* MANAGER */}
+      {/* ===============================================
+          MANAGER
+      =============================================== */}
 
       <div className="mt-6">
         <ServicesManager
@@ -246,7 +366,8 @@ export default async function ServicesPage() {
 
 
 function SummaryCard({
-  icon: Icon,
+  icon:
+    Icon,
   label,
   value,
 }: {
@@ -264,13 +385,19 @@ function SummaryCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-slate-400">
-            {label}
+            {
+              label
+            }
           </p>
 
+
           <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            {value}
+            {
+              value
+            }
           </p>
         </div>
+
 
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
           <Icon className="h-5 w-5" />
