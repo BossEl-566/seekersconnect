@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 
 import {
+  BadgeDollarSign,
   BookOpen,
   CheckCircle2,
   CircleOff,
@@ -1149,35 +1150,54 @@ function CreateServiceCard({
                   name
                 }
                 onChange={(
-                  event,
-                ) => {
-                  const value =
-                    event.target.value;
-
-                  setName(
-                    value,
-                  );
+  event,
+) => {
+  const value =
+    event.target.value;
 
 
-                  if (
-                    !slug
-                  ) {
-                    setSlug(
-                      slugify(
-                        value,
-                      ),
-                    );
-                  }
+  const previousGeneratedSlug =
+    slugify(
+      name,
+    );
 
 
-                  if (
-                    !shortName
-                  ) {
-                    setShortName(
-                      value,
-                    );
-                  }
-                }}
+  const slugWasFollowingName =
+    !slug ||
+    slug ===
+      previousGeneratedSlug;
+
+
+  const shortNameWasFollowingName =
+    !shortName ||
+    shortName ===
+      name;
+
+
+  setName(
+    value,
+  );
+
+
+  if (
+    slugWasFollowingName
+  ) {
+    setSlug(
+      slugify(
+        value,
+      ),
+    );
+  }
+
+
+  if (
+    shortNameWasFollowingName
+  ) {
+    setShortName(
+      value,
+    );
+  }
+}}
                 placeholder="Gazette"
                 disabled={
                   pending
@@ -1927,6 +1947,15 @@ function ServiceCard({
 
               Manage Fields
             </Link>
+
+            <Link
+  href={`/admin/services/${currentService.id}/pricing`}
+  className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-blue-50 hover:text-blue-700"
+>
+  <BadgeDollarSign className="mr-2 h-4 w-4" />
+
+  Manage Pricing
+</Link>
 
 
             <Button

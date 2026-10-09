@@ -20,7 +20,6 @@ import type {
 export const runtime =
   "nodejs";
 
-
 export const dynamic =
   "force-dynamic";
 
@@ -30,116 +29,96 @@ export const dynamic =
 // =========================================================
 
 type RawField = {
-  id:
-    string;
+  id: string;
 
-  service_id:
-    string;
+  service_id: string;
 
-  field_key:
-    string;
+  field_key: string;
 
-  label:
-    string;
+  label: string;
 
-  field_type:
-    string;
+  field_type: string;
 
   placeholder:
     | string
     | null;
 
-  required:
-    boolean;
+  required: boolean;
 
-  options:
-    unknown;
+  options: unknown;
 
-  sort_order:
-    number;
+  sort_order: number;
 
-  active:
-    boolean;
+  active: boolean;
 };
 
 
 type RawService = {
-  id:
-    string;
+  id: string;
 
   university_id:
     | string
     | null;
 
-  service_category_id:
-    string;
+  service_category_id: string;
 
   service_scope:
-    "general"
+    | "general"
     | "academic";
 
-  slug:
-    string;
+  slug: string;
 
-  name:
-    string;
+  name: string;
 
-  short_name:
-    string;
+  short_name: string;
 
   description:
     | string
     | null;
 
-  category:
-    string;
+  /**
+   * Legacy services.category column.
+   *
+   * Retained temporarily for compatibility with older
+   * application code.
+   */
+  category: string;
 
-  form_type:
-    string;
+  form_type: string;
 
-  display_order:
-    number;
+  display_order: number;
 
-  featured:
-    boolean;
+  featured: boolean;
 
   image_url:
     | string
     | null;
 
-  active:
-    boolean;
+  active: boolean;
 };
 
 
 type RawUniversity = {
-  id:
-    string;
+  id: string;
 
-  code:
-    string;
+  code: string;
 
-  name:
-    string;
+  name: string;
 
   location:
     | string
     | null;
 
-  active:
-    boolean;
+  active: boolean;
 };
 
 
 type RawCategory = {
-  id:
-    string;
+  id: string;
 
-  slug:
-    string;
+  slug: string;
 
-  name:
-    string;
+  name: string;
 
   description:
     | string
@@ -149,16 +128,14 @@ type RawCategory = {
     | string
     | null;
 
-  display_order:
-    number;
+  display_order: number;
 
-  active:
-    boolean;
+  active: boolean;
 };
 
 
 // =========================================================
-// SUPPORTED FIELD TYPES
+// SUPPORTED DYNAMIC FIELD TYPES
 // =========================================================
 
 const allowedFieldTypes =
@@ -174,12 +151,11 @@ const allowedFieldTypes =
 
 
 // =========================================================
-// NORMALIZE OPTIONS
+// NORMALIZE FIELD OPTIONS
 // =========================================================
 
 function normalizeOptions(
-  value:
-    unknown,
+  value: unknown,
 ): string[] {
   if (
     !Array.isArray(
@@ -207,8 +183,7 @@ function normalizeOptions(
 // =========================================================
 
 function normalizeFieldType(
-  value:
-    string,
+  value: string,
 ): RequestCatalogFieldType {
   if (
     allowedFieldTypes.has(
@@ -224,12 +199,11 @@ function normalizeFieldType(
 
 
 // =========================================================
-// BUILD SAFE FIELD
+// BUILD PUBLIC FIELD
 // =========================================================
 
 function buildField(
-  field:
-    RawField,
+  field: RawField,
 ): RequestCatalogField {
   return {
     id:
@@ -264,7 +238,28 @@ function buildField(
 
 
 // =========================================================
-// GET REQUEST CATALOG
+// STANDARD ERROR RESPONSE
+// =========================================================
+
+function catalogErrorResponse() {
+  return NextResponse.json(
+    {
+      success:
+        false,
+
+      message:
+        "The request catalog could not be loaded.",
+    },
+    {
+      status:
+        500,
+    },
+  );
+}
+
+
+// =========================================================
+// GET PUBLIC REQUEST CATALOG
 // =========================================================
 
 export async function GET() {
@@ -274,7 +269,7 @@ export async function GET() {
 
 
     // =====================================================
-    // LOAD ACTIVE CATALOG DATA
+    // LOAD ACTIVE DATA
     // =====================================================
 
     const [
@@ -446,17 +441,7 @@ export async function GET() {
         universitiesResult.error,
       );
 
-
-      return NextResponse.json(
-        {
-          message:
-            "The request catalog could not be loaded.",
-        },
-        {
-          status:
-            500,
-        },
-      );
+      return catalogErrorResponse();
     }
 
 
@@ -468,17 +453,7 @@ export async function GET() {
         categoriesResult.error,
       );
 
-
-      return NextResponse.json(
-        {
-          message:
-            "The request catalog could not be loaded.",
-        },
-        {
-          status:
-            500,
-        },
-      );
+      return catalogErrorResponse();
     }
 
 
@@ -490,17 +465,7 @@ export async function GET() {
         servicesResult.error,
       );
 
-
-      return NextResponse.json(
-        {
-          message:
-            "The request catalog could not be loaded.",
-        },
-        {
-          status:
-            500,
-        },
-      );
+      return catalogErrorResponse();
     }
 
 
@@ -512,17 +477,7 @@ export async function GET() {
         fieldsResult.error,
       );
 
-
-      return NextResponse.json(
-        {
-          message:
-            "The request catalog could not be loaded.",
-        },
-        {
-          status:
-            500,
-        },
-      );
+      return catalogErrorResponse();
     }
 
 
@@ -597,17 +552,19 @@ export async function GET() {
     // =====================================================
     // VALID SERVICES
     //
-    // GENERAL
+    // NORMALIZED PHASE 13 RULES
     //
+    // GENERAL:
+    //
+    // service_scope = general
     // university_id = NULL
-    //     valid
     //
-    // university_id = SC247
-    //     valid during compatibility phase
+    // ACADEMIC:
     //
-    // ACADEMIC
+    // service_scope = academic
+    // university_id = active real institution
     //
-    // university_id must reference an active university.
+    // SC247 is no longer used as an active service provider.
     // =====================================================
 
     const validServices =
@@ -615,7 +572,8 @@ export async function GET() {
         (
           service,
         ) => {
-          // Category must still exist and be active.
+          // Every public service must belong to an active
+          // service category.
 
           const category =
             categoryById.get(
@@ -631,40 +589,22 @@ export async function GET() {
 
 
           // -----------------------------------------------
-          // GENERAL SERVICE
+          // GENERAL SERVICES
           // -----------------------------------------------
 
           if (
             service.service_scope ===
             "general"
           ) {
-            // New normalized service.
-
-            if (
+            return (
               service.university_id ===
               null
-            ) {
-              return true;
-            }
-
-
-            // Legacy SC247 compatibility service.
-
-            const provider =
-              universityById.get(
-                service.university_id,
-              );
-
-
-            return (
-              provider?.code ===
-              "SC247"
             );
           }
 
 
           // -----------------------------------------------
-          // ACADEMIC SERVICE
+          // ACADEMIC SERVICES
           // -----------------------------------------------
 
           if (
@@ -691,11 +631,13 @@ export async function GET() {
             }
 
 
-            // SC247 must never act as an academic
+            // SC247 remains historical compatibility data.
+            // It must not be exposed as an academic
             // institution.
 
             return (
-              institution.code !==
+              institution.code
+                .toUpperCase() !==
               "SC247"
             );
           }
@@ -705,6 +647,10 @@ export async function GET() {
         },
       );
 
+
+    // =====================================================
+    // ACTIVE SERVICE IDS
+    // =====================================================
 
     const activeServiceIds =
       new Set(
@@ -718,7 +664,7 @@ export async function GET() {
 
 
     // =====================================================
-    // GROUP FIELDS BY SERVICE
+    // GROUP FORM FIELDS BY SERVICE
     // =====================================================
 
     const fieldsByService =
@@ -732,6 +678,9 @@ export async function GET() {
       const field of
       fields
     ) {
+      // Ignore fields belonging to inactive / invalid
+      // services.
+
       if (
         !activeServiceIds.has(
           field.service_id,
@@ -741,32 +690,31 @@ export async function GET() {
       }
 
 
-      const current =
+      const currentFields =
         fieldsByService.get(
           field.service_id,
         ) ??
         [];
 
 
-      current.push(
+      currentFields.push(
         field,
       );
 
 
       fieldsByService.set(
         field.service_id,
-        current,
+        currentFields,
       );
     }
 
 
     // =====================================================
-    // BUILD PUBLIC SERVICE OBJECT
+    // BUILD PUBLIC SERVICE
     // =====================================================
 
     function buildService(
-      service:
-        RawService,
+      service: RawService,
     ): RequestCatalogService {
       const category =
         categoryById.get(
@@ -853,7 +801,12 @@ export async function GET() {
         description:
           service.description,
 
-        // Compatibility column.
+        /**
+         * Legacy compatibility field.
+         *
+         * Keep until the remaining legacy services.category
+         * architecture is removed in a later phase.
+         */
         category:
           service.category,
 
@@ -878,7 +831,7 @@ export async function GET() {
 
 
     // =====================================================
-    // NORMALIZED SERVICE OBJECTS
+    // BUILD PUBLIC SERVICE OBJECTS
     // =====================================================
 
     const publicServices =
@@ -890,10 +843,10 @@ export async function GET() {
     // =====================================================
     // GENERAL SERVICES
     //
-    // Includes:
+    // Every service in this array is now guaranteed to be:
     //
-    // - NULL-university Phase 13 services
-    // - legacy SC247 Phase 12 services
+    // service_scope = general
+    // university_id = NULL
     // =====================================================
 
     const generalServices =
@@ -919,7 +872,7 @@ export async function GET() {
 
 
     // =====================================================
-    // ACADEMIC SERVICES BY UNIVERSITY
+    // ACADEMIC SERVICES GROUPED BY UNIVERSITY
     // =====================================================
 
     const academicServicesByUniversity =
@@ -935,115 +888,61 @@ export async function GET() {
     ) {
       if (
         service.serviceScope !==
-        "academic" ||
+          "academic" ||
         !service.universityId
       ) {
         continue;
       }
 
 
-      const current =
+      const currentServices =
         academicServicesByUniversity.get(
           service.universityId,
         ) ??
         [];
 
 
-      current.push(
+      currentServices.push(
         service,
       );
 
 
       academicServicesByUniversity.set(
         service.universityId,
-        current,
+        currentServices,
       );
     }
 
 
     // =====================================================
-    // LEGACY SC247 GENERAL SERVICES
+    // PUBLIC ACADEMIC UNIVERSITY CATALOG
     //
-    // The current wizard still expects SC247 to appear as a
-    // university/provider containing general services.
+    // SC247 no longer participates in the active catalog.
     //
-    // Keep this compatibility representation until the
-    // wizard is replaced in Phase 13A-3C.
-    // =====================================================
-
-    const legacyGeneralServicesByUniversity =
-      new Map<
-        string,
-        RequestCatalogService[]
-      >();
-
-
-    for (
-      const service of
-      generalServices
-    ) {
-      if (
-        !service.universityId
-      ) {
-        continue;
-      }
-
-
-      const provider =
-        universityById.get(
-          service.universityId,
-        );
-
-
-      if (
-        provider?.code !==
-        "SC247"
-      ) {
-        continue;
-      }
-
-
-      const current =
-        legacyGeneralServicesByUniversity.get(
-          service.universityId,
-        ) ??
-        [];
-
-
-      current.push(
-        service,
-      );
-
-
-      legacyGeneralServicesByUniversity.set(
-        service.universityId,
-        current,
-      );
-    }
-
-
-    // =====================================================
-    // COMPATIBILITY UNIVERSITY CATALOG
+    // Universities returned here are real institutions with
+    // at least one active academic service.
     // =====================================================
 
     const publicUniversities:
       RequestCatalogUniversity[] =
       universities
+        .filter(
+          (
+            university,
+          ) =>
+            university.code
+              .toUpperCase() !==
+            "SC247",
+        )
         .map(
           (
             university,
           ) => {
             const servicesForUniversity =
-              university.code ===
-              "SC247"
-                ? legacyGeneralServicesByUniversity.get(
-                    university.id,
-                  ) ??
-                  []
-                : academicServicesByUniversity.get(
-                    university.id,
-                  ) ??
-                  [];
+              academicServicesByUniversity.get(
+                university.id,
+              ) ??
+              [];
 
 
             return {
@@ -1088,9 +987,10 @@ export async function GET() {
 
 
     // =====================================================
-    // CATEGORY CATALOG
+    // PUBLIC CATEGORY CATALOG
     //
-    // Categories now become the first-class public grouping.
+    // Categories become the first-level customer-facing
+    // service grouping.
     // =====================================================
 
     const publicCategories:
@@ -1148,6 +1048,9 @@ export async function GET() {
             };
           },
         )
+
+        // Do not expose empty categories.
+
         .filter(
           (
             category,
@@ -1160,6 +1063,7 @@ export async function GET() {
               .academicServiceCount >
               0,
         )
+
         .sort(
           (
             first,
@@ -1174,7 +1078,7 @@ export async function GET() {
 
 
     // =====================================================
-    // SAFE PUBLIC RESPONSE
+    // FINAL PUBLIC CATALOG
     // =====================================================
 
     const catalog:
@@ -1189,6 +1093,10 @@ export async function GET() {
         publicUniversities,
     };
 
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
 
     return NextResponse.json(
       {
@@ -1215,6 +1123,9 @@ export async function GET() {
 
     return NextResponse.json(
       {
+        success:
+          false,
+
         message:
           "Something went wrong while loading the request catalog.",
       },
