@@ -1,6 +1,10 @@
 export type RequestDraft = {
   /**
    * Supabase universities.id UUID.
+   *
+   * For the current compatibility wizard this is still used.
+   * In the next phase it will become optional for general
+   * services.
    */
   universityId: string;
 
@@ -27,8 +31,7 @@ export type RequestDraft = {
 
 
   /**
-   * Responses to the active service_form_fields
-   * associated with the selected service.
+   * Responses to active service_form_fields.
    *
    * Key = service_form_fields.field_key
    */
