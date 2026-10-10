@@ -1,6 +1,11 @@
 "use server";
 
 import {
+  createHash,
+  randomBytes,
+} from "crypto";
+
+import {
   revalidatePath,
 } from "next/cache";
 
@@ -20,6 +25,9 @@ export type RequestPricingActionResult = {
   error:
     string;
 
+  warning?:
+    string;
+
   newStatus?:
     string;
 
@@ -28,11 +36,14 @@ export type RequestPricingActionResult = {
 
   amount?:
     number;
+
+  paymentToken?:
+    string;
 };
 
 
 // =========================================================
-// REVALIDATE
+// REVALIDATION
 // =========================================================
 
 function revalidateRequest(
@@ -50,6 +61,157 @@ function revalidateRequest(
   revalidatePath(
     `/admin/requests/${requestId}`,
   );
+}
+
+
+// =========================================================
+// TOKEN
+// =========================================================
+
+function createPaymentAccessToken() {
+  const token =
+    randomBytes(
+      32,
+    ).toString(
+      "hex",
+    );
+
+
+  const hash =
+    createHash(
+      "sha256",
+    )
+      .update(
+        token,
+      )
+      .digest(
+        "hex",
+      );
+
+
+  return {
+    token,
+    hash,
+  };
+}
+
+
+// =========================================================
+// ISSUE PAYMENT ACCESS
+// =========================================================
+
+async function issuePaymentAccess(
+  requestId:
+    string,
+
+  adminId:
+    string,
+) {
+  const supabase =
+    createAdminClient();
+
+
+  const {
+    token,
+    hash,
+  } =
+    createPaymentAccessToken();
+
+
+  const {
+    error,
+  } =
+    await supabase.rpc(
+      "issue_request_payment_access",
+      {
+        p_request_id:
+          requestId,
+
+        p_admin_id:
+          adminId,
+
+        p_token_hash:
+          hash,
+      },
+    );
+
+
+  if (
+    error
+  ) {
+    console.error(
+      "Issue request payment access failed:",
+      error,
+    );
+
+
+    return {
+      success:
+        false as const,
+
+      error:
+        error.message ||
+        "The secure payment link could not be generated.",
+    };
+  }
+
+
+  return {
+    success:
+      true as const,
+
+    token,
+  };
+}
+
+
+// =========================================================
+// GENERATE / REGENERATE PAYMENT LINK
+// =========================================================
+
+export async function generateRequestPaymentAccess(
+  requestId:
+    string,
+): Promise<RequestPricingActionResult> {
+  const admin =
+    await requireAdmin();
+
+
+  const result =
+    await issuePaymentAccess(
+      requestId,
+      admin.id,
+    );
+
+
+  if (
+    !result.success
+  ) {
+    return {
+      success:
+        false,
+
+      error:
+        result.error,
+    };
+  }
+
+
+  revalidateRequest(
+    requestId,
+  );
+
+
+  return {
+    success:
+      true,
+
+    error:
+      "",
+
+    paymentToken:
+      result.token,
+  };
 }
 
 
@@ -191,7 +353,7 @@ export async function finalizeVariableRequestPrice(
 
 
   // =======================================================
-  // LOAD REQUEST FIRST
+  // REQUEST
   // =======================================================
 
   const {
@@ -268,7 +430,7 @@ export async function finalizeVariableRequestPrice(
 
 
   // =======================================================
-  // STARTING FROM FLOOR
+  // STARTING PRICE FLOOR
   // =======================================================
 
   if (
@@ -307,7 +469,7 @@ export async function finalizeVariableRequestPrice(
 
 
   // =======================================================
-  // FINALIZE
+  // FINALIZE PRICE
   // =======================================================
 
   const {
@@ -381,14 +543,63 @@ export async function finalizeVariableRequestPrice(
         undefined
       ? normalizedAmount
       : Number(
-          result
-            .finalized_amount,
+          result.finalized_amount,
         );
+
+
+  // =======================================================
+  // CREATE SECURE CUSTOMER PAYMENT LINK
+  // =======================================================
+
+  const paymentAccess =
+    await issuePaymentAccess(
+      requestId,
+      admin.id,
+    );
 
 
   revalidateRequest(
     requestId,
   );
+
+
+  if (
+    !paymentAccess.success
+  ) {
+    /*
+     * Price finalization itself succeeded.
+     *
+     * The administrator can regenerate the payment link from
+     * the AWAITING_PAYMENT screen.
+     */
+    return {
+      success:
+        true,
+
+      error:
+        "",
+
+      warning:
+        "The price was finalized, but the secure payment link could not be created. Refresh the request and generate a new payment link.",
+
+      newStatus:
+        "AWAITING_PAYMENT",
+
+      currency:
+        result
+          ?.currency ??
+        request
+          .pricing_currency_snapshot ??
+        "GHS",
+
+      amount:
+        Number.isFinite(
+          finalAmount,
+        )
+          ? finalAmount
+          : normalizedAmount,
+    };
+  }
 
 
   return {
@@ -416,5 +627,8 @@ export async function finalizeVariableRequestPrice(
       )
         ? finalAmount
         : normalizedAmount,
+
+    paymentToken:
+      paymentAccess.token,
   };
 }

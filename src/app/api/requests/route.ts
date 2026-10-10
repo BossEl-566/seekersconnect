@@ -15,6 +15,14 @@ import {
   requestSubmissionSchema,
 } from "@/lib/validation/request-submission";
 
+import {
+  getSystemSettings,
+} from "@/lib/settings/system-settings";
+
+import {
+  isPaymentMethodAvailable,
+} from "@/lib/payment/payment-destinations";
+
 
 export const runtime =
   "nodejs";
@@ -1357,6 +1365,29 @@ export async function POST(
           },
         );
       }
+
+          const systemSettings =
+      await getSystemSettings();
+
+
+    if (
+      !isPaymentMethodAvailable(
+        systemSettings.payment,
+        pricingCurrency,
+        draft.paymentMethod,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            `The selected payment method is not available for ${pricingCurrency}.`,
+        },
+        {
+          status:
+            400,
+        },
+      );
+    }
 
 
       if (

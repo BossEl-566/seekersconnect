@@ -69,10 +69,6 @@ export async function updateServicePricing(
     createAdminClient();
 
 
-  // =======================================================
-  // SERVICE MUST EXIST
-  // =======================================================
-
   const {
     data:
       service,
@@ -125,7 +121,123 @@ export async function updateServicePricing(
 
 
   // =======================================================
-  // NORMALIZE VALUES
+  // PROTECT EXISTING OPTIONS FROM MODE CHANGES
+  //
+  // A PER_UNIT option/tier structure cannot simply become a
+  // FIXED structure, and vice versa, without redefining its
+  // tiers.
+  // =======================================================
+
+  const {
+    data:
+      existingPricing,
+
+    error:
+      existingPricingError,
+  } =
+    await supabase
+      .from(
+        "service_pricing",
+      )
+      .select(`
+        id,
+        pricing_mode
+      `)
+      .eq(
+        "service_id",
+        serviceId,
+      )
+      .maybeSingle();
+
+
+  if (
+    existingPricingError
+  ) {
+    console.error(
+      "Existing service pricing lookup failed:",
+      existingPricingError,
+    );
+
+
+    return {
+      success:
+        false,
+
+      error:
+        "The current pricing configuration could not be checked.",
+    };
+  }
+
+
+  if (
+    existingPricing &&
+    existingPricing.pricing_mode !==
+      pricingMode
+  ) {
+    const {
+      count,
+      error:
+        optionCountError,
+    } =
+      await supabase
+        .from(
+          "service_pricing_options",
+        )
+        .select(
+          "id",
+          {
+            count:
+              "exact",
+
+            head:
+              true,
+          },
+        )
+        .eq(
+          "service_pricing_id",
+          existingPricing.id,
+        );
+
+
+    if (
+      optionCountError
+    ) {
+      console.error(
+        "Pricing option count failed:",
+        optionCountError,
+      );
+
+
+      return {
+        success:
+          false,
+
+        error:
+          "Pricing options could not be checked before changing the pricing mode.",
+      };
+    }
+
+
+    if (
+      (
+        count ??
+        0
+      ) >
+      0
+    ) {
+      return {
+        success:
+          false,
+
+        error:
+          "This service already has pricing options. Delete the pricing options before changing the pricing mode.",
+      };
+    }
+  }
+
+
+  // =======================================================
+  // NORMALIZE
   // =======================================================
 
   const storesAmount =
@@ -169,7 +281,7 @@ export async function updateServicePricing(
 
 
   // =======================================================
-  // UPSERT PRICING
+  // UPSERT
   // =======================================================
 
   const {
@@ -323,10 +435,29 @@ export async function updateServicePricing(
   }
 
 
-  // =======================================================
-  // REVALIDATE
-  // =======================================================
+  revalidatePricing(
+    serviceId,
+  );
 
+
+  return {
+    success:
+      true,
+
+    error:
+      "",
+  };
+}
+
+
+// =========================================================
+// REVALIDATE
+// =========================================================
+
+function revalidatePricing(
+  serviceId:
+    string,
+) {
   revalidatePath(
     "/admin/services",
   );
@@ -342,13 +473,4 @@ export async function updateServicePricing(
   revalidatePath(
     "/request",
   );
-
-
-  return {
-    success:
-      true,
-
-    error:
-      "",
-  };
 }

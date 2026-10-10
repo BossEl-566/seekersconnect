@@ -24,6 +24,15 @@ import {
   type ServicePricingRecord,
 } from "@/components/admin/service-pricing-form";
 
+import {
+  ServicePricingOptionsManager,
+  type ServicePricingOptionRecord,
+} from "@/components/admin/service-pricing-options-manager";
+
+
+// =========================================================
+// TYPES
+// =========================================================
 
 type PageProps = {
   params: Promise<{
@@ -77,6 +86,99 @@ type ServiceRecord = {
           string;
       }[]
     | null;
+};
+
+
+type RawPricingTier = {
+  id:
+    string;
+
+  pricing_option_id:
+    string;
+
+  label:
+    string | null;
+
+  amount:
+    string | number;
+
+  minimum_quantity:
+    string | number | null;
+
+  maximum_quantity:
+    string | number | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+};
+
+
+type RawPricingOption = {
+  id:
+    string;
+
+  service_pricing_id:
+    string;
+
+  code:
+    string;
+
+  label:
+    string;
+
+  description:
+    string | null;
+
+  unit_label:
+    string | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+
+  service_pricing_tiers:
+    RawPricingTier[] | null;
+};
+
+
+type RawPricingRecord = {
+  id:
+    string;
+
+  service_id:
+    string;
+
+  pricing_mode:
+    string;
+
+  currency:
+    string;
+
+  amount:
+    string | number | null;
+
+  unit_label:
+    string | null;
+
+  minimum_quantity:
+    string | number | null;
+
+  maximum_quantity:
+    string | number | null;
+
+  display_note:
+    string | null;
+
+  active:
+    boolean;
+
+  service_pricing_options:
+    RawPricingOption[] | null;
 };
 
 
@@ -146,7 +248,29 @@ export default async function ServicePricingPage({
           minimum_quantity,
           maximum_quantity,
           display_note,
-          active
+          active,
+
+          service_pricing_options (
+            id,
+            service_pricing_id,
+            code,
+            label,
+            description,
+            unit_label,
+            display_order,
+            active,
+
+            service_pricing_tiers (
+              id,
+              pricing_option_id,
+              label,
+              amount,
+              minimum_quantity,
+              maximum_quantity,
+              display_order,
+              active
+            )
+          )
         `)
         .eq(
           "service_id",
@@ -188,6 +312,12 @@ export default async function ServicePricingPage({
       ServiceRecord;
 
 
+  const pricingData =
+    pricingResult.data as unknown as
+      RawPricingRecord
+      | null;
+
+
   const university =
     firstRelation(
       service.universities,
@@ -200,85 +330,53 @@ export default async function ServicePricingPage({
     );
 
 
+  // =======================================================
+  // BASE PRICING
+  // =======================================================
+
   const pricing:
     ServicePricingRecord =
-    pricingResult.data
+    pricingData
       ? {
           id:
-            pricingResult
-              .data
-              .id,
+            pricingData.id,
 
           service_id:
-            pricingResult
-              .data
-              .service_id,
+            pricingData.service_id,
 
           pricing_mode:
-            pricingResult
-              .data
+            pricingData
               .pricing_mode as ServicePricingRecord["pricing_mode"],
 
           currency:
-            (
-              pricingResult
-                .data
-                .currency ===
-              "USD"
-                ? "USD"
-                : "GHS"
-            ),
+            pricingData.currency ===
+            "USD"
+              ? "USD"
+              : "GHS",
 
           amount:
-            pricingResult
-              .data
-              .amount ===
-            null
-              ? null
-              : Number(
-                  pricingResult
-                    .data
-                    .amount,
-                ),
+            toNullableNumber(
+              pricingData.amount,
+            ),
 
           unit_label:
-            pricingResult
-              .data
-              .unit_label,
+            pricingData.unit_label,
 
           minimum_quantity:
-            pricingResult
-              .data
-              .minimum_quantity ===
-            null
-              ? null
-              : Number(
-                  pricingResult
-                    .data
-                    .minimum_quantity,
-                ),
+            toNullableNumber(
+              pricingData.minimum_quantity,
+            ),
 
           maximum_quantity:
-            pricingResult
-              .data
-              .maximum_quantity ===
-            null
-              ? null
-              : Number(
-                  pricingResult
-                    .data
-                    .maximum_quantity,
-                ),
+            toNullableNumber(
+              pricingData.maximum_quantity,
+            ),
 
           display_note:
-            pricingResult
-              .data
-              .display_note,
+            pricingData.display_note,
 
           active:
-            pricingResult
-              .data
-              .active,
+            pricingData.active,
         }
       : {
           id:
@@ -311,6 +409,107 @@ export default async function ServicePricingPage({
           active:
             true,
         };
+
+
+  // =======================================================
+  // OPTIONS + TIERS
+  // =======================================================
+
+  const pricingOptions:
+    ServicePricingOptionRecord[] =
+    (
+      pricingData
+        ?.service_pricing_options ??
+      []
+    )
+      .map(
+        (
+          option,
+        ) => ({
+          id:
+            option.id,
+
+          service_pricing_id:
+            option.service_pricing_id,
+
+          code:
+            option.code,
+
+          label:
+            option.label,
+
+          description:
+            option.description,
+
+          unit_label:
+            option.unit_label,
+
+          display_order:
+            option.display_order,
+
+          active:
+            option.active,
+
+          tiers:
+            (
+              option
+                .service_pricing_tiers ??
+              []
+            )
+              .map(
+                (
+                  tier,
+                ) => ({
+                  id:
+                    tier.id,
+
+                  pricing_option_id:
+                    tier
+                      .pricing_option_id,
+
+                  label:
+                    tier.label,
+
+                  amount:
+                    Number(
+                      tier.amount,
+                    ),
+
+                  minimum_quantity:
+                    toNullableNumber(
+                      tier.minimum_quantity,
+                    ),
+
+                  maximum_quantity:
+                    toNullableNumber(
+                      tier.maximum_quantity,
+                    ),
+
+                  display_order:
+                    tier.display_order,
+
+                  active:
+                    tier.active,
+                }),
+              )
+              .sort(
+                (
+                  first,
+                  second,
+                ) =>
+                  first.display_order -
+                  second.display_order,
+              ),
+        }),
+      )
+      .sort(
+        (
+          first,
+          second,
+        ) =>
+          first.display_order -
+          second.display_order,
+      );
 
 
   return (
@@ -397,9 +596,13 @@ export default async function ServicePricingPage({
             <p className="mt-4 text-sm text-slate-500">
               Institution:{" "}
               <span className="font-medium text-slate-700">
-                {university.code}
-                {" — "}
-                {university.name}
+                {
+                  university.code
+                }
+                {" - "}
+                {
+                  university.name
+                }
               </span>
             </p>
           )}
@@ -413,7 +616,7 @@ export default async function ServicePricingPage({
 
 
       {/* ===============================================
-          FORM
+          BASE PRICING
       =============================================== */}
 
       <div className="mt-7">
@@ -423,6 +626,34 @@ export default async function ServicePricingPage({
           }
           pricing={
             pricing
+          }
+        />
+      </div>
+
+
+      {/* ===============================================
+          OPTIONS + TIERS
+      =============================================== */}
+
+      <div className="mt-6">
+        <ServicePricingOptionsManager
+          serviceId={
+            service.id
+          }
+          servicePricingId={
+            pricing.id
+          }
+          pricingMode={
+            pricing.pricing_mode
+          }
+          currency={
+            pricing.currency
+          }
+          parentUnitLabel={
+            pricing.unit_label
+          }
+          options={
+            pricingOptions
           }
         />
       </div>
@@ -464,4 +695,37 @@ function firstRelation<
 
 
   return value;
+}
+
+
+// =========================================================
+// NUMBER HELPER
+// =========================================================
+
+function toNullableNumber(
+  value:
+    string
+    | number
+    | null,
+):
+  number | null {
+  if (
+    value ===
+    null
+  ) {
+    return null;
+  }
+
+
+  const number =
+    Number(
+      value,
+    );
+
+
+  return Number.isFinite(
+    number,
+  )
+    ? number
+    : null;
 }

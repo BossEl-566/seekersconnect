@@ -3,11 +3,16 @@ import {
 } from "zod";
 
 
+// =========================================================
+// COMMON
+// =========================================================
+
 const requiredText = (
   label:
     string,
 
-  maximum = 200,
+  maximum =
+    200,
 ) =>
   z
     .string()
@@ -19,6 +24,19 @@ const requiredText = (
     .max(
       maximum,
       `${label} is too long.`,
+    );
+
+
+const optionalText = (
+  maximum =
+    200,
+) =>
+  z
+    .string()
+    .trim()
+    .max(
+      maximum,
+      "Value is too long.",
     );
 
 
@@ -77,37 +95,212 @@ export const companyProfileSchema =
 
 
 // =========================================================
-// PAYMENT
+// PAYMENT — MOBILE MONEY
+// =========================================================
+
+export const momoPaymentDestinationSchema =
+  z
+    .object({
+      enabled:
+        z.boolean(),
+
+      number:
+        optionalText(
+          30,
+        ),
+
+      accountName:
+        optionalText(
+          150,
+        ),
+    })
+    .superRefine(
+      (
+        value,
+        context,
+      ) => {
+        if (
+          !value.enabled
+        ) {
+          return;
+        }
+
+
+        if (
+          value.number.length <
+          3
+        ) {
+          context.addIssue({
+            code:
+              "custom",
+
+            path: [
+              "number",
+            ],
+
+            message:
+              "Mobile Money number is required when Mobile Money is enabled.",
+          });
+        }
+
+
+        if (
+          !value.accountName
+        ) {
+          context.addIssue({
+            code:
+              "custom",
+
+            path: [
+              "accountName",
+            ],
+
+            message:
+              "Mobile Money account name is required when Mobile Money is enabled.",
+          });
+        }
+      },
+    );
+
+
+// =========================================================
+// PAYMENT — BANK
+// =========================================================
+
+export const bankPaymentDestinationSchema =
+  z
+    .object({
+      enabled:
+        z.boolean(),
+
+      bankName:
+        optionalText(
+          150,
+        ),
+
+      accountNumber:
+        optionalText(
+          100,
+        ),
+
+      accountName:
+        optionalText(
+          150,
+        ),
+
+      branch:
+        optionalText(
+          150,
+        ),
+
+      swiftBic:
+        optionalText(
+          50,
+        ),
+
+      instructions:
+        optionalText(
+          1000,
+        ),
+    })
+    .superRefine(
+      (
+        value,
+        context,
+      ) => {
+        if (
+          !value.enabled
+        ) {
+          return;
+        }
+
+
+        if (
+          !value.bankName
+        ) {
+          context.addIssue({
+            code:
+              "custom",
+
+            path: [
+              "bankName",
+            ],
+
+            message:
+              "Bank name is required when bank transfer is enabled.",
+          });
+        }
+
+
+        if (
+          !value.accountNumber
+        ) {
+          context.addIssue({
+            code:
+              "custom",
+
+            path: [
+              "accountNumber",
+            ],
+
+            message:
+              "Bank account number is required when bank transfer is enabled.",
+          });
+        }
+
+
+        if (
+          !value.accountName
+        ) {
+          context.addIssue({
+            code:
+              "custom",
+
+            path: [
+              "accountName",
+            ],
+
+            message:
+              "Bank account name is required when bank transfer is enabled.",
+          });
+        }
+      },
+    );
+
+
+// =========================================================
+// PAYMENT — ONE CURRENCY
+// =========================================================
+
+export const currencyPaymentDestinationSchema =
+  z.object({
+    momo:
+      momoPaymentDestinationSchema,
+
+    bank:
+      bankPaymentDestinationSchema,
+  });
+
+
+// =========================================================
+// PAYMENT DETAILS
+//
+// We deliberately support GHS and USD in the Admin UI now.
+//
+// service_pricing.currency remains a generic ISO-style
+// three-character code so more currencies can be added later.
 // =========================================================
 
 export const paymentDetailsSchema =
   z.object({
-    momoNumber:
-      phoneSchema,
+    currencies:
+      z.object({
+        GHS:
+          currencyPaymentDestinationSchema,
 
-    momoAccountName:
-      requiredText(
-        "Mobile Money account name",
-        150,
-      ),
-
-    bankName:
-      requiredText(
-        "Bank name",
-        150,
-      ),
-
-    bankAccountNumber:
-      requiredText(
-        "Bank account number",
-        100,
-      ),
-
-    bankAccountName:
-      requiredText(
-        "Bank account name",
-        150,
-      ),
+        USD:
+          currencyPaymentDestinationSchema,
+      }),
   });
 
 
@@ -183,6 +376,24 @@ export const requestNoticesSchema =
 export type CompanyProfileSettings =
   z.infer<
     typeof companyProfileSchema
+  >;
+
+
+export type MomoPaymentDestinationSettings =
+  z.infer<
+    typeof momoPaymentDestinationSchema
+  >;
+
+
+export type BankPaymentDestinationSettings =
+  z.infer<
+    typeof bankPaymentDestinationSchema
+  >;
+
+
+export type CurrencyPaymentDestinationSettings =
+  z.infer<
+    typeof currencyPaymentDestinationSchema
   >;
 
 

@@ -301,6 +301,11 @@ function CompanySettingsCard({
 // PAYMENT
 // =========================================================
 
+type PaymentCurrencyCode =
+  | "GHS"
+  | "USD";
+
+
 function PaymentSettingsCard({
   initialSettings,
 }: {
@@ -339,6 +344,30 @@ function PaymentSettingsCard({
     useTransition();
 
 
+  function updateCurrency(
+    currency:
+      PaymentCurrencyCode,
+
+    value:
+      SystemSettings["payment"]["currencies"][PaymentCurrencyCode],
+  ) {
+    setForm(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        currencies: {
+          ...current.currencies,
+
+          [currency]:
+            value,
+        },
+      }),
+    );
+  }
+
+
   function save() {
     setStatus(
       null,
@@ -360,7 +389,7 @@ function PaymentSettingsCard({
                   "success",
 
                 message:
-                  "Payment details saved.",
+                  "Currency-specific payment details saved.",
               }
             : {
                 type:
@@ -380,132 +409,48 @@ function PaymentSettingsCard({
       icon={
         CreditCard
       }
-      title="Payment Details"
-      description="These details will eventually replace the payment information currently hardcoded in the request wizard."
+      title="Payment Destinations"
+      description="Configure the payment accounts customers see for each service currency."
     >
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 p-5">
-          <p className="font-semibold text-slate-900">
-            Mobile Money
-          </p>
-
-          <div className="mt-4 space-y-4">
-            <TextField
-              label="MoMo Number"
-              type="tel"
-              value={
-                form.momoNumber
-              }
-              onChange={(
-                value,
-              ) =>
-                setForm(
-                  (
-                    current,
-                  ) => ({
-                    ...current,
-
-                    momoNumber:
-                      value,
-                  }),
-                )
-              }
-            />
-
-            <TextField
-              label="Account Name"
-              value={
-                form.momoAccountName
-              }
-              onChange={(
-                value,
-              ) =>
-                setForm(
-                  (
-                    current,
-                  ) => ({
-                    ...current,
-
-                    momoAccountName:
-                      value,
-                  }),
-                )
-              }
-            />
-          </div>
-        </div>
+      <div className="space-y-6">
+        <CurrencyPaymentEditor
+          currency="GHS"
+          title="GHS — Ghana Cedi"
+          description="Payment destinations used for services priced in Ghana cedis."
+          value={
+            form
+              .currencies
+              .GHS
+          }
+          onChange={(
+            value,
+          ) =>
+            updateCurrency(
+              "GHS",
+              value,
+            )
+          }
+        />
 
 
-        <div className="rounded-2xl border border-slate-200 p-5">
-          <p className="font-semibold text-slate-900">
-            Bank Account
-          </p>
-
-          <div className="mt-4 space-y-4">
-            <TextField
-              label="Bank Name"
-              value={
-                form.bankName
-              }
-              onChange={(
-                value,
-              ) =>
-                setForm(
-                  (
-                    current,
-                  ) => ({
-                    ...current,
-
-                    bankName:
-                      value,
-                  }),
-                )
-              }
-            />
-
-            <TextField
-              label="Account Number"
-              value={
-                form.bankAccountNumber
-              }
-              onChange={(
-                value,
-              ) =>
-                setForm(
-                  (
-                    current,
-                  ) => ({
-                    ...current,
-
-                    bankAccountNumber:
-                      value,
-                  }),
-                )
-              }
-            />
-
-            <TextField
-              label="Account Name"
-              value={
-                form.bankAccountName
-              }
-              onChange={(
-                value,
-              ) =>
-                setForm(
-                  (
-                    current,
-                  ) => ({
-                    ...current,
-
-                    bankAccountName:
-                      value,
-                  }),
-                )
-              }
-            />
-          </div>
-        </div>
+        <CurrencyPaymentEditor
+          currency="USD"
+          title="USD — US Dollar"
+          description="Only enable a destination if that account can actually receive US-dollar payments."
+          value={
+            form
+              .currencies
+              .USD
+          }
+          onChange={(
+            value,
+          ) =>
+            updateCurrency(
+              "USD",
+              value,
+            )
+          }
+        />
       </div>
 
 
@@ -521,6 +466,388 @@ function PaymentSettingsCard({
         }
       />
     </SettingsCard>
+  );
+}
+
+
+// =========================================================
+// CURRENCY PAYMENT EDITOR
+// =========================================================
+
+function CurrencyPaymentEditor({
+  currency,
+  title,
+  description,
+  value,
+  onChange,
+}: {
+  currency:
+    PaymentCurrencyCode;
+
+  title:
+    string;
+
+  description:
+    string;
+
+  value:
+    SystemSettings["payment"]["currencies"][PaymentCurrencyCode];
+
+  onChange:
+    (
+      value:
+        SystemSettings["payment"]["currencies"][PaymentCurrencyCode],
+    ) => void;
+}) {
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-slate-50/60 p-5">
+      <div className="flex flex-col gap-2 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-semibold text-slate-950">
+            {
+              title
+            }
+          </p>
+
+
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+            {
+              description
+            }
+          </p>
+        </div>
+
+
+        <span className="inline-flex self-start rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+          {
+            currency
+          }
+        </span>
+      </div>
+
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        {/* =============================================
+            MOBILE MONEY
+        ============================================= */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-slate-900">
+                Mobile Money
+              </p>
+
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Show Mobile Money as a payment option for{" "}
+                {
+                  currency
+                }{" "}
+                services.
+              </p>
+            </div>
+
+
+            <input
+              type="checkbox"
+              checked={
+                value
+                  .momo
+                  .enabled
+              }
+              onChange={(
+                event,
+              ) =>
+                onChange({
+                  ...value,
+
+                  momo: {
+                    ...value.momo,
+
+                    enabled:
+                      event.target
+                        .checked,
+                  },
+                })
+              }
+              className="mt-1 h-4 w-4 rounded border-slate-300"
+            />
+          </label>
+
+
+          {value
+            .momo
+            .enabled && (
+            <div className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+              <TextField
+                label="MoMo Number"
+                type="tel"
+                value={
+                  value
+                    .momo
+                    .number
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    momo: {
+                      ...value.momo,
+
+                      number:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextField
+                label="Account Name"
+                value={
+                  value
+                    .momo
+                    .accountName
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    momo: {
+                      ...value.momo,
+
+                      accountName:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+            </div>
+          )}
+        </div>
+
+
+        {/* =============================================
+            BANK
+        ============================================= */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-slate-900">
+                Bank Transfer
+              </p>
+
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Show bank transfer as a payment option for{" "}
+                {
+                  currency
+                }{" "}
+                services.
+              </p>
+            </div>
+
+
+            <input
+              type="checkbox"
+              checked={
+                value
+                  .bank
+                  .enabled
+              }
+              onChange={(
+                event,
+              ) =>
+                onChange({
+                  ...value,
+
+                  bank: {
+                    ...value.bank,
+
+                    enabled:
+                      event.target
+                        .checked,
+                  },
+                })
+              }
+              className="mt-1 h-4 w-4 rounded border-slate-300"
+            />
+          </label>
+
+
+          {value
+            .bank
+            .enabled && (
+            <div className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+              <TextField
+                label="Bank Name"
+                value={
+                  value
+                    .bank
+                    .bankName
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      bankName:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextField
+                label="Account Number"
+                value={
+                  value
+                    .bank
+                    .accountNumber
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      accountNumber:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextField
+                label="Account Name"
+                value={
+                  value
+                    .bank
+                    .accountName
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      accountName:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextField
+                label="Branch"
+                value={
+                  value
+                    .bank
+                    .branch
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      branch:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextField
+                label="SWIFT / BIC"
+                value={
+                  value
+                    .bank
+                    .swiftBic
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      swiftBic:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+
+
+              <TextareaField
+                label="Additional Transfer Instructions"
+                value={
+                  value
+                    .bank
+                    .instructions
+                }
+                onChange={(
+                  nextValue,
+                ) =>
+                  onChange({
+                    ...value,
+
+                    bank: {
+                      ...value.bank,
+
+                      instructions:
+                        nextValue,
+                    },
+                  })
+                }
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+
+      {!value.momo.enabled &&
+        !value.bank.enabled && (
+        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+          No payment destination is currently enabled for{" "}
+          <strong>
+            {
+              currency
+            }
+          </strong>
+          . Customers will not be able to submit immediate payments
+          for services using this currency until at least one
+          destination is configured.
+        </div>
+      )}
+    </div>
   );
 }
 
