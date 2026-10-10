@@ -165,6 +165,9 @@ type DatabaseFormField = {
 
 
 type DatabasePricing = {
+  id:
+    string;
+
   pricing_mode:
     string;
 
@@ -196,6 +199,73 @@ type DatabasePricing = {
 
   active:
     boolean;
+};
+
+
+type DatabasePricingOption = {
+  id:
+    string;
+
+  service_pricing_id:
+    string;
+
+  code:
+    string;
+
+  label:
+    string;
+
+  unit_label:
+    | string
+    | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+};
+
+
+type DatabasePricingTier = {
+  id:
+    string;
+
+  pricing_option_id:
+    string;
+
+  label:
+    | string
+    | null;
+
+  amount:
+    string
+    | number;
+
+  minimum_quantity:
+    string
+    | number
+    | null;
+
+  maximum_quantity:
+    string
+    | number
+    | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+};
+
+
+type UsablePricingOption = {
+  option:
+    DatabasePricingOption;
+
+  tiers:
+    DatabasePricingTier[];
 };
 
 
@@ -245,12 +315,12 @@ function generateRequestNumber(
 
 
 // =========================================================
-// NUMBER
+// NUMBER HELPERS
 // =========================================================
 
 function nullableNumber(
   value:
-    string
+    | string
     | number
     | null
     | undefined,
@@ -280,6 +350,34 @@ function nullableNumber(
 }
 
 
+function positiveNumber(
+  value:
+    string
+    | number
+    | null
+    | undefined,
+):
+  number | null {
+  const number =
+    nullableNumber(
+      value,
+    );
+
+
+  if (
+    number ===
+      null ||
+    number <=
+      0
+  ) {
+    return null;
+  }
+
+
+  return number;
+}
+
+
 // =========================================================
 // OPTIONS
 // =========================================================
@@ -287,7 +385,8 @@ function nullableNumber(
 function normalizeOptions(
   value:
     unknown,
-): string[] {
+):
+  string[] {
   if (
     !Array.isArray(
       value,
@@ -429,6 +528,29 @@ function validateDynamicValue(
 
 
   return null;
+}
+
+
+// =========================================================
+// DATABASE RPC ERROR STATUS
+// =========================================================
+
+function rpcErrorStatus(
+  code:
+    string
+    | undefined,
+) {
+  /*
+   * PostgreSQL RAISE EXCEPTION normally reaches Supabase
+   * with code P0001.
+   *
+   * Those are customer/request validation failures rather
+   * than infrastructure errors.
+   */
+  return code ===
+    "P0001"
+    ? 400
+    : 500;
 }
 
 
@@ -839,6 +961,7 @@ export async function POST(
           "service_pricing",
         )
         .select(`
+          id,
           pricing_mode,
           currency,
           amount,
@@ -961,6 +1084,312 @@ export async function POST(
     }
 
 
+    // =====================================================
+    // LOAD ACTIVE PRICING OPTIONS
+    //
+    // We mirror the public-catalog rule here:
+    //
+    // active option + at least one active tier = usable.
+    //
+    // PostgreSQL still performs the final authoritative
+    // validation inside create_pricing_request_submission_v2.
+    // =====================================================
+
+    let usablePricingOptions:
+      UsablePricingOption[] =
+      [];
+
+
+    const pricingSupportsOptions =
+      pricing !==
+        null &&
+      pricing.active &&
+      (
+        pricingMode ===
+          "FIXED" ||
+        pricingMode ===
+          "PER_UNIT" ||
+        pricingMode ===
+          "STARTING_FROM"
+      );
+
+
+    if (
+      pricingSupportsOptions &&
+      pricing
+    ) {
+      const {
+        data:
+          optionData,
+
+        error:
+          optionError,
+      } =
+        await supabase
+          .from(
+            "service_pricing_options",
+          )
+          .select(`
+            id,
+            service_pricing_id,
+            code,
+            label,
+            unit_label,
+            display_order,
+            active
+          `)
+          .eq(
+            "service_pricing_id",
+            pricing.id,
+          )
+          .eq(
+            "active",
+            true,
+          )
+          .order(
+            "display_order",
+            {
+              ascending:
+                true,
+            },
+          );
+
+
+      if (
+        optionError
+      ) {
+        console.error(
+          "Pricing option validation failed:",
+          optionError,
+        );
+
+
+        return NextResponse.json(
+          {
+            message:
+              "We could not validate the pricing options for this service.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      const options =
+        (
+          optionData ??
+          []
+        ) as DatabasePricingOption[];
+
+
+      const optionIds =
+        options.map(
+          (
+            option,
+          ) =>
+            option.id,
+        );
+
+
+      let tiers:
+        DatabasePricingTier[] =
+        [];
+
+
+      if (
+        optionIds.length >
+        0
+      ) {
+        const {
+          data:
+            tierData,
+
+          error:
+            tierError,
+        } =
+          await supabase
+            .from(
+              "service_pricing_tiers",
+            )
+            .select(`
+              id,
+              pricing_option_id,
+              label,
+              amount,
+              minimum_quantity,
+              maximum_quantity,
+              display_order,
+              active
+            `)
+            .in(
+              "pricing_option_id",
+              optionIds,
+            )
+            .eq(
+              "active",
+              true,
+            )
+            .order(
+              "display_order",
+              {
+                ascending:
+                  true,
+              },
+            );
+
+
+        if (
+          tierError
+        ) {
+          console.error(
+            "Pricing tier validation failed:",
+            tierError,
+          );
+
+
+          return NextResponse.json(
+            {
+              message:
+                "We could not validate the price tiers for this service.",
+            },
+            {
+              status:
+                500,
+            },
+          );
+        }
+
+
+        tiers =
+          (
+            tierData ??
+            []
+          ) as DatabasePricingTier[];
+      }
+
+
+      usablePricingOptions =
+        options
+          .map(
+            (
+              option,
+            ) => ({
+              option,
+
+              tiers:
+                tiers
+                  .filter(
+                    (
+                      tier,
+                    ) =>
+                      tier.pricing_option_id ===
+                      option.id,
+                  )
+                  .sort(
+                    (
+                      first,
+                      second,
+                    ) =>
+                      first.display_order -
+                        second.display_order ||
+                      first.id.localeCompare(
+                        second.id,
+                      ),
+                  ),
+            }),
+          )
+          .filter(
+            (
+              entry,
+            ) =>
+              entry.tiers.length >
+              0,
+          );
+    }
+
+
+    // =====================================================
+    // SELECTED PRICING OPTION
+    // =====================================================
+
+    const submittedPricingOptionId =
+      draft.pricingOptionId ||
+      null;
+
+
+    let selectedPricingOption:
+      UsablePricingOption
+      | null =
+      null;
+
+
+    if (
+      usablePricingOptions.length >
+      0
+    ) {
+      if (
+        !submittedPricingOptionId
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Select a pricing option for this service.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      selectedPricingOption =
+        usablePricingOptions.find(
+          (
+            entry,
+          ) =>
+            entry.option.id ===
+            submittedPricingOptionId,
+        ) ??
+        null;
+
+
+      if (
+        !selectedPricingOption
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "The selected pricing option is no longer available.",
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+    } else if (
+      submittedPricingOptionId
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "The selected pricing option is no longer available.",
+        },
+        {
+          status:
+            400,
+        },
+      );
+    }
+
+
+    // =====================================================
+    // PAYMENT REQUIREMENT
+    // =====================================================
+
     const paymentRequiredNow =
       pricingMode ===
         "FIXED" ||
@@ -970,6 +1399,12 @@ export async function POST(
 
     // =====================================================
     // PRICING MODE VALIDATION
+    //
+    // This validation gives the customer a useful API error
+    // before a proof file is uploaded.
+    //
+    // PostgreSQL V2 repeats the important checks and remains
+    // the final authority.
     // =====================================================
 
     let pricingQuantity:
@@ -977,11 +1412,48 @@ export async function POST(
       null;
 
 
+    let previewTier:
+      DatabasePricingTier
+      | null =
+      null;
+
+
+    // -----------------------------------------------------
+    // FIXED
+    // -----------------------------------------------------
+
     if (
       pricingMode ===
       "FIXED"
     ) {
       if (
+        selectedPricingOption
+      ) {
+        previewTier =
+          selectedPricingOption
+            .tiers[0] ??
+          null;
+
+
+        if (
+          !previewTier ||
+          positiveNumber(
+            previewTier.amount,
+          ) ===
+            null
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                "The selected pricing option does not currently have a valid price.",
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+      } else if (
         unitAmount ===
           null ||
         unitAmount <=
@@ -1001,29 +1473,14 @@ export async function POST(
     }
 
 
+    // -----------------------------------------------------
+    // PER UNIT
+    // -----------------------------------------------------
+
     if (
       pricingMode ===
       "PER_UNIT"
     ) {
-      if (
-        unitAmount ===
-          null ||
-        unitAmount <=
-          0
-      ) {
-        return NextResponse.json(
-          {
-            message:
-              "This service does not currently have a valid unit price.",
-          },
-          {
-            status:
-              400,
-          },
-        );
-      }
-
-
       pricingQuantity =
         Number(
           draft.pricingQuantity,
@@ -1051,34 +1508,190 @@ export async function POST(
 
 
       if (
-        minimumQuantity !==
-          null &&
-        pricingQuantity <
-          minimumQuantity
+        selectedPricingOption
       ) {
-        return NextResponse.json(
-          {
-            message:
-              `The minimum quantity for this service is ${minimumQuantity}.`,
-          },
-          {
-            status:
-              400,
-          },
-        );
+        previewTier =
+          selectedPricingOption
+            .tiers
+            .find(
+              (
+                tier,
+              ) => {
+                const minimum =
+                  nullableNumber(
+                    tier.minimum_quantity,
+                  );
+
+
+                const maximum =
+                  nullableNumber(
+                    tier.maximum_quantity,
+                  );
+
+
+                if (
+                  minimum ===
+                  null
+                ) {
+                  return false;
+                }
+
+
+                return (
+                  pricingQuantity !==
+                    null &&
+                  pricingQuantity >=
+                    minimum &&
+                  (
+                    maximum ===
+                      null ||
+                    pricingQuantity <=
+                      maximum
+                  )
+                );
+              },
+            ) ??
+          null;
+
+
+        if (
+          !previewTier
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                "The entered quantity does not match an active price tier for the selected option.",
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+
+
+        if (
+          positiveNumber(
+            previewTier.amount,
+          ) ===
+          null
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                "The selected price tier is not configured correctly.",
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+      } else {
+        if (
+          unitAmount ===
+            null ||
+          unitAmount <=
+            0
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                "This service does not currently have a valid unit price.",
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+
+
+        if (
+          minimumQuantity !==
+            null &&
+          pricingQuantity <
+            minimumQuantity
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                `The minimum quantity for this service is ${minimumQuantity}.`,
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+
+
+        if (
+          maximumQuantity !==
+            null &&
+          pricingQuantity >
+            maximumQuantity
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                `The maximum quantity for this service is ${maximumQuantity}.`,
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
       }
+    }
 
 
+    // -----------------------------------------------------
+    // STARTING FROM
+    // -----------------------------------------------------
+
+    if (
+      pricingMode ===
+      "STARTING_FROM"
+    ) {
       if (
-        maximumQuantity !==
-          null &&
-        pricingQuantity >
-          maximumQuantity
+        selectedPricingOption
+      ) {
+        previewTier =
+          selectedPricingOption
+            .tiers[0] ??
+          null;
+
+
+        if (
+          !previewTier ||
+          positiveNumber(
+            previewTier.amount,
+          ) ===
+            null
+        ) {
+          return NextResponse.json(
+            {
+              message:
+                "The selected pricing option does not currently have a valid starting price.",
+            },
+            {
+              status:
+                400,
+            },
+          );
+        }
+      } else if (
+        unitAmount ===
+          null ||
+        unitAmount <=
+          0
       ) {
         return NextResponse.json(
           {
             message:
-              `The maximum quantity for this service is ${maximumQuantity}.`,
+              "This service does not currently have a valid starting price.",
           },
           {
             status:
@@ -1165,8 +1778,7 @@ export async function POST(
       (
         fieldsData ??
         []
-      ) as
-        DatabaseFormField[];
+      ) as DatabaseFormField[];
 
 
     const allowedFieldKeys =
@@ -1366,28 +1978,29 @@ export async function POST(
         );
       }
 
-          const systemSettings =
-      await getSystemSettings();
+
+      const systemSettings =
+        await getSystemSettings();
 
 
-    if (
-      !isPaymentMethodAvailable(
-        systemSettings.payment,
-        pricingCurrency,
-        draft.paymentMethod,
-      )
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            `The selected payment method is not available for ${pricingCurrency}.`,
-        },
-        {
-          status:
-            400,
-        },
-      );
-    }
+      if (
+        !isPaymentMethodAvailable(
+          systemSettings.payment,
+          pricingCurrency,
+          draft.paymentMethod,
+        )
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              `The selected payment method is not available for ${pricingCurrency}.`,
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
 
 
       if (
@@ -1594,6 +2207,18 @@ export async function POST(
 
     // =====================================================
     // CREATE REQUEST
+    //
+    // IMPORTANT:
+    //
+    // We pass only:
+    // - selected option ID
+    // - quantity
+    // - payment evidence
+    //
+    // We DO NOT pass an amount calculated by the browser.
+    //
+    // PostgreSQL V2 independently resolves the option/tier
+    // and calculates the authoritative price snapshot.
     // =====================================================
 
     const {
@@ -1603,7 +2228,7 @@ export async function POST(
         databaseError,
     } =
       await supabase.rpc(
-        "create_pricing_request_submission",
+        "create_pricing_request_submission_v2",
         {
           p_request_id:
             requestId,
@@ -1647,6 +2272,9 @@ export async function POST(
           p_delivery:
             draft.delivery,
 
+          p_pricing_option_id:
+            submittedPricingOptionId,
+
           p_pricing_quantity:
             pricingQuantity,
 
@@ -1663,11 +2291,15 @@ export async function POST(
       );
 
 
+    // =====================================================
+    // DATABASE FAILURE + UPLOAD ROLLBACK
+    // =====================================================
+
     if (
       databaseError
     ) {
       console.error(
-        "Pricing-aware request transaction failed:",
+        "Pricing-option-aware request transaction failed:",
         databaseError,
       );
 
@@ -1697,11 +2329,17 @@ export async function POST(
         },
         {
           status:
-            500,
+            rpcErrorStatus(
+              databaseError.code,
+            ),
         },
       );
     }
 
+
+    // =====================================================
+    // RESULT
+    // =====================================================
 
     const created =
       Array.isArray(
@@ -1724,11 +2362,11 @@ export async function POST(
 
 
     /*
-     * Pricing may theoretically change between the API
+     * Pricing could theoretically change between the API
      * validation query and the PostgreSQL transaction.
      *
      * If PostgreSQL ultimately decides that payment was not
-     * required, remove any proof uploaded during that race.
+     * required, remove a proof uploaded during that race.
      */
     if (
       uploadedPath &&
@@ -1791,6 +2429,26 @@ export async function POST(
             )
               ? totalAmount
               : null,
+
+          pricingOptionId:
+            created
+              ?.pricing_option_id ??
+            null,
+
+          pricingOptionLabel:
+            created
+              ?.pricing_option_label ??
+            null,
+
+          pricingTierId:
+            created
+              ?.pricing_tier_id ??
+            null,
+
+          pricingTierLabel:
+            created
+              ?.pricing_tier_label ??
+            null,
         },
       },
       {
@@ -1806,6 +2464,10 @@ export async function POST(
       error,
     );
 
+
+    // =====================================================
+    // SAFETY CLEANUP
+    // =====================================================
 
     if (
       uploadedPath

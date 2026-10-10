@@ -1,0 +1,1060 @@
+import {
+  z,
+} from "zod";
+
+
+export const serviceFormFieldTypes = [
+  "text",
+  "email",
+  "tel",
+  "number",
+  "date",
+  "textarea",
+  "select",
+] as const;
+
+
+export type ServiceFormFieldType =
+  (typeof serviceFormFieldTypes)[number];
+
+
+export const createServiceFormFieldSchema =
+  z
+    .object({
+      fieldKey: z
+        .string()
+        .trim()
+        .min(
+          1,
+          "Field key is required.",
+        )
+        .max(
+          80,
+          "Field key is too long.",
+        )
+        .regex(
+          /^[A-Za-z][A-Za-z0-9_-]*$/,
+          "Field key must start with a letter and can only contain letters, numbers, underscores and hyphens.",
+        ),
+
+      label: z
+        .string()
+        .trim()
+        .min(
+          2,
+          "Field label is required.",
+        )
+        .max(
+          150,
+          "Field label is too long.",
+        ),
+
+      fieldType: z.enum(
+        serviceFormFieldTypes,
+      ),
+
+      placeholder: z
+        .string()
+        .trim()
+        .max(
+          200,
+          "Placeholder is too long.",
+        ),
+
+      required:
+        z.boolean(),
+
+      options: z.array(
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(150),
+      ),
+    })
+    .superRefine(
+      (
+        value,
+        context,
+      ) => {
+        if (
+          value.fieldType ===
+            "select" &&
+          value.options.length ===
+            0
+        ) {
+          context.addIssue({
+            code:
+              z.ZodIssueCode.custom,
+
+            path: [
+              "options",
+            ],
+
+            message:
+              "A select field must have at least one option.",
+          });
+        }
+      },
+    );
+
+
+export const updateServiceFormFieldSchema =
+  z
+    .object({
+      label: z
+        .string()
+        .trim()
+        .min(
+          2,
+          "Field label is required.",
+        )
+        .max(
+          150,
+          "Field label is too long.",
+        ),
+
+      fieldType: z.enum(
+        serviceFormFieldTypes,
+      ),
+
+      placeholder: z
+        .string()
+        .trim()
+        .max(
+          200,
+          "Placeholder is too long.",
+        ),
+
+      required:
+        z.boolean(),
+
+      options: z.array(
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(150),
+      ),
+    })
+    .superRefine(
+      (
+        value,
+        context,
+      ) => {
+        if (
+          value.fieldType ===
+            "select" &&
+          value.options.length ===
+            0
+        ) {
+          context.addIssue({
+            code:
+              z.ZodIssueCode.custom,
+
+            path: [
+              "options",
+            ],
+
+            message:
+              "A select field must have at least one option.",
+          });
+        }
+      },
+    );
+
+
+export type CreateServiceFormFieldInput =
+  z.infer<
+    typeof createServiceFormFieldSchema
+  >;
+
+
+export type UpdateServiceFormFieldInput =
+  z.infer<
+    typeof updateServiceFormFieldSchema
+  >;
+==================== ACTIONS ====================
+"use server";
+
+import {
+  revalidatePath,
+} from "next/cache";
+
+import {
+  requireSuperAdmin,
+} from "@/lib/auth/admin";
+
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+import {
+  createServiceFormFieldSchema,
+  updateServiceFormFieldSchema,
+  type CreateServiceFormFieldInput,
+  type UpdateServiceFormFieldInput,
+} from "@/lib/validation/service-form-field";
+
+
+export type FormFieldActionResult = {
+  success: boolean;
+
+  error: string;
+};
+
+
+// =========================================================
+// CREATE FORM FIELD
+// =========================================================
+
+export async function createServiceFormField(
+  serviceId: string,
+  input: CreateServiceFormFieldInput,
+): Promise<FormFieldActionResult> {
+  const admin =
+    await requireSuperAdmin();
+
+
+  const validation =
+    createServiceFormFieldSchema.safeParse(
+      input,
+    );
+
+
+  if (
+    !validation.success
+  ) {
+    return {
+      success: false,
+
+      error:
+        validation.error.issues[0]
+          ?.message ??
+        "Invalid form field.",
+    };
+  }
+
+
+  const supabase =
+    createAdminClient();
+
+
+  // -------------------------------------------------------
+  // Verify service
+  // -------------------------------------------------------
+
+  const {
+    data: service,
+    error:
+      serviceError,
+  } = await supabase
+    .from("services")
+    .select(`
+      id,
+      name,
+      slug,
+      university_id
+    `)
+    .eq(
+      "id",
+      serviceId,
+    )
+    .single();
+
+
+  if (
+    serviceError ||
+    !service
+  ) {
+    return {
+      success: false,
+
+      error:
+        "The service could not be found.",
+    };
+  }
+
+
+  // -------------------------------------------------------
+  // Calculate the next sort position.
+  //
+  // We leave gaps of 10 so manual ordering remains easy.
+  // -------------------------------------------------------
+
+  const {
+    data: lastField,
+    error:
+      lastFieldError,
+  } = await supabase
+    .from(
+      "service_form_fields",
+    )
+    .select(
+      "sort_order",
+    )
+    .eq(
+      "service_id",
+      serviceId,
+    )
+    .order(
+      "sort_order",
+      {
+        ascending: false,
+      },
+    )
+    .limit(1)
+    .maybeSingle();
+
+
+  if (
+    lastFieldError
+  ) {
+    console.error(
+      "Could not determine field order:",
+      lastFieldError,
+    );
+
+
+    return {
+      success: false,
+
+      error:
+        "The form field could not be created.",
+    };
+  }
+
+
+  const nextSortOrder =
+    (lastField
+      ?.sort_order ??
+      0) + 10;
+
+
+  const {
+    fieldKey,
+    label,
+    fieldType,
+    placeholder,
+    required,
+    options,
+  } =
+    validation.data;
+
+
+  const normalizedOptions =
+    fieldType ===
+    "select"
+      ? Array.from(
+          new Set(
+            options
+              .map(
+                (option) =>
+                  option.trim(),
+              )
+              .filter(Boolean),
+          ),
+        )
+      : null;
+
+
+  // -------------------------------------------------------
+  // Insert field
+  // -------------------------------------------------------
+
+  const {
+    data: field,
+    error,
+  } = await supabase
+    .from(
+      "service_form_fields",
+    )
+    .insert({
+      service_id:
+        serviceId,
+
+      field_key:
+        fieldKey,
+
+      label,
+
+      field_type:
+        fieldType,
+
+      placeholder:
+        placeholder ||
+        null,
+
+      required,
+
+      options:
+        normalizedOptions,
+
+      sort_order:
+        nextSortOrder,
+
+      active:
+        true,
+    })
+    .select(`
+      id,
+      field_key,
+      label,
+      field_type,
+      sort_order
+    `)
+    .single();
+
+
+  if (
+    error ||
+    !field
+  ) {
+    console.error(
+      "Create service form field failed:",
+      error,
+    );
+
+
+    if (
+      error?.code ===
+      "23505"
+    ) {
+      return {
+        success: false,
+
+        error:
+          "A field with this key already exists for this service.",
+      };
+    }
+
+
+    return {
+      success: false,
+
+      error:
+        "The form field could not be created.",
+    };
+  }
+
+
+  // -------------------------------------------------------
+  // Audit
+  // -------------------------------------------------------
+
+  const {
+    error: logError,
+  } = await supabase
+    .from("activity_logs")
+    .insert({
+      actor_id:
+        admin.id,
+
+      action:
+        "SERVICE_FORM_FIELD_CREATED",
+
+      entity_type:
+        "service_form_field",
+
+      entity_id:
+        field.id,
+
+      metadata: {
+        service_id:
+          serviceId,
+
+        service_name:
+          service.name,
+
+        field_key:
+          field.field_key,
+
+        label:
+          field.label,
+
+        field_type:
+          field.field_type,
+
+        sort_order:
+          field.sort_order,
+      },
+    });
+
+
+  if (logError) {
+    console.error(
+      "Form field audit log failed:",
+      logError,
+    );
+  }
+
+
+  revalidatePath(
+    `/admin/services/${serviceId}/fields`,
+  );
+
+  revalidatePath(
+    "/admin/services",
+  );
+
+
+  return {
+    success: true,
+    error: "",
+  };
+}
+
+
+// =========================================================
+// UPDATE FIELD
+// =========================================================
+
+export async function updateServiceFormField(
+  serviceId: string,
+  fieldId: string,
+  input: UpdateServiceFormFieldInput,
+): Promise<FormFieldActionResult> {
+  const admin =
+    await requireSuperAdmin();
+
+
+  const validation =
+    updateServiceFormFieldSchema.safeParse(
+      input,
+    );
+
+
+  if (
+    !validation.success
+  ) {
+    return {
+      success: false,
+
+      error:
+        validation.error.issues[0]
+          ?.message ??
+        "Invalid form field.",
+    };
+  }
+
+
+  const {
+    label,
+    fieldType,
+    placeholder,
+    required,
+    options,
+  } =
+    validation.data;
+
+
+  const normalizedOptions =
+    fieldType ===
+    "select"
+      ? Array.from(
+          new Set(
+            options
+              .map(
+                (option) =>
+                  option.trim(),
+              )
+              .filter(Boolean),
+          ),
+        )
+      : null;
+
+
+  const supabase =
+    createAdminClient();
+
+
+  const {
+    data: field,
+    error,
+  } = await supabase
+    .from(
+      "service_form_fields",
+    )
+    .update({
+      label,
+
+      field_type:
+        fieldType,
+
+      placeholder:
+        placeholder ||
+        null,
+
+      required,
+
+      options:
+        normalizedOptions,
+    })
+    .eq(
+      "id",
+      fieldId,
+    )
+    .eq(
+      "service_id",
+      serviceId,
+    )
+    .select(`
+      id,
+      field_key,
+      label,
+      field_type
+    `)
+    .single();
+
+
+  if (
+    error ||
+    !field
+  ) {
+    console.error(
+      "Update service form field failed:",
+      error,
+    );
+
+
+    return {
+      success: false,
+
+      error:
+        "The form field could not be updated.",
+    };
+  }
+
+
+  const {
+    error: logError,
+  } = await supabase
+    .from("activity_logs")
+    .insert({
+      actor_id:
+        admin.id,
+
+      action:
+        "SERVICE_FORM_FIELD_UPDATED",
+
+      entity_type:
+        "service_form_field",
+
+      entity_id:
+        fieldId,
+
+      metadata: {
+        service_id:
+          serviceId,
+
+        field_key:
+          field.field_key,
+
+        label:
+          field.label,
+
+        field_type:
+          field.field_type,
+      },
+    });
+
+
+  if (logError) {
+    console.error(
+      "Form field update audit log failed:",
+      logError,
+    );
+  }
+
+
+  revalidatePath(
+    `/admin/services/${serviceId}/fields`,
+  );
+
+
+  return {
+    success: true,
+    error: "",
+  };
+}
+
+
+// =========================================================
+// ENABLE / DISABLE FIELD
+// =========================================================
+
+export async function setServiceFormFieldActive(
+  serviceId: string,
+  fieldId: string,
+  active: boolean,
+): Promise<FormFieldActionResult> {
+  const admin =
+    await requireSuperAdmin();
+
+
+  const supabase =
+    createAdminClient();
+
+
+  const {
+    data: field,
+    error,
+  } = await supabase
+    .from(
+      "service_form_fields",
+    )
+    .update({
+      active,
+    })
+    .eq(
+      "id",
+      fieldId,
+    )
+    .eq(
+      "service_id",
+      serviceId,
+    )
+    .select(`
+      id,
+      field_key,
+      label,
+      active
+    `)
+    .single();
+
+
+  if (
+    error ||
+    !field
+  ) {
+    console.error(
+      "Form field status update failed:",
+      error,
+    );
+
+
+    return {
+      success: false,
+
+      error:
+        "The field status could not be updated.",
+    };
+  }
+
+
+  const {
+    error: logError,
+  } = await supabase
+    .from("activity_logs")
+    .insert({
+      actor_id:
+        admin.id,
+
+      action:
+        active
+          ? "SERVICE_FORM_FIELD_ENABLED"
+          : "SERVICE_FORM_FIELD_DISABLED",
+
+      entity_type:
+        "service_form_field",
+
+      entity_id:
+        fieldId,
+
+      metadata: {
+        service_id:
+          serviceId,
+
+        field_key:
+          field.field_key,
+
+        label:
+          field.label,
+
+        active,
+      },
+    });
+
+
+  if (logError) {
+    console.error(
+      "Form field status audit log failed:",
+      logError,
+    );
+  }
+
+
+  revalidatePath(
+    `/admin/services/${serviceId}/fields`,
+  );
+
+
+  return {
+    success: true,
+    error: "",
+  };
+}
+
+
+// =========================================================
+// MOVE FIELD
+// =========================================================
+
+export async function moveServiceFormField(
+  serviceId: string,
+  fieldId: string,
+  direction:
+    | "UP"
+    | "DOWN",
+): Promise<FormFieldActionResult> {
+  const admin =
+    await requireSuperAdmin();
+
+
+  const supabase =
+    createAdminClient();
+
+
+  // Verify the field belongs to the service.
+  const {
+    data: field,
+    error:
+      fieldError,
+  } = await supabase
+    .from(
+      "service_form_fields",
+    )
+    .select(`
+      id,
+      service_id
+    `)
+    .eq(
+      "id",
+      fieldId,
+    )
+    .eq(
+      "service_id",
+      serviceId,
+    )
+    .single();
+
+
+  if (
+    fieldError ||
+    !field
+  ) {
+    return {
+      success: false,
+
+      error:
+        "The form field could not be found.",
+    };
+  }
+
+
+  const {
+    error,
+  } = await supabase.rpc(
+    "move_service_form_field",
+    {
+      p_field_id:
+        fieldId,
+
+      p_admin_id:
+        admin.id,
+
+      p_direction:
+        direction,
+    },
+  );
+
+
+  if (error) {
+    console.error(
+      "Move service form field failed:",
+      error,
+    );
+
+
+    return {
+      success: false,
+
+      error:
+        "The form field could not be moved.",
+    };
+  }
+
+
+  revalidatePath(
+    `/admin/services/${serviceId}/fields`,
+  );
+
+
+  return {
+    success: true,
+    error: "",
+  };
+}
+==================== PAGE ====================
+import {
+  notFound,
+} from "next/navigation";
+
+import {
+  requireSuperAdmin,
+} from "@/lib/auth/admin";
+
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+import {
+  ServiceFormFieldsManager,
+  type FormBuilderService,
+  type ServiceFormFieldItem,
+} from "@/components/admin/service-form-fields-manager";
+
+
+type PageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+
+export default async function ServiceFieldsPage({
+  params,
+}: PageProps) {
+  await requireSuperAdmin();
+
+
+  const {
+    id,
+  } = await params;
+
+
+  const supabase =
+    createAdminClient();
+
+
+  const [
+    serviceResult,
+    fieldsResult,
+  ] =
+    await Promise.all([
+      supabase
+        .from("services")
+        .select(`
+          id,
+          name,
+          short_name,
+          slug,
+          active,
+
+          universities (
+            code,
+            name
+          )
+        `)
+        .eq(
+          "id",
+          id,
+        )
+        .single(),
+
+      supabase
+        .from(
+          "service_form_fields",
+        )
+        .select(`
+          id,
+          service_id,
+          field_key,
+          label,
+          field_type,
+          placeholder,
+          required,
+          options,
+          sort_order,
+          active,
+          created_at
+        `)
+        .eq(
+          "service_id",
+          id,
+        )
+        .order(
+          "sort_order",
+          {
+            ascending: true,
+          },
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true,
+          },
+        ),
+    ]);
+
+
+  if (
+    serviceResult.error ||
+    !serviceResult.data
+  ) {
+    notFound();
+  }
+
+
+  if (
+    fieldsResult.error
+  ) {
+    console.error(
+      "Service form fields query failed:",
+      fieldsResult.error,
+    );
+  }
+
+
+  const service =
+    serviceResult.data as unknown as
+      FormBuilderService;
+
+
+  const rawFields =
+    fieldsResult.data ??
+    [];
+
+
+  const fields =
+    rawFields.map(
+      (field) => ({
+        ...field,
+
+        options:
+          Array.isArray(
+            field.options,
+          )
+            ? field.options.filter(
+                (
+                  option,
+                ): option is string =>
+                  typeof option ===
+                  "string",
+              )
+            : null,
+      }),
+    ) as ServiceFormFieldItem[];
+
+
+  return (
+    <ServiceFormFieldsManager
+      service={
+        service
+      }
+      fields={
+        fields
+      }
+    />
+  );
+}

@@ -13,6 +13,8 @@ import type {
   RequestCatalogFieldType,
   RequestCatalogPricing,
   RequestCatalogPricingMode,
+  RequestCatalogPricingOption,
+  RequestCatalogPricingTier,
   RequestCatalogService,
   RequestCatalogServiceCategorySummary,
   RequestCatalogUniversity,
@@ -199,6 +201,68 @@ type RawPricing = {
 };
 
 
+type RawPricingOption = {
+  id:
+    string;
+
+  service_pricing_id:
+    string;
+
+  code:
+    string;
+
+  label:
+    string;
+
+  description:
+    | string
+    | null;
+
+  unit_label:
+    | string
+    | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+};
+
+
+type RawPricingTier = {
+  id:
+    string;
+
+  pricing_option_id:
+    string;
+
+  label:
+    | string
+    | null;
+
+  amount:
+    string
+    | number;
+
+  minimum_quantity:
+    string
+    | number
+    | null;
+
+  maximum_quantity:
+    string
+    | number
+    | null;
+
+  display_order:
+    number;
+
+  active:
+    boolean;
+};
+
+
 // =========================================================
 // SUPPORTED FIELD TYPES
 // =========================================================
@@ -231,7 +295,7 @@ const allowedPricingModes =
 
 
 // =========================================================
-// NORMALIZE OPTIONS
+// NORMALIZE FIELD OPTIONS
 // =========================================================
 
 function normalizeOptions(
@@ -321,7 +385,7 @@ function buildField(
 
 
 // =========================================================
-// NUMBER HELPER
+// NUMBER HELPERS
 // =========================================================
 
 function nullableNumber(
@@ -329,7 +393,8 @@ function nullableNumber(
     string
     | number
     | null,
-) {
+):
+  number | null {
   if (
     value ===
     null
@@ -352,6 +417,173 @@ function nullableNumber(
 }
 
 
+function positiveNumber(
+  value:
+    string
+    | number,
+):
+  number | null {
+  const number =
+    Number(
+      value,
+    );
+
+
+  if (
+    !Number.isFinite(
+      number,
+    ) ||
+    number <=
+      0
+  ) {
+    return null;
+  }
+
+
+  return number;
+}
+
+
+// =========================================================
+// BUILD PUBLIC PRICING TIER
+// =========================================================
+
+function buildPricingTier(
+  tier:
+    RawPricingTier,
+):
+  RequestCatalogPricingTier
+  | null {
+  if (
+    !tier.active
+  ) {
+    return null;
+  }
+
+
+  const amount =
+    positiveNumber(
+      tier.amount,
+    );
+
+
+  if (
+    amount ===
+    null
+  ) {
+    return null;
+  }
+
+
+  return {
+    id:
+      tier.id,
+
+    label:
+      tier.label,
+
+    amount,
+
+    minimumQuantity:
+      nullableNumber(
+        tier.minimum_quantity,
+      ),
+
+    maximumQuantity:
+      nullableNumber(
+        tier.maximum_quantity,
+      ),
+
+    displayOrder:
+      tier.display_order,
+  };
+}
+
+
+// =========================================================
+// BUILD PUBLIC PRICING OPTION
+// =========================================================
+
+function buildPricingOption(
+  option:
+    RawPricingOption,
+
+  tiers:
+    RawPricingTier[],
+):
+  RequestCatalogPricingOption
+  | null {
+  if (
+    !option.active
+  ) {
+    return null;
+  }
+
+
+  const publicTiers =
+    tiers
+      .map(
+        buildPricingTier,
+      )
+      .filter(
+        (
+          tier,
+        ): tier is RequestCatalogPricingTier =>
+          tier !==
+          null,
+      )
+      .sort(
+        (
+          first,
+          second,
+        ) =>
+          first.displayOrder -
+            second.displayOrder ||
+          first.id.localeCompare(
+            second.id,
+          ),
+      );
+
+
+  /*
+   * An incomplete option must not be exposed.
+   *
+   * This lets an administrator prepare an option without
+   * breaking the public customer workflow.
+   */
+  if (
+    publicTiers.length ===
+    0
+  ) {
+    return null;
+  }
+
+
+  return {
+    id:
+      option.id,
+
+    code:
+      option.code,
+
+    label:
+      option.label,
+
+    description:
+      option.description,
+
+    unitLabel:
+      option.unit_label,
+
+    displayOrder:
+      option.display_order,
+
+    tiers:
+      publicTiers,
+  };
+}
+
+
 // =========================================================
 // BUILD PRICING
 // =========================================================
@@ -360,6 +592,9 @@ function buildPricing(
   pricing:
     RawPricing
     | undefined,
+
+  publicOptions:
+    RequestCatalogPricingOption[],
 ):
   RequestCatalogPricing
   | null {
@@ -380,12 +615,35 @@ function buildPricing(
   }
 
 
+  const mode =
+    pricing.pricing_mode as RequestCatalogPricingMode;
+
+
+  /*
+   * Migration 030 permits options only for these modes.
+   * Keeping the same rule here prevents accidental public
+   * exposure if inconsistent data somehow enters the DB.
+   */
+  const options =
+    (
+      mode ===
+        "FIXED" ||
+      mode ===
+        "PER_UNIT" ||
+      mode ===
+        "STARTING_FROM"
+    )
+      ? publicOptions
+      : [];
+
+
   return {
-    mode:
-      pricing.pricing_mode as RequestCatalogPricingMode,
+    mode,
 
     currency:
-      pricing.currency,
+      pricing.currency
+        .trim()
+        .toUpperCase(),
 
     amount:
       nullableNumber(
@@ -407,6 +665,8 @@ function buildPricing(
 
     displayNote:
       pricing.display_note,
+
+    options,
   };
 }
 
@@ -452,6 +712,8 @@ export async function GET() {
       servicesResult,
       fieldsResult,
       pricingResult,
+      pricingOptionsResult,
+      pricingTiersResult,
     ] =
       await Promise.all([
         // -------------------------------------------------
@@ -604,7 +866,7 @@ export async function GET() {
 
 
         // -------------------------------------------------
-        // PRICING
+        // SERVICE PRICING
         // -------------------------------------------------
 
         supabase
@@ -623,6 +885,82 @@ export async function GET() {
             display_note,
             active
           `),
+
+
+        // -------------------------------------------------
+        // ACTIVE PRICING OPTIONS
+        // -------------------------------------------------
+
+        supabase
+          .from(
+            "service_pricing_options",
+          )
+          .select(`
+            id,
+            service_pricing_id,
+            code,
+            label,
+            description,
+            unit_label,
+            display_order,
+            active
+          `)
+          .eq(
+            "active",
+            true,
+          )
+          .order(
+            "display_order",
+            {
+              ascending:
+                true,
+            },
+          )
+          .order(
+            "created_at",
+            {
+              ascending:
+                true,
+            },
+          ),
+
+
+        // -------------------------------------------------
+        // ACTIVE PRICING TIERS
+        // -------------------------------------------------
+
+        supabase
+          .from(
+            "service_pricing_tiers",
+          )
+          .select(`
+            id,
+            pricing_option_id,
+            label,
+            amount,
+            minimum_quantity,
+            maximum_quantity,
+            display_order,
+            active
+          `)
+          .eq(
+            "active",
+            true,
+          )
+          .order(
+            "display_order",
+            {
+              ascending:
+                true,
+            },
+          )
+          .order(
+            "created_at",
+            {
+              ascending:
+                true,
+            },
+          ),
       ]);
 
 
@@ -690,6 +1028,30 @@ export async function GET() {
     }
 
 
+    if (
+      pricingOptionsResult.error
+    ) {
+      console.error(
+        "Request catalog pricing options failed:",
+        pricingOptionsResult.error,
+      );
+
+      return catalogErrorResponse();
+    }
+
+
+    if (
+      pricingTiersResult.error
+    ) {
+      console.error(
+        "Request catalog pricing tiers failed:",
+        pricingTiersResult.error,
+      );
+
+      return catalogErrorResponse();
+    }
+
+
     // =====================================================
     // NORMALIZE RESULTS
     // =====================================================
@@ -729,8 +1091,22 @@ export async function GET() {
       ) as RawPricing[];
 
 
+    const pricingOptions =
+      (
+        pricingOptionsResult.data ??
+        []
+      ) as RawPricingOption[];
+
+
+    const pricingTiers =
+      (
+        pricingTiersResult.data ??
+        []
+      ) as RawPricingTier[];
+
+
     // =====================================================
-    // LOOKUPS
+    // CORE LOOKUPS
     // =====================================================
 
     const universityById =
@@ -779,6 +1155,121 @@ export async function GET() {
           ],
         ),
       );
+
+
+    // =====================================================
+    // TIERS BY OPTION
+    // =====================================================
+
+    const tiersByOptionId =
+      new Map<
+        string,
+        RawPricingTier[]
+      >();
+
+
+    for (
+      const tier of
+      pricingTiers
+    ) {
+      const current =
+        tiersByOptionId.get(
+          tier.pricing_option_id,
+        ) ??
+        [];
+
+
+      current.push(
+        tier,
+      );
+
+
+      tiersByOptionId.set(
+        tier.pricing_option_id,
+        current,
+      );
+    }
+
+
+    // =====================================================
+    // PUBLIC OPTIONS BY PARENT PRICING
+    //
+    // Only usable options are stored here.
+    // =====================================================
+
+    const optionsByPricingId =
+      new Map<
+        string,
+        RequestCatalogPricingOption[]
+      >();
+
+
+    for (
+      const option of
+      pricingOptions
+    ) {
+      const publicOption =
+        buildPricingOption(
+          option,
+
+          tiersByOptionId.get(
+            option.id,
+          ) ??
+          [],
+        );
+
+
+      if (
+        !publicOption
+      ) {
+        continue;
+      }
+
+
+      const current =
+        optionsByPricingId.get(
+          option.service_pricing_id,
+        ) ??
+        [];
+
+
+      current.push(
+        publicOption,
+      );
+
+
+      optionsByPricingId.set(
+        option.service_pricing_id,
+        current,
+      );
+    }
+
+
+    for (
+      const [
+        pricingId,
+        options,
+      ] of
+      optionsByPricingId
+    ) {
+      options.sort(
+        (
+          first,
+          second,
+        ) =>
+          first.displayOrder -
+            second.displayOrder ||
+          first.label.localeCompare(
+            second.label,
+          ),
+      );
+
+
+      optionsByPricingId.set(
+        pricingId,
+        options,
+      );
+    }
 
 
     // =====================================================
@@ -976,6 +1467,25 @@ export async function GET() {
           );
 
 
+      const pricing =
+        pricingByServiceId.get(
+          service.id,
+        );
+
+
+      const publicPricing =
+        buildPricing(
+          pricing,
+
+          pricing
+            ? optionsByPricingId.get(
+                pricing.id,
+              ) ??
+              []
+            : [],
+        );
+
+
       return {
         id:
           service.id,
@@ -1019,11 +1529,7 @@ export async function GET() {
           service.image_url,
 
         pricing:
-          buildPricing(
-            pricingByServiceId.get(
-              service.id,
-            ),
-          ),
+          publicPricing,
 
         fields:
           serviceFields,

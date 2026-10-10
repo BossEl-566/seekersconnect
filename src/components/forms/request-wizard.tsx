@@ -54,6 +54,8 @@ import type {
   RequestCatalog,
   RequestCatalogCategory,
   RequestCatalogField,
+  RequestCatalogPricingOption,
+  RequestCatalogPricingTier,
   RequestCatalogService,
   RequestCatalogUniversity,
 } from "@/types/request-catalog";
@@ -64,11 +66,9 @@ import {
   isPaymentMethodAvailable,
 } from "@/lib/payment/payment-destinations";
 
+
 // =========================================================
 // LOCAL STORAGE
-//
-// V2 deliberately uses a new key because the selection model
-// changed from university-first to category-first.
 // =========================================================
 
 const STORAGE_KEY =
@@ -81,69 +81,34 @@ const STORAGE_KEY =
 
 const steps = [
   {
-    number:
-      1,
-
-    label:
-      "Category",
-
-    icon:
-      Shapes,
+    number: 1,
+    label: "Category",
+    icon: Shapes,
   },
-
   {
-    number:
-      2,
-
-    label:
-      "Service",
-
-    icon:
-      FileText,
+    number: 2,
+    label: "Service",
+    icon: FileText,
   },
-
   {
-    number:
-      3,
-
-    label:
-      "Details",
-
-    icon:
-      UserRound,
+    number: 3,
+    label: "Details",
+    icon: UserRound,
   },
-
   {
-    number:
-      4,
-
-    label:
-      "Delivery",
-
-    icon:
-      Package,
+    number: 4,
+    label: "Delivery",
+    icon: Package,
   },
-
   {
-    number:
-      5,
-
-    label:
-      "Payment",
-
-    icon:
-      CreditCard,
+    number: 5,
+    label: "Payment",
+    icon: CreditCard,
   },
-
   {
-    number:
-      6,
-
-    label:
-      "Review",
-
-    icon:
-      ShieldCheck,
+    number: 6,
+    label: "Review",
+    icon: ShieldCheck,
   },
 ];
 
@@ -155,88 +120,50 @@ const steps = [
 const initialDraft:
   RequestDraft =
 {
-  categoryId:
-    "",
+  categoryId: "",
 
-  serviceKey:
-    "",
+  serviceKey: "",
 
-  universityId:
-    "",
+  universityId: "",
 
-  serviceId:
-    "",
+  serviceId: "",
 
-  pricingQuantity:
-    "",
+  pricingOptionId: "",
+
+  pricingQuantity: "",
 
   applicant: {
-    firstName:
-      "",
-
-    otherNames:
-      "",
-
-    surname:
-      "",
-
-    gender:
-      "",
-
-    phone:
-      "",
-
-    email:
-      "",
+    firstName: "",
+    otherNames: "",
+    surname: "",
+    gender: "",
+    phone: "",
+    email: "",
   },
 
-
-  responses:
-    {},
-
+  responses: {},
 
   delivery: {
-    required:
-      true,
+    required: true,
 
-    fullName:
-      "",
-
-    houseNumber:
-      "",
-
-    areaTown:
-      "",
-
-    cityDistrict:
-      "",
-
-    region:
-      "",
-
-    digitalAddress:
-      "",
-
-    phone:
-      "",
-
-    email:
-      "",
+    fullName: "",
+    houseNumber: "",
+    areaTown: "",
+    cityDistrict: "",
+    region: "",
+    digitalAddress: "",
+    phone: "",
+    email: "",
 
     itemType:
       "Service Request",
 
-    emergencyContact:
-      "",
+    emergencyContact: "",
   },
 
+  paymentMethod: "",
 
-  paymentMethod:
-    "",
-
-
-  notes:
-    "",
+  notes: "",
 };
 
 
@@ -245,37 +172,27 @@ const initialDraft:
 // =========================================================
 
 type CatalogApiResponse = {
-  success?:
-    boolean;
+  success?: boolean;
 
   catalog?:
     RequestCatalog;
 
-  message?:
-    string;
+  message?: string;
 };
 
 
 type PublicSettingsApiResponse = {
-  success?:
-    boolean;
+  success?: boolean;
 
   settings?:
     SystemSettings;
 
-  message?:
-    string;
+  message?: string;
 };
 
 
 // =========================================================
 // ACADEMIC SERVICE FAMILY
-//
-// An academic service such as "Transcript" can exist as
-// separate database service rows for UCC, UG, KNUST, etc.
-//
-// The customer should see one "Transcript" card first, then
-// choose the institution.
 // =========================================================
 
 type AcademicServiceOffering = {
@@ -301,8 +218,7 @@ type AcademicServiceFamily = {
     string;
 
   description:
-    | string
-    | null;
+    string | null;
 
   offerings:
     AcademicServiceOffering[];
@@ -350,8 +266,7 @@ export function RequestWizard() {
     setCatalog,
   ] =
     useState<
-      RequestCatalog
-      | null
+      RequestCatalog | null
     >(
       null,
     );
@@ -393,8 +308,7 @@ export function RequestWizard() {
     setPublicSettings,
   ] =
     useState<
-      SystemSettings
-      | null
+      SystemSettings | null
     >(
       null,
     );
@@ -436,8 +350,7 @@ export function RequestWizard() {
     setPaymentProof,
   ] =
     useState<
-      File
-      | null
+      File | null
     >(
       null,
     );
@@ -466,21 +379,11 @@ export function RequestWizard() {
     setSubmittedRequest,
   ] =
     useState<{
-      requestNumber:
-        string;
-
-      status:
-        string;
-
-      pricingMode:
-        string;
-
-      currency:
-        string;
-
-      totalAmount:
-        number
-        | null;
+      requestNumber: string;
+      status: string;
+      pricingMode: string;
+      currency: string;
+      totalAmount: number | null;
     } | null>(
       null,
     );
@@ -621,7 +524,7 @@ export function RequestWizard() {
           ) {
             throw new Error(
               result.message ||
-                "The request services could not be loaded.",
+              "The request services could not be loaded.",
             );
           }
 
@@ -727,7 +630,7 @@ export function RequestWizard() {
           ) {
             throw new Error(
               result.message ||
-                "Public settings could not be loaded.",
+              "Public settings could not be loaded.",
             );
           }
 
@@ -821,8 +724,7 @@ export function RequestWizard() {
 
   const selectedCategory =
     useMemo<
-      RequestCatalogCategory
-      | undefined
+      RequestCatalogCategory | undefined
     >(
       () =>
         availableCategories.find(
@@ -840,7 +742,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // ACADEMIC SERVICE FAMILIES FOR SELECTED CATEGORY
+  // ACADEMIC SERVICE FAMILIES
   // =======================================================
 
   const academicFamilies =
@@ -961,7 +863,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // GENERAL SERVICES FOR SELECTED CATEGORY
+  // GENERAL SERVICES
   // =======================================================
 
   const categoryGeneralServices =
@@ -982,8 +884,7 @@ export function RequestWizard() {
 
   const selectedAcademicFamily =
     useMemo<
-      AcademicServiceFamily
-      | undefined
+      AcademicServiceFamily | undefined
     >(
       () =>
         academicFamilies.find(
@@ -1060,8 +961,7 @@ export function RequestWizard() {
 
   const selectedService =
     useMemo<
-      RequestCatalogService
-      | undefined
+      RequestCatalogService | undefined
     >(
       () =>
         allConcreteServices.find(
@@ -1077,7 +977,8 @@ export function RequestWizard() {
       ],
     );
 
-      // =======================================================
+
+  // =======================================================
   // PRICING BEHAVIOUR
   // =======================================================
 
@@ -1119,8 +1020,7 @@ export function RequestWizard() {
 
   const selectedUniversity =
     useMemo<
-      RequestCatalogUniversity
-      | undefined
+      RequestCatalogUniversity | undefined
     >(
       () =>
         catalog
@@ -1154,7 +1054,7 @@ export function RequestWizard() {
 
 
   // =======================================================
-  // RECONCILE SAVED V2 DRAFT WITH CURRENT CATALOG
+  // RECONCILE SAVED DRAFT
   // =======================================================
 
   useEffect(
@@ -1210,6 +1110,9 @@ export function RequestWizard() {
         serviceId:
           "",
 
+        pricingOptionId:
+          "",
+
         pricingQuantity:
           "",
 
@@ -1227,7 +1130,9 @@ export function RequestWizard() {
         },
       }),
     );
-            setPaymentProof(
+
+
+    setPaymentProof(
       null,
     );
   }
@@ -1256,6 +1161,9 @@ export function RequestWizard() {
         serviceId:
           service.id,
 
+        pricingOptionId:
+          "",
+
         pricingQuantity:
           "",
 
@@ -1275,7 +1183,9 @@ export function RequestWizard() {
         },
       }),
     );
-        setPaymentProof(
+
+
+    setPaymentProof(
       null,
     );
   }
@@ -1304,6 +1214,9 @@ export function RequestWizard() {
         serviceId:
           "",
 
+        pricingOptionId:
+          "",
+
         pricingQuantity:
           "",
 
@@ -1321,7 +1234,9 @@ export function RequestWizard() {
         },
       }),
     );
-        setPaymentProof(
+
+
+    setPaymentProof(
       null,
     );
   }
@@ -1373,6 +1288,9 @@ export function RequestWizard() {
         serviceId:
           offering.service.id,
 
+        pricingOptionId:
+          "",
+
         pricingQuantity:
           "",
 
@@ -1390,7 +1308,40 @@ export function RequestWizard() {
         },
       }),
     );
-        setPaymentProof(
+
+
+    setPaymentProof(
+      null,
+    );
+  }
+
+
+  // =======================================================
+  // PRICING OPTION SELECTION
+  // =======================================================
+
+  function selectPricingOption(
+    pricingOptionId:
+      string,
+  ) {
+    setDraft(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        pricingOptionId,
+
+        pricingQuantity:
+          "",
+
+        paymentMethod:
+          "",
+      }),
+    );
+
+
+    setPaymentProof(
       null,
     );
   }
@@ -1461,8 +1412,7 @@ export function RequestWizard() {
       keyof RequestDraft["delivery"],
 
     value:
-      string
-      | boolean,
+      string | boolean,
   ) {
     setDraft(
       (
@@ -1538,9 +1488,29 @@ export function RequestWizard() {
           );
 
 
+      const pricingOptions =
+        selectedService
+          ?.pricing
+          ?.options ??
+        [];
+
+
+      const pricingOptionComplete =
+        pricingOptions.length ===
+          0 ||
+        pricingOptions.some(
+          (
+            option,
+          ) =>
+            option.id ===
+            draft.pricingOptionId,
+        );
+
+
       return Boolean(
         applicantComplete &&
-        requiredDynamicFieldsComplete,
+        requiredDynamicFieldsComplete &&
+        pricingOptionComplete,
       );
     }
 
@@ -1567,7 +1537,7 @@ export function RequestWizard() {
     }
 
 
-        if (
+    if (
       currentStep ===
       5
     ) {
@@ -1578,56 +1548,62 @@ export function RequestWizard() {
       }
 
 
+      const pricingPreview =
+        resolvePricingPreview(
+          selectedService,
+          draft,
+        );
+
+
+      // ---------------------------------------------------
+      // If public pricing options exist, the selected one
+      // must still exist in the current catalog.
+      // ---------------------------------------------------
+
+      if (
+        pricingPreview.hasOptions &&
+        !pricingPreview.selectedOption
+      ) {
+        return false;
+      }
+
+
+      // ---------------------------------------------------
+      // FIXED
+      // ---------------------------------------------------
+
       if (
         effectivePricingMode ===
-        "PER_UNIT"
+        "FIXED"
       ) {
-        const quantity =
-          Number(
-            draft.pricingQuantity,
-          );
-
-
-        const minimumQuantity =
-          selectedService
-            ?.pricing
-            ?.minimumQuantity ??
-          null;
-
-
-        const maximumQuantity =
-          selectedService
-            ?.pricing
-            ?.maximumQuantity ??
-          null;
-
-
         if (
-          !Number.isFinite(
-            quantity,
-          ) ||
-          quantity <=
+          pricingPreview.unitAmount ===
+            null ||
+          pricingPreview.unitAmount <=
             0
         ) {
           return false;
         }
+      }
 
 
+      // ---------------------------------------------------
+      // PER UNIT
+      //
+      // With pricing options this requires an actual active
+      // tier to match the customer's quantity.
+      // ---------------------------------------------------
+
+      if (
+        effectivePricingMode ===
+        "PER_UNIT"
+      ) {
         if (
-          minimumQuantity !==
-            null &&
-          quantity <
-            minimumQuantity
-        ) {
-          return false;
-        }
-
-
-        if (
-          maximumQuantity !==
-            null &&
-          quantity >
-            maximumQuantity
+          !pricingPreview.quantityValid ||
+          pricingPreview.quantity ===
+            null ||
+          pricingPreview.unitAmount ===
+            null
         ) {
           return false;
         }
@@ -1649,7 +1625,7 @@ export function RequestWizard() {
   // NAVIGATION
   // =======================================================
 
-    function nextStep() {
+  function nextStep() {
     if (
       !canContinue()
     ) {
@@ -1679,16 +1655,13 @@ export function RequestWizard() {
 
 
     window.scrollTo({
-      top:
-        0,
-
-      behavior:
-        "smooth",
+      top: 0,
+      behavior: "smooth",
     });
   }
 
 
-    function previousStep() {
+  function previousStep() {
     setCurrentStep(
       (
         step,
@@ -1711,20 +1684,17 @@ export function RequestWizard() {
 
 
     window.scrollTo({
-      top:
-        0,
-
-      behavior:
-        "smooth",
+      top: 0,
+      behavior: "smooth",
     });
   }
 
 
   // =======================================================
-  // SUBMIT REQUEST
+  // SUBMIT
   // =======================================================
 
-    async function submitRequest() {
+  async function submitRequest() {
     if (
       submitting
     ) {
@@ -1757,6 +1727,32 @@ export function RequestWizard() {
     }
 
 
+    const pricingOptions =
+      selectedService
+        .pricing
+        ?.options ??
+      [];
+
+
+    if (
+      pricingOptions.length >
+        0 &&
+      !pricingOptions.some(
+        (
+          option,
+        ) =>
+          option.id ===
+          draft.pricingOptionId,
+      )
+    ) {
+      setSubmitError(
+        "Please select a pricing option for this service.",
+      );
+
+      return;
+    }
+
+
     if (
       paymentRequiredNow &&
       !paymentProof
@@ -1774,21 +1770,32 @@ export function RequestWizard() {
       effectivePricingMode ===
         "PER_UNIT"
     ) {
-      const quantity =
-        Number(
-          draft.pricingQuantity,
+      const preview =
+        resolvePricingPreview(
+          selectedService,
+          draft,
         );
 
 
       if (
-        !Number.isFinite(
-          quantity,
-        ) ||
-        quantity <=
-          0
+        preview.quantity ===
+          null
       ) {
         setSubmitError(
           "Enter a valid quantity for this service.",
+        );
+
+        return;
+      }
+
+
+      if (
+        !preview.quantityValid ||
+        preview.unitAmount ===
+          null
+      ) {
+        setSubmitError(
+          "The entered quantity does not match an available price tier for the selected option.",
         );
 
         return;
@@ -1799,7 +1806,6 @@ export function RequestWizard() {
     setSubmitting(
       true,
     );
-
 
     setSubmitError(
       "",
@@ -1853,7 +1859,7 @@ export function RequestWizard() {
       ) {
         throw new Error(
           result.message ||
-            "Unable to submit request.",
+          "Unable to submit request.",
         );
       }
 
@@ -1865,24 +1871,19 @@ export function RequestWizard() {
 
       setSubmittedRequest({
         requestNumber:
-          result.request
-            .requestNumber,
+          result.request.requestNumber,
 
         status:
-          result.request
-            .status,
+          result.request.status,
 
         pricingMode:
-          result.request
-            .pricingMode,
+          result.request.pricingMode,
 
         currency:
-          result.request
-            .currency,
+          result.request.currency,
 
         totalAmount:
-          result.request
-            .totalAmount,
+          result.request.totalAmount,
       });
     } catch (
       error
@@ -1906,48 +1907,39 @@ export function RequestWizard() {
   // =======================================================
 
   function clearDraft() {
-  setDraft(
-    initialDraft,
-  );
+    setDraft(
+      initialDraft,
+    );
 
+    setPaymentProof(
+      null,
+    );
 
-  setPaymentProof(
-    null,
-  );
+    setSubmitError(
+      "",
+    );
 
+    setSubmittedRequest(
+      null,
+    );
 
-  setSubmitError(
-    "",
-  );
+    setCurrentStep(
+      1,
+    );
 
+    localStorage.removeItem(
+      STORAGE_KEY,
+    );
 
-  setSubmittedRequest(
-    null,
-  );
-
-
-  setCurrentStep(
-    1,
-  );
-
-
-  localStorage.removeItem(
-    STORAGE_KEY,
-  );
-
-
-  window.scrollTo({
-    top:
-      0,
-
-    behavior:
-      "smooth",
-  });
-}
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
 
 
   // =======================================================
-  // INITIAL LOADING
+  // LOADING
   // =======================================================
 
   if (
@@ -1986,18 +1978,15 @@ export function RequestWizard() {
             <RefreshCw className="h-6 w-6" />
           </div>
 
-
           <h1 className="mt-5 text-2xl font-semibold text-slate-950">
             Request form could not be loaded.
           </h1>
-
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
             {catalogError ||
               settingsError ||
               "Please try loading the request form again."}
           </p>
-
 
           <Button
             type="button"
@@ -2008,7 +1997,6 @@ export function RequestWizard() {
                 ) =>
                   value + 1,
               );
-
 
               setSettingsReloadKey(
                 (
@@ -2043,27 +2031,23 @@ export function RequestWizard() {
             <CheckCircle2 className="h-7 w-7" />
           </div>
 
-
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             Request Submitted
           </p>
-
 
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
             We have received your request.
           </h1>
 
-
-<p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
-  {submittedRequest.status ===
-  "AWAITING_PAYMENT_VERIFICATION"
-    ? `Your payment proof is now awaiting verification by ${publicSettings.company.shortName}.`
-    : submittedRequest.pricingMode ===
-        "FREE"
-      ? "Your request has been submitted successfully. No service payment is required."
-      : "Your request has been submitted successfully. Our team will review it and confirm the amount before payment."}
-</p>
-
+          <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-slate-500">
+            {submittedRequest.status ===
+            "AWAITING_PAYMENT_VERIFICATION"
+              ? `Your payment proof is now awaiting verification by ${publicSettings.company.shortName}.`
+              : submittedRequest.pricingMode ===
+                  "FREE"
+                ? "Your request has been submitted successfully. No service payment is required."
+                : "Your request has been submitted successfully. Our team will review it and confirm the amount before payment."}
+          </p>
 
           <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
@@ -2072,12 +2056,10 @@ export function RequestWizard() {
 
             <p className="mt-2 break-all text-xl font-semibold tracking-wide text-slate-950">
               {
-                submittedRequest
-                  .requestNumber
+                submittedRequest.requestNumber
               }
             </p>
           </div>
-
 
           <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-left">
             <p className="font-semibold text-blue-950">
@@ -2085,16 +2067,15 @@ export function RequestWizard() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-blue-800">
-  {submittedRequest.status ===
-  "AWAITING_PAYMENT_VERIFICATION"
-    ? "Our team will verify your payment. Once payment is confirmed, processing can begin and your secure tracking details will be issued."
-    : submittedRequest.pricingMode ===
-        "FREE"
-      ? "Our team can now review and begin processing your request without waiting for payment."
-      : "Our team will review the request and confirm the final price. Payment will only be required after the amount has been finalized."}
-</p>
+              {submittedRequest.status ===
+              "AWAITING_PAYMENT_VERIFICATION"
+                ? "Our team will verify your payment. Once payment is confirmed, processing can begin and your secure tracking details will be issued."
+                : submittedRequest.pricingMode ===
+                    "FREE"
+                  ? "Our team can now review and begin processing your request without waiting for payment."
+                  : "Our team will review the request and confirm the final price. Payment will only be required after the amount has been finalized."}
+            </p>
           </div>
-
 
           <p className="mt-6 text-xs leading-5 text-slate-400">
             {
@@ -2117,14 +2098,11 @@ export function RequestWizard() {
     <div className="mx-auto max-w-6xl">
       <div className="grid gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
 
-        {/* SIDEBAR */}
-
         <aside className="hidden lg:block">
           <div className="sticky top-28 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
             <p className="px-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
               Your progress
             </p>
-
 
             <div className="mt-4 space-y-1">
               {visibleSteps.map(
@@ -2135,11 +2113,9 @@ export function RequestWizard() {
                   const Icon =
                     step.icon;
 
-
                   const active =
                     currentStep ===
                     step.number;
-
 
                   const completed =
                     currentStep >
@@ -2173,13 +2149,9 @@ export function RequestWizard() {
                         )}
                       </div>
 
-
                       <div>
                         <p className="text-xs text-slate-400">
-                          Step{" "}
-{
-  index + 1
-}
+                          Step {index + 1}
                         </p>
 
                         <p
@@ -2205,17 +2177,15 @@ export function RequestWizard() {
         </aside>
 
 
-        {/* MAIN */}
-
         <div>
           <MobileProgress
-  currentStep={
-    currentStep
-  }
-  visibleSteps={
-    visibleSteps
-  }
-/>
+            currentStep={
+              currentStep
+            }
+            visibleSteps={
+              visibleSteps
+            }
+          />
 
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -2230,7 +2200,6 @@ export function RequestWizard() {
                       .requestNotice
                   }
                 </div>
-
 
                 <CategoryStep
                   categories={
@@ -2296,6 +2265,9 @@ export function RequestWizard() {
                 updateResponse={
                   updateResponse
                 }
+                onSelectPricingOption={
+                  selectPricingOption
+                }
               />
             )}
 
@@ -2314,16 +2286,16 @@ export function RequestWizard() {
 
 
             {currentStep ===
-  5 &&
-  paymentRequiredNow && (
-  <PaymentStep
+              5 &&
+              paymentRequiredNow && (
+              <PaymentStep
                 draft={
                   draft
                 }
                 setDraft={
                   setDraft
                 }
-                  selectedService={
+                selectedService={
                   selectedService
                 }
                 paymentProof={
@@ -2333,12 +2305,10 @@ export function RequestWizard() {
                   setPaymentProof
                 }
                 paymentSettings={
-                  publicSettings
-                    .payment
+                  publicSettings.payment
                 }
                 requestSettings={
-                  publicSettings
-                    .request
+                  publicSettings.request
                 }
               />
             )}
@@ -2351,12 +2321,10 @@ export function RequestWizard() {
                   draft
                 }
                 categoryName={
-                  selectedCategory
-                    ?.name
+                  selectedCategory?.name
                 }
                 universityName={
-                  selectedUniversity
-                    ?.name
+                  selectedUniversity?.name
                 }
                 selectedService={
                   selectedService
@@ -2417,13 +2385,13 @@ export function RequestWizard() {
                 <Button
                   type="button"
                   className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
-disabled={
-  submitting ||
-  (
-    paymentRequiredNow &&
-    !paymentProof
-  )
-}
+                  disabled={
+                    submitting ||
+                    (
+                      paymentRequiredNow &&
+                      !paymentProof
+                    )
+                  }
                   onClick={
                     submitRequest
                   }
@@ -2431,13 +2399,11 @@ disabled={
                   {submitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-
                       Submitting...
                     </>
                   ) : (
                     <>
                       Submit Request
-
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -2506,12 +2472,8 @@ function MobileProgress({
     <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 lg:hidden">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">
-          Step{" "}
-          {currentIndex + 1}{" "}
-          of{" "}
-          {visibleSteps.length}
+          Step {currentIndex + 1} of {visibleSteps.length}
         </p>
-
 
         <p className="text-xs text-slate-500">
           {
@@ -2521,7 +2483,6 @@ function MobileProgress({
           }
         </p>
       </div>
-
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
@@ -2686,8 +2647,7 @@ function ServiceStep({
   onSelectInstitution,
 }: {
   category:
-    | RequestCatalogCategory
-    | undefined;
+    RequestCatalogCategory | undefined;
 
   generalServices:
     RequestCatalogService[];
@@ -2752,17 +2712,12 @@ function ServiceStep({
         <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
           <FileText className="mx-auto h-7 w-7 text-slate-400" />
 
-
           <p className="mt-4 font-semibold text-slate-800">
             No active services are currently available in this category.
           </p>
         </div>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {/* ===========================================
-              GENERAL SERVICES
-          =========================================== */}
-
           {generalServices.map(
             (
               service,
@@ -2844,10 +2799,6 @@ function ServiceStep({
             },
           )}
 
-
-          {/* ===========================================
-              ACADEMIC SERVICE FAMILIES
-          =========================================== */}
 
           {academicFamilies.map(
             (
@@ -2931,7 +2882,6 @@ function ServiceStep({
                         : "s"}
                     </p>
 
-
                     <p className="mt-1 text-xs text-slate-400">
                       Select the service to view institution-specific pricing.
                     </p>
@@ -2944,19 +2894,11 @@ function ServiceStep({
       )}
 
 
-      {/* ===============================================
-          ACADEMIC INSTITUTION SELECTION
-
-          Each institution can have its own services row,
-          therefore its own pricing configuration.
-      =============================================== */}
-
       {selectedAcademicFamily && (
         <div className="mt-10 border-t border-slate-200 pt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600">
             Institution Required
           </p>
-
 
           <h2 className="mt-2 text-xl font-semibold text-slate-950">
             Which institution should handle{" "}
@@ -2966,7 +2908,6 @@ function ServiceStep({
             }
             ?
           </h2>
-
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
             Select the institution where the academic record or
@@ -3043,7 +2984,6 @@ function ServiceStep({
                       <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
                         <MapPin className="h-3.5 w-3.5" />
 
-
                         {
                           offering
                             .university
@@ -3052,10 +2992,6 @@ function ServiceStep({
                         }
                       </div>
 
-
-                      {/* =================================
-                          INSTITUTION-SPECIFIC PRICE
-                      ================================= */}
 
                       <div className="mt-auto pt-5">
                         <div className="border-t border-slate-100 pt-4">
@@ -3103,6 +3039,7 @@ function DetailsStep({
   selectedService,
   updateApplicant,
   updateResponse,
+  onSelectPricingOption,
 }: {
   draft:
     RequestDraft;
@@ -3128,6 +3065,12 @@ function DetailsStep({
         string,
 
       value:
+        string,
+    ) => void;
+
+  onSelectPricingOption:
+    (
+      pricingOptionId:
         string,
     ) => void;
 }) {
@@ -3162,6 +3105,19 @@ function DetailsStep({
                   ? `These details will be used for ${selectedService.shortName}.`
                   : ""
               }`
+        }
+      />
+
+
+      <PricingOptionSelector
+        service={
+          selectedService
+        }
+        selectedOptionId={
+          draft.pricingOptionId
+        }
+        onSelect={
+          onSelectPricingOption
         }
       />
 
@@ -3380,6 +3336,209 @@ function DetailsStep({
 
 
 // =========================================================
+// PRICING OPTION SELECTOR
+// =========================================================
+
+function PricingOptionSelector({
+  service,
+  selectedOptionId,
+  onSelect,
+}: {
+  service?:
+    RequestCatalogService;
+
+  selectedOptionId:
+    string;
+
+  onSelect:
+    (
+      pricingOptionId:
+        string,
+    ) => void;
+}) {
+  const pricing =
+    service?.pricing;
+
+
+  const options =
+    pricing?.options ??
+    [];
+
+
+  if (
+    !pricing ||
+    options.length ===
+      0
+  ) {
+    return null;
+  }
+
+
+  return (
+    <div className="mt-8 rounded-[22px] border border-blue-100 bg-blue-50/50 p-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
+          Pricing Option
+        </p>
+
+        <h2 className="mt-2 text-lg font-semibold text-slate-950">
+          Choose the option you need.
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          The price depends on the option selected below.
+        </p>
+      </div>
+
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        {options.map(
+          (
+            option,
+          ) => {
+            const selected =
+              option.id ===
+              selectedOptionId;
+
+
+            const firstTier =
+              option.tiers[0];
+
+
+            const unitLabel =
+              option.unitLabel ||
+              pricing.unitLabel ||
+              "unit";
+
+
+            return (
+              <button
+                key={
+                  option.id
+                }
+                type="button"
+                onClick={() =>
+                  onSelect(
+                    option.id,
+                  )
+                }
+                className={`relative rounded-2xl border p-5 text-left transition ${
+                  selected
+                    ? "border-blue-500 bg-white ring-2 ring-blue-100"
+                    : "border-slate-200 bg-white hover:border-blue-300"
+                }`}
+              >
+                {selected && (
+                  <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                )}
+
+
+                <h3 className="pr-8 font-semibold text-slate-950">
+                  {
+                    option.label
+                  }
+                </h3>
+
+
+                {option.description && (
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {
+                      option.description
+                    }
+                  </p>
+                )}
+
+
+                {pricing.mode ===
+                  "FIXED" &&
+                  firstTier && (
+                  <p className="mt-4 text-sm font-semibold text-blue-700">
+                    {
+                      formatMoney(
+                        pricing.currency,
+                        firstTier.amount,
+                      )
+                    }
+                  </p>
+                )}
+
+
+                {pricing.mode ===
+                  "STARTING_FROM" &&
+                  firstTier && (
+                  <p className="mt-4 text-sm font-semibold text-blue-700">
+                    From{" "}
+                    {
+                      formatMoney(
+                        pricing.currency,
+                        firstTier.amount,
+                      )
+                    }
+                  </p>
+                )}
+
+
+                {pricing.mode ===
+                  "PER_UNIT" && (
+                  <div className="mt-4 space-y-2">
+                    {option.tiers.map(
+                      (
+                        tier,
+                      ) => (
+                        <div
+                          key={
+                            tier.id
+                          }
+                          className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs"
+                        >
+                          <span className="text-slate-500">
+                            {
+                              tier.label ||
+                              formatPricingTierRange(
+                                tier.minimumQuantity,
+                                tier.maximumQuantity,
+                              )
+                            }
+                          </span>
+
+
+                          <span className="font-semibold text-blue-700">
+                            {
+                              formatMoney(
+                                pricing.currency,
+                                tier.amount,
+                              )
+                            }
+                            {" / "}
+                            {
+                              unitLabel
+                            }
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+
+
+                <p className="mt-4 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  {selected
+                    ? "Selected"
+                    : "Select option"}
+                </p>
+              </button>
+            );
+          },
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// =========================================================
 // DELIVERY STEP
 // =========================================================
 
@@ -3396,8 +3555,7 @@ function DeliveryStep({
         keyof RequestDraft["delivery"],
 
       value:
-        string
-        | boolean,
+        string | boolean,
     ) => void;
 }) {
   return (
@@ -3698,14 +3856,12 @@ function PaymentStep({
     RequestCatalogService;
 
   paymentProof:
-    File
-    | null;
+    File | null;
 
   onPaymentProofChange:
     (
       file:
-        File
-        | null,
+        File | null,
     ) => void;
 
   paymentSettings:
@@ -3732,33 +3888,55 @@ function PaymentStep({
     "GHS";
 
 
-  const quantity =
-    Number(
-      draft.pricingQuantity,
+  // =======================================================
+  // OPTION / TIER PRICE RESOLUTION
+  //
+  // This is only a customer-facing preview.
+  //
+  // Migration 031 performs the authoritative calculation
+  // again inside PostgreSQL during submission.
+  // =======================================================
+
+  const pricingPreview =
+    resolvePricingPreview(
+      selectedService,
+      draft,
     );
 
 
-  const unitAmount =
-    pricing?.amount ??
-    null;
+  const {
+    selectedOption,
+    selectedTier,
+    quantity,
+    unitAmount,
+    unitLabel,
+    total:
+      calculatedTotal,
+    quantityValid,
+  } =
+    pricingPreview;
 
 
-  const calculatedTotal =
-    pricingMode ===
-      "PER_UNIT" &&
-    unitAmount !==
-      null &&
-    Number.isFinite(
-      quantity,
-    ) &&
-    quantity >
-      0
-      ? unitAmount *
-        quantity
-      : pricingMode ===
-          "FIXED"
-        ? unitAmount
-        : null;
+  // =======================================================
+  // QUANTITY BOUNDS
+  // =======================================================
+
+  const optionQuantityBounds =
+    selectedOption
+      ? getPricingOptionQuantityBounds(
+          selectedOption,
+        )
+      : {
+          minimum:
+            pricing
+              ?.minimumQuantity ??
+            null,
+
+          maximum:
+            pricing
+              ?.maximumQuantity ??
+            null,
+        };
 
 
   // =======================================================
@@ -3792,11 +3970,7 @@ function PaymentStep({
 
 
   // =======================================================
-  // CLEAR A STALE PAYMENT METHOD
-  //
-  // Example:
-  // Customer had selected GHS MoMo in localStorage, then
-  // changes to a USD service where MoMo is disabled.
+  // CLEAR STALE PAYMENT METHOD
   // =======================================================
 
   useEffect(
@@ -3867,18 +4041,90 @@ function PaymentStep({
         </p>
 
 
+        {/* ===========================================
+            SELECTED OPTION
+        =========================================== */}
+
+        {selectedOption && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-white/70 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-blue-500">
+              Selected Option
+            </p>
+
+            <p className="mt-1 font-semibold text-blue-950">
+              {
+                selectedOption.label
+              }
+            </p>
+
+            {selectedOption.description && (
+              <p className="mt-1 text-sm leading-5 text-blue-700">
+                {
+                  selectedOption.description
+                }
+              </p>
+            )}
+          </div>
+        )}
+
+
+        {/* ===========================================
+            PER UNIT
+        =========================================== */}
+
         {pricingMode ===
         "PER_UNIT" ? (
           <>
-            <p className="mt-2 text-xl font-semibold text-blue-950">
-              {formatMoney(
-                currency,
-                unitAmount,
-              )}{" "}
-              per{" "}
-              {pricing?.unitLabel ||
-                "unit"}
-            </p>
+            <div className="mt-5">
+              {selectedTier ? (
+                <>
+                  <p className="text-xl font-semibold text-blue-950">
+                    {
+                      formatMoney(
+                        currency,
+                        unitAmount,
+                      )
+                    }{" "}
+                    per{" "}
+                    {
+                      unitLabel
+                    }
+                  </p>
+
+
+                  <p className="mt-2 text-sm text-blue-700">
+                    Price tier:{" "}
+                    <strong>
+                      {
+                        selectedTier.label ||
+                        formatPricingTierRange(
+                          selectedTier.minimumQuantity,
+                          selectedTier.maximumQuantity,
+                        )
+                      }
+                    </strong>
+                  </p>
+                </>
+              ) : pricingPreview.hasOptions ? (
+                <p className="text-sm leading-6 text-blue-800">
+                  Enter the quantity below to determine the applicable
+                  price tier.
+                </p>
+              ) : (
+                <p className="text-xl font-semibold text-blue-950">
+                  {
+                    formatMoney(
+                      currency,
+                      unitAmount,
+                    )
+                  }{" "}
+                  per{" "}
+                  {
+                    unitLabel
+                  }
+                </p>
+              )}
+            </div>
 
 
             <div className="mt-5 max-w-xs space-y-2">
@@ -3891,11 +4137,11 @@ function PaymentStep({
                 id="pricingQuantity"
                 type="number"
                 min={
-                  pricing?.minimumQuantity ??
+                  optionQuantityBounds.minimum ??
                   0.01
                 }
                 max={
-                  pricing?.maximumQuantity ??
+                  optionQuantityBounds.maximum ??
                   undefined
                 }
                 step="0.01"
@@ -3904,7 +4150,7 @@ function PaymentStep({
                 }
                 onChange={(
                   event,
-                ) =>
+                ) => {
                   setDraft(
                     (
                       current,
@@ -3912,39 +4158,74 @@ function PaymentStep({
                       ...current,
 
                       pricingQuantity:
-                        event.target
-                          .value,
+                        event.target.value,
                     }),
-                  )
-                }
+                  );
+
+
+                  /*
+                   * Quantity changes can change the payable
+                   * total/tier. An already uploaded proof may
+                   * therefore represent the wrong amount.
+                   */
+                  onPaymentProofChange(
+                    null,
+                  );
+                }}
                 placeholder="Enter quantity"
               />
 
 
-              {pricing &&
-                (
-                  pricing.minimumQuantity !==
-                    null ||
-                  pricing.maximumQuantity !==
-                    null
-                ) && (
-                  <p className="text-xs text-blue-700">
-                    {pricing.minimumQuantity !==
-                      null &&
-                      `Minimum: ${pricing.minimumQuantity}`}
+              {(
+                optionQuantityBounds.minimum !==
+                  null ||
+                optionQuantityBounds.maximum !==
+                  null
+              ) && (
+                <p className="text-xs text-blue-700">
+                  {optionQuantityBounds.minimum !==
+                    null &&
+                    `Minimum: ${optionQuantityBounds.minimum}`}
 
-                    {pricing.minimumQuantity !==
+                  {optionQuantityBounds.minimum !==
+                    null &&
+                    optionQuantityBounds.maximum !==
                       null &&
-                      pricing.maximumQuantity !==
-                        null &&
-                      " · "}
+                    " · "}
 
-                    {pricing.maximumQuantity !==
-                      null &&
-                      `Maximum: ${pricing.maximumQuantity}`}
+                  {optionQuantityBounds.maximum !==
+                    null &&
+                    `Maximum: ${optionQuantityBounds.maximum}`}
+                </p>
+              )}
+            </div>
+
+
+            {/* =======================================
+                INVALID / UNMATCHED QUANTITY
+            ======================================= */}
+
+            {draft.pricingQuantity.trim() &&
+              !quantityValid && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-medium text-red-700">
+                  The entered quantity does not match an available
+                  pricing tier.
+                </p>
+
+                {selectedOption && (
+                  <p className="mt-1 text-xs leading-5 text-red-600">
+                    Review the quantity ranges shown for{" "}
+                    <strong>
+                      {
+                        selectedOption.label
+                      }
+                    </strong>
+                    .
                   </p>
                 )}
-            </div>
+              </div>
+            )}
 
 
             <div className="mt-5 border-t border-blue-200 pt-4">
@@ -3961,22 +4242,61 @@ function PaymentStep({
                   )
                 }
               </p>
+
+
+              {selectedTier &&
+                quantity !==
+                  null && (
+                <p className="mt-2 text-xs text-blue-700">
+                  {
+                    formatMoney(
+                      currency,
+                      selectedTier.amount,
+                    )
+                  }{" "}
+                  ×{" "}
+                  {
+                    quantity
+                  }{" "}
+                  {
+                    quantity ===
+                    1
+                      ? unitLabel
+                      : `${unitLabel}s`
+                  }
+                </p>
+              )}
             </div>
           </>
         ) : (
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-blue-950">
-            {
-              formatMoney(
-                currency,
-                calculatedTotal,
-              )
-            }
-          </p>
+          <>
+            {/* =======================================
+                FIXED
+            ======================================= */}
+
+            <p className="mt-5 text-3xl font-semibold tracking-tight text-blue-950">
+              {
+                formatMoney(
+                  currency,
+                  calculatedTotal,
+                )
+              }
+            </p>
+
+
+            {selectedTier && (
+              <p className="mt-2 text-sm text-blue-700">
+                {selectedTier.label
+                  ? `Price: ${selectedTier.label}`
+                  : "Selected option price"}
+              </p>
+            )}
+          </>
         )}
 
 
         {pricing?.displayNote && (
-          <p className="mt-3 text-sm leading-6 text-blue-800">
+          <p className="mt-4 text-sm leading-6 text-blue-800">
             {
               pricing.displayNote
             }
@@ -3992,6 +4312,13 @@ function PaymentStep({
             }
           </strong>
           . The platform does not automatically convert currencies.
+        </p>
+
+
+        <p className="mt-2 text-[11px] leading-5 text-blue-600">
+          The amount shown here is a preview. The server verifies the
+          selected option, quantity and applicable price tier again
+          when the request is submitted.
         </p>
       </div>
 
@@ -4361,7 +4688,8 @@ function ReviewStep({
       ?.serviceScope ===
     "general";
 
-      const pricingMode =
+
+  const pricingMode =
     selectedService
       ?.pricing
       ?.mode ??
@@ -4428,12 +4756,13 @@ function ReviewStep({
           }
         />
 
+
         <ReviewCard
-  title="Pricing"
-  rows={
-    pricingRows
-  }
-/>
+          title="Pricing"
+          rows={
+            pricingRows
+          }
+        />
 
 
         <ReviewCard
@@ -4608,7 +4937,6 @@ function ReviewStep({
         )}
 
 
-
         <div className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
 
@@ -4617,14 +4945,14 @@ function ReviewStep({
               Ready for submission
             </p>
 
-<p className="mt-1 text-sm leading-6 text-emerald-800">
-  {paymentRequiredNow
-    ? "Your information and payment proof are ready. Please confirm that all details are correct before submitting."
-    : pricingMode ===
-        "FREE"
-      ? "No service payment is required. Please confirm your details before submitting."
-      : "No payment is required at this stage. Submit your request and our team will confirm the final amount before payment."}
-</p>
+            <p className="mt-1 text-sm leading-6 text-emerald-800">
+              {paymentRequiredNow
+                ? "Your information and payment proof are ready. Please confirm that all details are correct before submitting."
+                : pricingMode ===
+                    "FREE"
+                  ? "No service payment is required. Please confirm your details before submitting."
+                  : "No payment is required at this stage. Submit your request and our team will confirm the final amount before payment."}
+            </p>
           </div>
         </div>
       </div>
@@ -4659,13 +4987,11 @@ function StepHeading({
         }
       </p>
 
-
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
         {
           title
         }
       </h1>
-
 
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
         {
@@ -4961,8 +5287,630 @@ function ReviewCard({
   );
 }
 
+
 // =========================================================
 // PRICING HELPERS
+// =========================================================
+
+type PublishedPricing =
+  NonNullable<
+    RequestCatalogService[
+      "pricing"
+    ]
+  >;
+
+
+type PricingPreview = {
+  pricing:
+    PublishedPricing | null;
+
+  hasOptions:
+    boolean;
+
+  selectedOption:
+    RequestCatalogPricingOption | null;
+
+  selectedTier:
+    RequestCatalogPricingTier | null;
+
+  quantity:
+    number | null;
+
+  quantityValid:
+    boolean;
+
+  unitAmount:
+    number | null;
+
+  unitLabel:
+    string;
+
+  total:
+    number | null;
+};
+
+
+// =========================================================
+// RESOLVE CUSTOMER-FACING PRICE PREVIEW
+// =========================================================
+
+function resolvePricingPreview(
+  service:
+    RequestCatalogService | undefined,
+
+  draft:
+    RequestDraft,
+):
+  PricingPreview {
+  const pricing =
+    service?.pricing ??
+    null;
+
+
+  if (
+    !pricing
+  ) {
+    return {
+      pricing:
+        null,
+
+      hasOptions:
+        false,
+
+      selectedOption:
+        null,
+
+      selectedTier:
+        null,
+
+      quantity:
+        null,
+
+      quantityValid:
+        true,
+
+      unitAmount:
+        null,
+
+      unitLabel:
+        "unit",
+
+      total:
+        null,
+    };
+  }
+
+
+  const options =
+    pricing.options ??
+    [];
+
+
+  const hasOptions =
+    options.length >
+    0;
+
+
+  const selectedOption =
+    hasOptions
+      ? options.find(
+          (
+            option,
+          ) =>
+            option.id ===
+            draft.pricingOptionId,
+        ) ??
+        null
+      : null;
+
+
+  const rawQuantity =
+    Number(
+      draft.pricingQuantity,
+    );
+
+
+  const quantity =
+    Number.isFinite(
+      rawQuantity,
+    ) &&
+    rawQuantity >
+      0
+      ? rawQuantity
+      : null;
+
+
+  let selectedTier:
+    RequestCatalogPricingTier | null =
+    null;
+
+
+  let unitAmount:
+    number | null =
+    pricing.amount;
+
+
+  let unitLabel =
+    selectedOption
+      ?.unitLabel ||
+    pricing.unitLabel ||
+    "unit";
+
+
+  let total:
+    number | null =
+    null;
+
+
+  let quantityValid =
+    true;
+
+
+  // =======================================================
+  // OPTIONS EXIST BUT CUSTOMER DOES NOT HAVE A VALID ONE
+  // =======================================================
+
+  if (
+    hasOptions &&
+    !selectedOption
+  ) {
+    return {
+      pricing,
+
+      hasOptions,
+
+      selectedOption:
+        null,
+
+      selectedTier:
+        null,
+
+      quantity,
+
+      quantityValid:
+        false,
+
+      unitAmount:
+        null,
+
+      unitLabel,
+
+      total:
+        null,
+    };
+  }
+
+
+  // =======================================================
+  // FIXED
+  // =======================================================
+
+  if (
+    pricing.mode ===
+    "FIXED"
+  ) {
+    if (
+      selectedOption
+    ) {
+      selectedTier =
+        selectedOption
+          .tiers[0] ??
+        null;
+
+
+      unitAmount =
+        selectedTier
+          ?.amount ??
+        null;
+    }
+
+
+    quantityValid =
+      unitAmount !==
+        null &&
+      unitAmount >
+        0;
+
+
+    total =
+      quantityValid
+        ? unitAmount
+        : null;
+
+
+    return {
+      pricing,
+      hasOptions,
+      selectedOption,
+      selectedTier,
+      quantity,
+      quantityValid,
+      unitAmount,
+      unitLabel,
+      total,
+    };
+  }
+
+
+  // =======================================================
+  // PER UNIT
+  // =======================================================
+
+  if (
+    pricing.mode ===
+    "PER_UNIT"
+  ) {
+    if (
+      selectedOption
+    ) {
+      if (
+        quantity !==
+        null
+      ) {
+        selectedTier =
+          selectedOption
+            .tiers
+            .find(
+              (
+                tier,
+              ) => {
+                const minimum =
+                  tier.minimumQuantity;
+
+
+                const maximum =
+                  tier.maximumQuantity;
+
+
+                if (
+                  minimum ===
+                  null
+                ) {
+                  return false;
+                }
+
+
+                return (
+                  quantity >=
+                    minimum &&
+                  (
+                    maximum ===
+                      null ||
+                    quantity <=
+                      maximum
+                  )
+                );
+              },
+            ) ??
+          null;
+      }
+
+
+      unitAmount =
+        selectedTier
+          ?.amount ??
+        null;
+
+
+      quantityValid =
+        quantity !==
+          null &&
+        selectedTier !==
+          null;
+    } else {
+      const minimum =
+        pricing.minimumQuantity;
+
+
+      const maximum =
+        pricing.maximumQuantity;
+
+
+      quantityValid =
+        quantity !==
+          null &&
+        (
+          minimum ===
+            null ||
+          quantity >=
+            minimum
+        ) &&
+        (
+          maximum ===
+            null ||
+          quantity <=
+            maximum
+        );
+
+
+      unitAmount =
+        pricing.amount;
+    }
+
+
+    total =
+      quantityValid &&
+      quantity !==
+        null &&
+      unitAmount !==
+        null
+        ? unitAmount *
+          quantity
+        : null;
+
+
+    return {
+      pricing,
+      hasOptions,
+      selectedOption,
+      selectedTier,
+      quantity,
+      quantityValid,
+      unitAmount,
+      unitLabel,
+      total,
+    };
+  }
+
+
+  // =======================================================
+  // STARTING FROM
+  // =======================================================
+
+  if (
+    pricing.mode ===
+    "STARTING_FROM"
+  ) {
+    if (
+      selectedOption
+    ) {
+      selectedTier =
+        selectedOption
+          .tiers[0] ??
+        null;
+
+
+      unitAmount =
+        selectedTier
+          ?.amount ??
+        null;
+    }
+
+
+    quantityValid =
+      unitAmount !==
+        null &&
+      unitAmount >
+        0;
+
+
+    return {
+      pricing,
+      hasOptions,
+      selectedOption,
+      selectedTier,
+      quantity:
+        null,
+
+      quantityValid,
+      unitAmount,
+      unitLabel,
+      total:
+        null,
+    };
+  }
+
+
+  // =======================================================
+  // FREE
+  // =======================================================
+
+  if (
+    pricing.mode ===
+    "FREE"
+  ) {
+    return {
+      pricing,
+      hasOptions,
+      selectedOption,
+      selectedTier,
+      quantity:
+        null,
+
+      quantityValid:
+        true,
+
+      unitAmount:
+        0,
+
+      unitLabel,
+
+      total:
+        0,
+    };
+  }
+
+
+  // =======================================================
+  // QUOTE / MANUAL
+  // =======================================================
+
+  return {
+    pricing,
+    hasOptions,
+    selectedOption,
+    selectedTier,
+    quantity:
+      null,
+
+    quantityValid:
+      true,
+
+    unitAmount:
+      null,
+
+    unitLabel,
+
+    total:
+      null,
+  };
+}
+
+
+// =========================================================
+// OPTION QUANTITY BOUNDS
+// =========================================================
+
+function getPricingOptionQuantityBounds(
+  option:
+    RequestCatalogPricingOption,
+) {
+  const minimumValues =
+    option.tiers
+      .map(
+        (
+          tier,
+        ) =>
+          tier.minimumQuantity,
+      )
+      .filter(
+        (
+          value,
+        ): value is number =>
+          value !==
+          null,
+      );
+
+
+  const maximumValues =
+    option.tiers
+      .map(
+        (
+          tier,
+        ) =>
+          tier.maximumQuantity,
+      )
+      .filter(
+        (
+          value,
+        ): value is number =>
+          value !==
+          null,
+      );
+
+
+  const hasOpenEndedTier =
+    option.tiers.some(
+      (
+        tier,
+      ) =>
+        tier.maximumQuantity ===
+        null,
+    );
+
+
+  return {
+    minimum:
+      minimumValues.length >
+      0
+        ? Math.min(
+            ...minimumValues,
+          )
+        : null,
+
+    maximum:
+      hasOpenEndedTier
+        ? null
+        : maximumValues.length >
+            0
+          ? Math.max(
+              ...maximumValues,
+            )
+          : null,
+  };
+}
+
+
+// =========================================================
+// FORMAT TIER RANGE
+// =========================================================
+
+function formatPricingTierRange(
+  minimum:
+    number | null,
+
+  maximum:
+    number | null,
+) {
+  if (
+    minimum !==
+      null &&
+    maximum !==
+      null
+  ) {
+    return `${minimum} - ${maximum}`;
+  }
+
+
+  if (
+    minimum !==
+      null
+  ) {
+    return `${minimum}+`;
+  }
+
+
+  if (
+    maximum !==
+      null
+  ) {
+    return `Up to ${maximum}`;
+  }
+
+
+  return "All quantities";
+}
+
+
+// =========================================================
+// LOWEST OPTION PRICE
+// =========================================================
+
+function getLowestOptionTierAmount(
+  options:
+    RequestCatalogPricingOption[],
+):
+  number | null {
+  const amounts =
+    options.flatMap(
+      (
+        option,
+      ) =>
+        option.tiers.map(
+          (
+            tier,
+          ) =>
+            tier.amount,
+        ),
+    );
+
+
+  if (
+    amounts.length ===
+    0
+  ) {
+    return null;
+  }
+
+
+  return Math.min(
+    ...amounts,
+  );
+}
+
+
+// =========================================================
+// MONEY
 // =========================================================
 
 function formatMoney(
@@ -4970,9 +5918,7 @@ function formatMoney(
     string,
 
   amount:
-    number
-    | null
-    | undefined,
+    number | null | undefined,
 ) {
   if (
     amount ===
@@ -4992,6 +5938,10 @@ function formatMoney(
   )}`;
 }
 
+
+// =========================================================
+// SERVICE CARD PRICING LABEL
+// =========================================================
 
 function ServicePricingLabel({
   service,
@@ -5014,10 +5964,48 @@ function ServicePricingLabel({
   }
 
 
+  const options =
+    pricing.options ??
+    [];
+
+
+  const lowestOptionAmount =
+    options.length >
+      0
+      ? getLowestOptionTierAmount(
+          options,
+        )
+      : null;
+
+
   switch (
     pricing.mode
   ) {
     case "FIXED":
+      if (
+        options.length >
+        0
+      ) {
+        return (
+          <div>
+            <p className="text-sm font-semibold text-blue-700">
+              Options from{" "}
+              {
+                formatMoney(
+                  pricing.currency,
+                  lowestOptionAmount,
+                )
+              }
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Choose an option to see the exact price.
+            </p>
+          </div>
+        );
+      }
+
+
       return (
         <p className="text-sm font-semibold text-blue-700">
           {
@@ -5031,6 +6019,30 @@ function ServicePricingLabel({
 
 
     case "PER_UNIT":
+      if (
+        options.length >
+        0
+      ) {
+        return (
+          <div>
+            <p className="text-sm font-semibold text-blue-700">
+              Pricing from{" "}
+              {
+                formatMoney(
+                  pricing.currency,
+                  lowestOptionAmount,
+                )
+              }
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Price depends on option and quantity.
+            </p>
+          </div>
+        );
+      }
+
+
       return (
         <p className="text-sm font-semibold text-blue-700">
           {
@@ -5049,6 +6061,30 @@ function ServicePricingLabel({
 
 
     case "STARTING_FROM":
+      if (
+        options.length >
+        0
+      ) {
+        return (
+          <div>
+            <p className="text-sm font-semibold text-blue-700">
+              Options from{" "}
+              {
+                formatMoney(
+                  pricing.currency,
+                  lowestOptionAmount,
+                )
+              }
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Final price confirmed after review.
+            </p>
+          </div>
+        );
+      }
+
+
       return (
         <p className="text-sm font-semibold text-blue-700">
           From{" "}
@@ -5089,10 +6125,13 @@ function ServicePricingLabel({
 }
 
 
+// =========================================================
+// REVIEW PRICING ROWS
+// =========================================================
+
 function buildPricingReviewRows(
   service:
-    RequestCatalogService
-    | undefined,
+    RequestCatalogService | undefined,
 
   draft:
     RequestDraft,
@@ -5119,6 +6158,41 @@ function buildPricingReviewRows(
   }
 
 
+  const preview =
+    resolvePricingPreview(
+      service,
+      draft,
+    );
+
+
+  const optionRow:
+    [string, string][] =
+    preview.selectedOption
+      ? [
+          [
+            "Pricing Option",
+            preview
+              .selectedOption
+              .label,
+          ],
+        ]
+      : [];
+
+
+  const paymentMethod =
+    draft.paymentMethod ===
+    "momo"
+      ? "Mobile Money"
+      : draft.paymentMethod ===
+          "bank"
+        ? "Bank Transfer"
+        : "—";
+
+
+  // =======================================================
+  // FREE
+  // =======================================================
+
   if (
     pricing.mode ===
     "FREE"
@@ -5137,66 +6211,100 @@ function buildPricingReviewRows(
   }
 
 
+  // =======================================================
+  // FIXED
+  // =======================================================
+
   if (
     pricing.mode ===
     "FIXED"
   ) {
+    const tierRows:
+      [string, string][] =
+      preview.selectedTier
+        ?.label
+        ? [
+            [
+              "Price Tier",
+              preview
+                .selectedTier
+                .label,
+            ],
+          ]
+        : [];
+
+
     return [
+      ...optionRow,
+
+      ...tierRows,
+
       [
         "Price",
         formatMoney(
           pricing.currency,
-          pricing.amount,
+          preview.total,
         ),
       ],
 
       [
         "Payment Method",
-        draft.paymentMethod ===
-        "momo"
-          ? "Mobile Money"
-          : draft.paymentMethod ===
-              "bank"
-            ? "Bank Transfer"
-            : "—",
+        paymentMethod,
       ],
     ];
   }
 
 
+  // =======================================================
+  // PER UNIT
+  // =======================================================
+
   if (
     pricing.mode ===
     "PER_UNIT"
   ) {
-    const quantity =
-      Number(
-        draft.pricingQuantity,
-      );
+    const tierName =
+      preview.selectedTier
+        ? (
+            preview
+              .selectedTier
+              .label ||
+            formatPricingTierRange(
+              preview
+                .selectedTier
+                .minimumQuantity,
 
-
-    const total =
-      pricing.amount !==
-        null &&
-      Number.isFinite(
-        quantity,
-      ) &&
-      quantity >
-        0
-        ? pricing.amount *
-          quantity
-        : null;
+              preview
+                .selectedTier
+                .maximumQuantity,
+            )
+          )
+        : "—";
 
 
     return [
+      ...optionRow,
+
+      ...(preview.hasOptions
+        ? [
+            [
+              "Price Tier",
+              tierName,
+            ] as [
+              string,
+              string,
+            ],
+          ]
+        : []),
+
       [
         "Unit Price",
 
         `${formatMoney(
           pricing.currency,
-          pricing.amount,
+          preview.unitAmount,
         )} per ${
-          pricing.unitLabel ||
-          "unit"
+          preview.unitLabel
         }`,
       ],
 
@@ -5210,35 +6318,52 @@ function buildPricingReviewRows(
         "Total",
         formatMoney(
           pricing.currency,
-          total,
+          preview.total,
         ),
       ],
 
       [
         "Payment Method",
-        draft.paymentMethod ===
-        "momo"
-          ? "Mobile Money"
-          : draft.paymentMethod ===
-              "bank"
-            ? "Bank Transfer"
-            : "—",
+        paymentMethod,
       ],
     ];
   }
 
 
+  // =======================================================
+  // STARTING FROM
+  // =======================================================
+
   if (
     pricing.mode ===
     "STARTING_FROM"
   ) {
+    const tierRows:
+      [string, string][] =
+      preview.selectedTier
+        ?.label
+        ? [
+            [
+              "Price Tier",
+              preview
+                .selectedTier
+                .label,
+            ],
+          ]
+        : [];
+
+
     return [
+      ...optionRow,
+
+      ...tierRows,
+
       [
         "Starting Price",
 
         `From ${formatMoney(
           pricing.currency,
-          pricing.amount,
+          preview.unitAmount,
         )}`,
       ],
 
@@ -5249,6 +6374,10 @@ function buildPricingReviewRows(
     ];
   }
 
+
+  // =======================================================
+  // QUOTE REQUIRED
+  // =======================================================
 
   if (
     pricing.mode ===
@@ -5268,6 +6397,10 @@ function buildPricingReviewRows(
   }
 
 
+  // =======================================================
+  // MANUAL PRICE
+  // =======================================================
+
   return [
     [
       "Pricing",
@@ -5281,6 +6414,7 @@ function buildPricingReviewRows(
   ];
 }
 
+
 // =========================================================
 // RECONCILE SAVED DRAFT
 // =========================================================
@@ -5293,10 +6427,6 @@ function reconcileDraftWithCatalog(
     RequestCatalog,
 ):
   RequestDraft {
-  // =======================================================
-  // CATEGORY
-  // =======================================================
-
   const category =
     catalog.categories.find(
       (
@@ -5307,16 +6437,9 @@ function reconcileDraftWithCatalog(
     );
 
 
-  // =======================================================
-  // INVALID / REMOVED CATEGORY
-  // =======================================================
-
   if (
     !category
   ) {
-    /*
-     * A completely untouched draft can remain as-is.
-     */
     if (
       !draft.categoryId &&
       !draft.serviceId
@@ -5325,33 +6448,24 @@ function reconcileDraftWithCatalog(
     }
 
 
-    /*
-     * Otherwise clear everything that depends on the old
-     * category/service selection.
-     */
     return {
       ...draft,
 
-      categoryId:
-        "",
+      categoryId: "",
 
-      serviceKey:
-        "",
+      serviceKey: "",
 
-      universityId:
-        "",
+      universityId: "",
 
-      serviceId:
-        "",
+      serviceId: "",
 
-      pricingQuantity:
-        "",
+      pricingOptionId: "",
 
-      paymentMethod:
-        "",
+      pricingQuantity: "",
 
-      responses:
-        {},
+      paymentMethod: "",
+
+      responses: {},
 
       delivery: {
         ...draft.delivery,
@@ -5363,37 +6477,24 @@ function reconcileDraftWithCatalog(
   }
 
 
-  // =======================================================
-  // CATEGORY SELECTED, SERVICE NOT YET SELECTED
-  // =======================================================
-
   if (
     !draft.serviceId
   ) {
     return {
       ...draft,
 
-      pricingQuantity:
-        "",
+      pricingOptionId: "",
 
-      paymentMethod:
-        "",
+      pricingQuantity: "",
+
+      paymentMethod: "",
     };
   }
 
 
-  // =======================================================
-  // LOCATE CONCRETE SERVICE
-  // =======================================================
-
   let service:
-    | RequestCatalogService
-    | undefined;
+    RequestCatalogService | undefined;
 
-
-  // -------------------------------------------------------
-  // GENERAL SERVICE
-  // -------------------------------------------------------
 
   service =
     catalog.generalServices.find(
@@ -5404,10 +6505,6 @@ function reconcileDraftWithCatalog(
         draft.serviceId,
     );
 
-
-  // -------------------------------------------------------
-  // ACADEMIC SERVICE
-  // -------------------------------------------------------
 
   if (
     !service
@@ -5435,10 +6532,6 @@ function reconcileDraftWithCatalog(
   }
 
 
-  // =======================================================
-  // SERVICE REMOVED / MOVED TO ANOTHER CATEGORY
-  // =======================================================
-
   if (
     !service ||
     service.serviceCategoryId !==
@@ -5447,23 +6540,19 @@ function reconcileDraftWithCatalog(
     return {
       ...draft,
 
-      serviceKey:
-        "",
+      serviceKey: "",
 
-      universityId:
-        "",
+      universityId: "",
 
-      serviceId:
-        "",
+      serviceId: "",
 
-      pricingQuantity:
-        "",
+      pricingOptionId: "",
 
-      paymentMethod:
-        "",
+      pricingQuantity: "",
 
-      responses:
-        {},
+      paymentMethod: "",
+
+      responses: {},
 
       delivery: {
         ...draft.delivery,
@@ -5474,10 +6563,6 @@ function reconcileDraftWithCatalog(
     };
   }
 
-
-  // =======================================================
-  // REMOVE RESPONSES FOR FIELDS THAT NO LONGER EXIST
-  // =======================================================
 
   const activeFieldKeys =
     new Set(
@@ -5505,20 +6590,12 @@ function reconcileDraftWithCatalog(
     );
 
 
-  // =======================================================
-  // NORMALIZE SERVICE KEY
-  // =======================================================
-
   const expectedServiceKey =
     service.serviceScope ===
     "general"
       ? `general:${service.id}`
       : `academic:${service.slug}`;
 
-
-  // =======================================================
-  // NORMALIZE INSTITUTION
-  // =======================================================
 
   const expectedUniversityId =
     service.serviceScope ===
@@ -5528,18 +6605,32 @@ function reconcileDraftWithCatalog(
         "";
 
 
-  // =======================================================
-  // NORMALIZE PRICING
-  //
-  // If an admin changes the pricing mode while a customer
-  // still has an older saved localStorage draft, stale
-  // quantities/payment choices must not leak into the new
-  // pricing flow.
-  // =======================================================
-
   const currentPricingMode =
     service.pricing?.mode ??
     "MANUAL_PRICE";
+
+
+  const currentPricingOptions =
+    service.pricing
+      ?.options ??
+    [];
+
+
+  const savedPricingOptionId =
+    draft.pricingOptionId ??
+    "";
+
+
+  const nextPricingOptionId =
+    currentPricingOptions.some(
+      (
+        option,
+      ) =>
+        option.id ===
+        savedPricingOptionId,
+    )
+      ? savedPricingOptionId
+      : "";
 
 
   const paymentRequiredNow =
@@ -5562,10 +6653,6 @@ function reconcileDraftWithCatalog(
       : "";
 
 
-  // =======================================================
-  // NORMALIZE ITEM TYPE
-  // =======================================================
-
   const nextItemType =
     service.serviceScope ===
     "academic"
@@ -5575,10 +6662,6 @@ function reconcileDraftWithCatalog(
         "Service Request";
 
 
-  // =======================================================
-  // RESULT
-  // =======================================================
-
   return {
     ...draft,
 
@@ -5587,6 +6670,9 @@ function reconcileDraftWithCatalog(
 
     universityId:
       expectedUniversityId,
+
+    pricingOptionId:
+      nextPricingOptionId,
 
     pricingQuantity:
       nextPricingQuantity,

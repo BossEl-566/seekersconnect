@@ -30,6 +30,23 @@ const optionalUniversityId =
     ]);
 
 
+const optionalPricingOptionId =
+  z
+    .union([
+      z.literal(""),
+
+      z
+        .string()
+        .trim()
+        .uuid(
+          "Invalid pricing option identifier.",
+        ),
+    ])
+    .default(
+      "",
+    );
+
+
 // =========================================================
 // REQUEST SUBMISSION
 // =========================================================
@@ -45,8 +62,20 @@ export const requestSubmissionSchema =
 
 
     /**
-     * Required by the server only when the selected
-     * service uses PER_UNIT pricing.
+     * Required by the server only when the selected service
+     * currently has active usable pricing options.
+     *
+     * Leaving this empty remains valid at schema level so
+     * services without pricing options preserve their old
+     * behaviour.
+     */
+    pricingOptionId:
+      optionalPricingOptionId,
+
+
+    /**
+     * Required by the server only when the selected service
+     * uses PER_UNIT pricing.
      */
     pricingQuantity:
       z
@@ -252,12 +281,10 @@ export const requestSubmissionSchema =
 
 
     /**
-     * This can now be empty because FREE / QUOTE /
-     * STARTING_FROM / MANUAL requests do not make an
-     * immediate payment.
+     * FREE / QUOTE / STARTING_FROM / MANUAL requests do
+     * not necessarily make an immediate payment.
      *
-     * The server checks whether the selected pricing mode
-     * actually requires a payment method.
+     * The server decides whether payment is required.
      */
     paymentMethod:
       z.union([

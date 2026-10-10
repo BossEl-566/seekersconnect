@@ -34,6 +34,22 @@ export type RequestDraft = {
 
 
   /**
+   * Optional pricing option selected by the customer.
+   *
+   * Examples:
+   * Black & White
+   * Colour
+   * Standard
+   * Express
+   *
+   * This is temporarily optional so the existing wizard
+   * continues compiling until 13B-6C3 wires the selector.
+   */
+  pricingOptionId:
+    string;
+
+
+  /**
    * Used by PER_UNIT pricing.
    *
    * Stored as a string in the browser because it is bound
