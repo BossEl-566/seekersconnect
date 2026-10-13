@@ -14,13 +14,16 @@ import {
   ServiceFormFieldsManager,
   type FormBuilderService,
   type ServiceFormFieldItem,
+  type ServiceFormFieldValidationRules,
 } from "@/components/admin/service-form-fields-manager";
 
 
 type PageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params:
+    Promise<{
+      id:
+        string;
+    }>;
 };
 
 
@@ -32,7 +35,8 @@ export default async function ServiceFieldsPage({
 
   const {
     id,
-  } = await params;
+  } =
+    await params;
 
 
   const supabase =
@@ -45,7 +49,9 @@ export default async function ServiceFieldsPage({
   ] =
     await Promise.all([
       supabase
-        .from("services")
+        .from(
+          "services",
+        )
         .select(`
           id,
           name,
@@ -64,6 +70,7 @@ export default async function ServiceFieldsPage({
         )
         .single(),
 
+
       supabase
         .from(
           "service_form_fields",
@@ -74,12 +81,28 @@ export default async function ServiceFieldsPage({
           field_key,
           label,
           field_type,
+
           placeholder,
+          help_text,
+
           required,
+
           options,
+
+          allow_other,
+          other_label,
+
+          condition_field_id,
+          condition_operator,
+          condition_value,
+
+          validation_rules,
+
           sort_order,
           active,
-          created_at
+
+          created_at,
+          updated_at
         `)
         .eq(
           "service_id",
@@ -88,13 +111,15 @@ export default async function ServiceFieldsPage({
         .order(
           "sort_order",
           {
-            ascending: true,
+            ascending:
+              true,
           },
         )
         .order(
           "created_at",
           {
-            ascending: true,
+            ascending:
+              true,
           },
         ),
     ]);
@@ -130,7 +155,9 @@ export default async function ServiceFieldsPage({
 
   const fields =
     rawFields.map(
-      (field) => ({
+      (
+        field,
+      ) => ({
         ...field,
 
         options:
@@ -145,6 +172,11 @@ export default async function ServiceFieldsPage({
                   "string",
               )
             : null,
+
+        validation_rules:
+          normalizeValidationRules(
+            field.validation_rules,
+          ),
       }),
     ) as ServiceFormFieldItem[];
 
@@ -159,4 +191,26 @@ export default async function ServiceFieldsPage({
       }
     />
   );
+}
+
+
+function normalizeValidationRules(
+  value:
+    unknown,
+):
+  ServiceFormFieldValidationRules {
+  if (
+    !value ||
+    typeof value !==
+      "object" ||
+    Array.isArray(
+      value,
+    )
+  ) {
+    return {};
+  }
+
+
+  return value as
+    ServiceFormFieldValidationRules;
 }
