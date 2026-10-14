@@ -3,9 +3,51 @@ export type RequestCatalogFieldType =
   | "email"
   | "tel"
   | "number"
+  | "currency"
   | "date"
   | "textarea"
-  | "select";
+  | "select"
+  | "radio"
+  | "checkbox"
+  | "multi_select"
+  | "file"
+  | "image"
+  | "document";
+
+
+export type RequestCatalogConditionOperator =
+  | "EQUALS"
+  | "NOT_EQUALS"
+  | "IN"
+  | "NOT_IN"
+  | "IS_CHECKED"
+  | "IS_NOT_CHECKED"
+  | "HAS_VALUE"
+  | "HAS_NO_VALUE";
+
+
+export type RequestCatalogFieldValidationRules = {
+  minLength:
+    number | null;
+
+  maxLength:
+    number | null;
+
+  min:
+    number | null;
+
+  max:
+    number | null;
+
+  maxFiles:
+    number | null;
+
+  maxFileSizeMb:
+    number | null;
+
+  accept:
+    string[];
+};
 
 
 // =========================================================
@@ -26,8 +68,10 @@ export type RequestCatalogField = {
     RequestCatalogFieldType;
 
   placeholder:
-    | string
-    | null;
+    string | null;
+
+  helpText:
+    string | null;
 
   required:
     boolean;
@@ -35,13 +79,31 @@ export type RequestCatalogField = {
   options:
     string[];
 
+  allowOther:
+    boolean;
+
+  otherLabel:
+    string | null;
+
+  conditionFieldId:
+    string | null;
+
+  conditionOperator:
+    RequestCatalogConditionOperator | null;
+
+  conditionValue:
+    unknown;
+
+  validationRules:
+    RequestCatalogFieldValidationRules;
+
   sortOrder:
     number;
 };
 
 
 // =========================================================
-// PRICING MODE
+// PRICING
 // =========================================================
 
 export type RequestCatalogPricingMode =
@@ -53,50 +115,26 @@ export type RequestCatalogPricingMode =
   | "MANUAL_PRICE";
 
 
-// =========================================================
-// PRICING TIER
-//
-// Example:
-//
-// Black & White
-//   Standard 1–99     GHS 1.00
-//   Bulk     100+     GHS 0.80
-// =========================================================
-
 export type RequestCatalogPricingTier = {
   id:
     string;
 
   label:
-    | string
-    | null;
+    string | null;
 
   amount:
     number;
 
   minimumQuantity:
-    | number
-    | null;
+    number | null;
 
   maximumQuantity:
-    | number
-    | null;
+    number | null;
 
   displayOrder:
     number;
 };
 
-
-// =========================================================
-// PRICING OPTION
-//
-// Examples:
-//
-// Black & White
-// Colour
-// Standard
-// Express
-// =========================================================
 
 export type RequestCatalogPricingOption = {
   id:
@@ -109,12 +147,10 @@ export type RequestCatalogPricingOption = {
     string;
 
   description:
-    | string
-    | null;
+    string | null;
 
   unitLabel:
-    | string
-    | null;
+    string | null;
 
   displayOrder:
     number;
@@ -124,64 +160,35 @@ export type RequestCatalogPricingOption = {
 };
 
 
-// =========================================================
-// PRICING
-// =========================================================
-
 export type RequestCatalogPricing = {
   mode:
     RequestCatalogPricingMode;
 
-  /**
-   * Current admin UI supports GHS and USD.
-   *
-   * Keep this as a string so the public catalog does not
-   * require another TypeScript migration when additional
-   * ISO currencies are supported later.
-   */
   currency:
     string;
 
-  /**
-   * Parent/default price.
-   *
-   * Services without active usable options continue using
-   * this value.
-   */
   amount:
-    | number
-    | null;
+    number | null;
 
   unitLabel:
-    | string
-    | null;
+    string | null;
 
   minimumQuantity:
-    | number
-    | null;
+    number | null;
 
   maximumQuantity:
-    | number
-    | null;
+    number | null;
 
   displayNote:
-    | string
-    | null;
+    string | null;
 
-  /**
-   * Only active pricing options containing at least one
-   * active valid tier are exposed publicly.
-   *
-   * Empty array means the normal parent/default pricing
-   * workflow remains in effect.
-   */
   options:
     RequestCatalogPricingOption[];
 };
 
 
 // =========================================================
-// SERVICE CATEGORY SUMMARY
+// CATEGORY SUMMARY
 // =========================================================
 
 export type RequestCatalogServiceCategorySummary = {
@@ -195,12 +202,10 @@ export type RequestCatalogServiceCategorySummary = {
     string;
 
   description:
-    | string
-    | null;
+    string | null;
 
   iconKey:
-    | string
-    | null;
+    string | null;
 
   displayOrder:
     number;
@@ -216,8 +221,7 @@ export type RequestCatalogService = {
     string;
 
   universityId:
-    | string
-    | null;
+    string | null;
 
   serviceCategoryId:
     string;
@@ -236,11 +240,10 @@ export type RequestCatalogService = {
     string;
 
   description:
-    | string
-    | null;
+    string | null;
 
   /**
-   * Legacy compatibility column.
+   * Legacy compatibility only.
    */
   category:
     string;
@@ -248,6 +251,11 @@ export type RequestCatalogService = {
   serviceCategory:
     RequestCatalogServiceCategorySummary;
 
+  /**
+   * Legacy compatibility only.
+   *
+   * Generic services must not depend on this value.
+   */
   formType:
     string;
 
@@ -258,15 +266,10 @@ export type RequestCatalogService = {
     boolean;
 
   imageUrl:
-    | string
-    | null;
+    string | null;
 
-  /**
-   * Null means pricing is currently not published.
-   */
   pricing:
-    | RequestCatalogPricing
-    | null;
+    RequestCatalogPricing | null;
 
   fields:
     RequestCatalogField[];
@@ -310,12 +313,10 @@ export type RequestCatalogCategory = {
     string;
 
   description:
-    | string
-    | null;
+    string | null;
 
   iconKey:
-    | string
-    | null;
+    string | null;
 
   displayOrder:
     number;

@@ -66,6 +66,19 @@ import {
   isPaymentMethodAvailable,
 } from "@/lib/payment/payment-destinations";
 
+import {
+  OTHER_VALUE_PREFIX,
+  dynamicFieldIsValid,
+  encodeMultiSelectValue,
+  encodeOtherValue,
+  formatDynamicResponse,
+  getOtherValue,
+  getVisibleDynamicFields,
+  isOtherValue,
+  isUploadFieldType,
+  parseMultiSelectValue,
+} from "@/lib/request/dynamic-field-runtime";
+
 
 // =========================================================
 // LOCAL STORAGE
@@ -1468,24 +1481,26 @@ export function RequestWizard() {
         draft.applicant.email.trim();
 
 
-      const requiredDynamicFieldsComplete =
-        dynamicFields
-          .filter(
-            (
+            const visibleDynamicFields =
+        getVisibleDynamicFields(
+          dynamicFields,
+          draft.responses,
+        );
+
+
+      const dynamicFieldsComplete =
+        visibleDynamicFields.every(
+          (
+            field,
+          ) =>
+            dynamicFieldIsValid(
               field,
-            ) =>
-              field.required,
-          )
-          .every(
-            (
-              field,
-            ) =>
-              Boolean(
-                draft.responses[
-                  field.key
-                ]?.trim(),
-              ),
-          );
+              draft.responses[
+                field.key
+              ] ??
+              "",
+            ),
+        );
 
 
       const pricingOptions =
@@ -1509,7 +1524,7 @@ export function RequestWizard() {
 
       return Boolean(
         applicantComplete &&
-        requiredDynamicFieldsComplete &&
+        dynamicFieldsComplete &&
         pricingOptionComplete,
       );
     }
@@ -3079,6 +3094,12 @@ function DetailsStep({
       ?.serviceScope ===
     "general";
 
+    const visibleDynamicFields =
+    getVisibleDynamicFields(
+      dynamicFields,
+      draft.responses,
+    );
+
 
   return (
     <>
@@ -3279,14 +3300,13 @@ function DetailsStep({
         />
 
 
-        {dynamicFields.length ===
-        0 ? (
+        {visibleDynamicFields.length === 0 ? (
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
             This service does not require any additional information.
           </div>
         ) : (
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            {dynamicFields.map(
+            {visibleDynamicFields.map(
               (
                 field,
               ) => (
@@ -3314,19 +3334,6 @@ function DetailsStep({
                 />
               ),
             )}
-          </div>
-        )}
-
-
-        {selectedService
-          ?.formType ===
-          "ucc-college" && (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            <strong>
-              Important:
-            </strong>{" "}
-            This form is not applicable to four-year post applicants.
-            Ensure all academic information is entered correctly.
           </div>
         )}
       </div>
@@ -4738,6 +4745,12 @@ function ReviewStep({
     ]);
   }
 
+    const visibleDynamicFields =
+    getVisibleDynamicFields(
+      dynamicFields,
+      draft.responses,
+    );
+
 
   return (
     <>
@@ -4827,16 +4840,18 @@ function ReviewStep({
               : "Academic Information"
           }
           rows={
-            dynamicFields.map(
+  visibleDynamicFields.map(
               (
                 field,
               ) => [
                 field.label,
 
-                draft.responses[
-                  field.key
-                ] ||
-                  "—",
+                formatDynamicResponse(
+  field,
+  draft.responses[
+    field.key
+  ] ?? "",
+),
               ],
             )
           }
@@ -5117,62 +5132,521 @@ function DynamicField({
 }) {
   const fullWidth =
     field.type ===
-    "textarea";
+      "textarea" ||
+    field.type ===
+      "radio" ||
+    field.type ===
+      "multi_select" ||
+    isUploadFieldType(
+      field.type,
+    );
 
 
-  return (
-    <div
-      className={`space-y-2 ${
-        fullWidth
-          ? "sm:col-span-2"
-          : ""
-      }`}
-    >
-      <Label>
-        {
-          field.label
-        }
-
-        {field.required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
-        )}
-      </Label>
+  const otherSelected =
+    isOtherValue(
+      value,
+    );
 
 
-      {field.type ===
-      "textarea" ? (
-        <Textarea
-          value={
-            value
+  // =======================================================
+  // UPLOAD DEFINITION
+  //
+  // Actual secure upload transaction is Phase 13E.
+  // =======================================================
+
+  if (
+    isUploadFieldType(
+      field.type,
+    )
+  ) {
+    return (
+      <div
+        className={`space-y-2 ${
+          fullWidth
+            ? "sm:col-span-2"
+            : ""
+        }`}
+      >
+        <FieldLabel
+          field={
+            field
           }
-          placeholder={
-            field.placeholder ??
-            undefined
-          }
-          onChange={(
-            event,
-          ) =>
-            onChange(
-              event.target.value,
-            )
-          }
-          className="min-h-28"
         />
-      ) : field.type ===
-        "select" ? (
+
+        <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-5">
+          <Upload className="h-5 w-5 text-blue-600" />
+
+          <p className="mt-3 text-sm font-semibold text-slate-900">
+            {
+              field.type ===
+              "image"
+                ? "Image Upload"
+                : field.type ===
+                    "document"
+                  ? "Document Upload"
+                  : "File Upload"
+            }
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Upload requirements are configured for this field.
+            Secure customer uploads will be connected in Phase 13E.
+          </p>
+
+          {field.validationRules.maxFileSizeMb !==
+            null && (
+            <p className="mt-3 text-xs font-medium text-blue-700">
+              Maximum size:{" "}
+              {
+                field.validationRules
+                  .maxFileSizeMb
+              }{" "}
+              MB per file
+            </p>
+          )}
+        </div>
+
+        <FieldHelp
+          field={
+            field
+          }
+        />
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // CHECKBOX
+  // =======================================================
+
+  if (
+    field.type ===
+    "checkbox"
+  ) {
+    return (
+      <div
+        className={`space-y-2 ${
+          fullWidth
+            ? "sm:col-span-2"
+            : ""
+        }`}
+      >
+        <label className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <input
+            type="checkbox"
+            checked={
+              value ===
+              "true"
+            }
+            onChange={(
+              event,
+            ) =>
+              onChange(
+                event.target.checked
+                  ? "true"
+                  : "false",
+              )
+            }
+            className="mt-1 h-4 w-4 rounded"
+          />
+
+          <div>
+            <p className="text-sm font-medium text-slate-900">
+              {
+                field.label
+              }
+
+              {field.required && (
+                <span className="ml-1 text-red-500">
+                  *
+                </span>
+              )}
+            </p>
+
+            {field.helpText && (
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {
+                  field.helpText
+                }
+              </p>
+            )}
+          </div>
+        </label>
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // RADIO
+  // =======================================================
+
+  if (
+    field.type ===
+    "radio"
+  ) {
+    return (
+      <div className="space-y-3 sm:col-span-2">
+        <FieldLabel
+          field={
+            field
+          }
+        />
+
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field.options.map(
+            (
+              option,
+            ) => (
+              <label
+                key={
+                  option
+                }
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 ${
+                  value ===
+                  option
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={
+                    field.id
+                  }
+                  checked={
+                    value ===
+                    option
+                  }
+                  onChange={() =>
+                    onChange(
+                      option,
+                    )
+                  }
+                />
+
+                <span className="text-sm font-medium text-slate-800">
+                  {
+                    option
+                  }
+                </span>
+              </label>
+            ),
+          )}
+
+
+          {field.allowOther && (
+            <label
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 ${
+                otherSelected
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200"
+              }`}
+            >
+              <input
+                type="radio"
+                name={
+                  field.id
+                }
+                checked={
+                  otherSelected
+                }
+                onChange={() =>
+                  onChange(
+                    OTHER_VALUE_PREFIX,
+                  )
+                }
+              />
+
+              <span className="text-sm font-medium text-slate-800">
+                {
+                  field.otherLabel ||
+                  "Other"
+                }
+              </span>
+            </label>
+          )}
+        </div>
+
+
+        {otherSelected && (
+          <Input
+            value={
+              getOtherValue(
+                value,
+              )
+            }
+            onChange={(
+              event,
+            ) =>
+              onChange(
+                encodeOtherValue(
+                  event.target.value,
+                ),
+              )
+            }
+            placeholder="Enter other value"
+          />
+        )}
+
+
+        <FieldHelp
+          field={
+            field
+          }
+        />
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // MULTI SELECT
+  // =======================================================
+
+  if (
+    field.type ===
+    "multi_select"
+  ) {
+    const selected =
+      parseMultiSelectValue(
+        value,
+      );
+
+
+    const selectedOther =
+      selected.find(
+        (
+          item,
+        ) =>
+          isOtherValue(
+            item,
+          ),
+      );
+
+
+    function toggle(
+      option:
+        string,
+    ) {
+      const next =
+        selected.includes(
+          option,
+        )
+          ? selected.filter(
+              (
+                item,
+              ) =>
+                item !==
+                option,
+            )
+          : [
+              ...selected,
+              option,
+            ];
+
+
+      onChange(
+        encodeMultiSelectValue(
+          next,
+        ),
+      );
+    }
+
+
+    return (
+      <div className="space-y-3 sm:col-span-2">
+        <FieldLabel
+          field={
+            field
+          }
+        />
+
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field.options.map(
+            (
+              option,
+            ) => (
+              <label
+                key={
+                  option
+                }
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4"
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    selected.includes(
+                      option,
+                    )
+                  }
+                  onChange={() =>
+                    toggle(
+                      option,
+                    )
+                  }
+                />
+
+                <span className="text-sm text-slate-800">
+                  {
+                    option
+                  }
+                </span>
+              </label>
+            ),
+          )}
+
+
+          {field.allowOther && (
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4">
+              <input
+                type="checkbox"
+                checked={
+                  Boolean(
+                    selectedOther,
+                  )
+                }
+                onChange={(
+                  event,
+                ) => {
+                  if (
+                    event.target.checked
+                  ) {
+                    onChange(
+                      encodeMultiSelectValue([
+                        ...selected,
+                        OTHER_VALUE_PREFIX,
+                      ]),
+                    );
+
+                    return;
+                  }
+
+
+                  onChange(
+                    encodeMultiSelectValue(
+                      selected.filter(
+                        (
+                          item,
+                        ) =>
+                          !isOtherValue(
+                            item,
+                          ),
+                      ),
+                    ),
+                  );
+                }}
+              />
+
+              <span className="text-sm text-slate-800">
+                {
+                  field.otherLabel ||
+                  "Other"
+                }
+              </span>
+            </label>
+          )}
+        </div>
+
+
+        {selectedOther !==
+          undefined && (
+          <Input
+            value={
+              getOtherValue(
+                selectedOther,
+              )
+            }
+            onChange={(
+              event,
+            ) => {
+              const next =
+                selected
+                  .filter(
+                    (
+                      item,
+                    ) =>
+                      !isOtherValue(
+                        item,
+                      ),
+                  )
+                  .concat(
+                    encodeOtherValue(
+                      event.target.value,
+                    ),
+                  );
+
+
+              onChange(
+                encodeMultiSelectValue(
+                  next,
+                ),
+              );
+            }}
+            placeholder="Enter other value"
+          />
+        )}
+
+
+        <FieldHelp
+          field={
+            field
+          }
+        />
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // SELECT
+  // =======================================================
+
+  if (
+    field.type ===
+    "select"
+  ) {
+    const selectValue =
+      otherSelected
+        ? "__OTHER__"
+        : value;
+
+
+    return (
+      <div className="space-y-2">
+        <FieldLabel
+          field={
+            field
+          }
+        />
+
+
         <select
           value={
-            value
+            selectValue
           }
           onChange={(
             event,
-          ) =>
+          ) => {
+            if (
+              event.target.value ===
+              "__OTHER__"
+            ) {
+              onChange(
+                OTHER_VALUE_PREFIX,
+              );
+
+              return;
+            }
+
+
             onChange(
               event.target.value,
-            )
-          }
+            );
+          }}
           className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
         >
           <option value="">
@@ -5198,12 +5672,67 @@ function DynamicField({
               </option>
             ),
           )}
+
+
+          {field.allowOther && (
+            <option value="__OTHER__">
+              {
+                field.otherLabel ||
+                "Other"
+              }
+            </option>
+          )}
         </select>
-      ) : (
-        <Input
-          type={
-            field.type
+
+
+        {otherSelected && (
+          <Input
+            value={
+              getOtherValue(
+                value,
+              )
+            }
+            onChange={(
+              event,
+            ) =>
+              onChange(
+                encodeOtherValue(
+                  event.target.value,
+                ),
+              )
+            }
+            placeholder="Enter other value"
+          />
+        )}
+
+
+        <FieldHelp
+          field={
+            field
           }
+        />
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // TEXTAREA
+  // =======================================================
+
+  if (
+    field.type ===
+    "textarea"
+  ) {
+    return (
+      <div className="space-y-2 sm:col-span-2">
+        <FieldLabel
+          field={
+            field
+          }
+        />
+
+        <Textarea
           value={
             value
           }
@@ -5218,9 +5747,137 @@ function DynamicField({
               event.target.value,
             )
           }
+          className="min-h-28"
         />
-      )}
+
+        <FieldHelp
+          field={
+            field
+          }
+        />
+      </div>
+    );
+  }
+
+
+  // =======================================================
+  // STANDARD INPUTS
+  // =======================================================
+
+  const inputType =
+    field.type ===
+      "currency" ||
+    field.type ===
+      "number"
+      ? "number"
+      : field.type;
+
+
+  return (
+    <div className="space-y-2">
+      <FieldLabel
+        field={
+          field
+        }
+      />
+
+      <Input
+        type={
+          inputType
+        }
+        step={
+          field.type ===
+          "currency"
+            ? "0.01"
+            : undefined
+        }
+        min={
+          field.validationRules.min ??
+          undefined
+        }
+        max={
+          field.validationRules.max ??
+          undefined
+        }
+        minLength={
+          field.validationRules.minLength ??
+          undefined
+        }
+        maxLength={
+          field.validationRules.maxLength ??
+          undefined
+        }
+        value={
+          value
+        }
+        placeholder={
+          field.placeholder ??
+          undefined
+        }
+        onChange={(
+          event,
+        ) =>
+          onChange(
+            event.target.value,
+          )
+        }
+      />
+
+      <FieldHelp
+        field={
+          field
+        }
+      />
     </div>
+  );
+}
+
+
+// =========================================================
+// DYNAMIC FIELD HELPERS
+// =========================================================
+
+function FieldLabel({
+  field,
+}: {
+  field:
+    RequestCatalogField;
+}) {
+  return (
+    <Label>
+      {
+        field.label
+      }
+
+      {field.required && (
+        <span className="ml-1 text-red-500">
+          *
+        </span>
+      )}
+    </Label>
+  );
+}
+
+
+function FieldHelp({
+  field,
+}: {
+  field:
+    RequestCatalogField;
+}) {
+  if (
+    !field.helpText
+  ) {
+    return null;
+  }
+
+
+  return (
+    <p className="text-xs leading-5 text-slate-500">
+      {
+        field.helpText
+      }
+    </p>
   );
 }
 

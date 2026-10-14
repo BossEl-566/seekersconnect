@@ -20,6 +20,11 @@ import type {
   RequestCatalogUniversity,
 } from "@/types/request-catalog";
 
+import {
+  catalogFieldFromDatabase,
+  type DatabaseDynamicFieldShape,
+} from "@/lib/request/dynamic-field-runtime";
+
 
 export const runtime =
   "nodejs";
@@ -32,38 +37,11 @@ export const dynamic =
 // RAW DATABASE TYPES
 // =========================================================
 
-type RawField = {
-  id:
-    string;
-
-  service_id:
-    string;
-
-  field_key:
-    string;
-
-  label:
-    string;
-
-  field_type:
-    string;
-
-  placeholder:
-    | string
-    | null;
-
-  required:
-    boolean;
-
-  options:
-    unknown;
-
-  sort_order:
-    number;
-
-  active:
-    boolean;
-};
+type RawField =
+  DatabaseDynamicFieldShape & {
+    active:
+      boolean;
+  };
 
 
 type RawService = {
@@ -267,16 +245,6 @@ type RawPricingTier = {
 // SUPPORTED FIELD TYPES
 // =========================================================
 
-const allowedFieldTypes =
-  new Set<RequestCatalogFieldType>([
-    "text",
-    "email",
-    "tel",
-    "number",
-    "date",
-    "textarea",
-    "select",
-  ]);
 
 
 // =========================================================
@@ -295,56 +263,6 @@ const allowedPricingModes =
 
 
 // =========================================================
-// NORMALIZE FIELD OPTIONS
-// =========================================================
-
-function normalizeOptions(
-  value:
-    unknown,
-): string[] {
-  if (
-    !Array.isArray(
-      value,
-    )
-  ) {
-    return [];
-  }
-
-
-  return value.filter(
-    (
-      option,
-    ): option is string =>
-      typeof option ===
-        "string" &&
-      option.trim().length >
-        0,
-  );
-}
-
-
-// =========================================================
-// NORMALIZE FIELD TYPE
-// =========================================================
-
-function normalizeFieldType(
-  value:
-    string,
-): RequestCatalogFieldType {
-  if (
-    allowedFieldTypes.has(
-      value as RequestCatalogFieldType,
-    )
-  ) {
-    return value as RequestCatalogFieldType;
-  }
-
-
-  return "text";
-}
-
-
-// =========================================================
 // BUILD FIELD
 // =========================================================
 
@@ -352,35 +270,9 @@ function buildField(
   field:
     RawField,
 ): RequestCatalogField {
-  return {
-    id:
-      field.id,
-
-    key:
-      field.field_key,
-
-    label:
-      field.label,
-
-    type:
-      normalizeFieldType(
-        field.field_type,
-      ),
-
-    placeholder:
-      field.placeholder,
-
-    required:
-      field.required,
-
-    options:
-      normalizeOptions(
-        field.options,
-      ),
-
-    sortOrder:
-      field.sort_order,
-  };
+  return catalogFieldFromDatabase(
+    field,
+  );
 }
 
 
@@ -833,18 +725,31 @@ export async function GET() {
           .from(
             "service_form_fields",
           )
-          .select(`
-            id,
-            service_id,
-            field_key,
-            label,
-            field_type,
-            placeholder,
-            required,
-            options,
-            sort_order,
-            active
-          `)
+.select(`
+  id,
+  service_id,
+  field_key,
+  label,
+  field_type,
+
+  placeholder,
+  help_text,
+
+  required,
+  options,
+
+  allow_other,
+  other_label,
+
+  condition_field_id,
+  condition_operator,
+  condition_value,
+
+  validation_rules,
+
+  sort_order,
+  active
+`)
           .eq(
             "active",
             true,

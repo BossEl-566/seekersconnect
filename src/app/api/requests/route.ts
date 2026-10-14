@@ -23,6 +23,14 @@ import {
   isPaymentMethodAvailable,
 } from "@/lib/payment/payment-destinations";
 
+import {
+  catalogFieldFromDatabase,
+  getVisibleDynamicFields,
+  normalizeDynamicValueForStorage,
+  validateDynamicFieldValue,
+  type DatabaseDynamicFieldShape,
+} from "@/lib/request/dynamic-field-runtime";
+
 
 export const runtime =
   "nodejs";
@@ -49,22 +57,6 @@ const ALLOWED_FILES = {
   "application/pdf":
     "pdf",
 } as const;
-
-
-// =========================================================
-// FIELD TYPES
-// =========================================================
-
-const SUPPORTED_FIELD_TYPES =
-  new Set([
-    "text",
-    "email",
-    "tel",
-    "number",
-    "date",
-    "textarea",
-    "select",
-  ]);
 
 
 // =========================================================
@@ -133,35 +125,8 @@ type DatabaseService = {
 };
 
 
-type DatabaseFormField = {
-  id:
-    string;
-
-  service_id:
-    string;
-
-  field_key:
-    string;
-
-  label:
-    string;
-
-  field_type:
-    string;
-
-  placeholder:
-    | string
-    | null;
-
-  required:
-    boolean;
-
-  options:
-    unknown;
-
-  sort_order:
-    number;
-};
+type DatabaseFormField =
+  DatabaseDynamicFieldShape;
 
 
 type DatabasePricing = {
@@ -175,7 +140,7 @@ type DatabasePricing = {
     string;
 
   amount:
-    string
+    | string
     | number
     | null;
 
@@ -184,12 +149,12 @@ type DatabasePricing = {
     | null;
 
   minimum_quantity:
-    string
+    | string
     | number
     | null;
 
   maximum_quantity:
-    string
+    | string
     | number
     | null;
 
@@ -239,16 +204,16 @@ type DatabasePricingTier = {
     | null;
 
   amount:
-    string
+    | string
     | number;
 
   minimum_quantity:
-    string
+    | string
     | number
     | null;
 
   maximum_quantity:
-    string
+    | string
     | number
     | null;
 
@@ -352,7 +317,7 @@ function nullableNumber(
 
 function positiveNumber(
   value:
-    string
+    | string
     | number
     | null
     | undefined,
@@ -375,159 +340,6 @@ function positiveNumber(
 
 
   return number;
-}
-
-
-// =========================================================
-// OPTIONS
-// =========================================================
-
-function normalizeOptions(
-  value:
-    unknown,
-):
-  string[] {
-  if (
-    !Array.isArray(
-      value,
-    )
-  ) {
-    return [];
-  }
-
-
-  return value.filter(
-    (
-      option,
-    ): option is string =>
-      typeof option ===
-        "string" &&
-      option.trim().length >
-        0,
-  );
-}
-
-
-// =========================================================
-// DYNAMIC VALUE VALIDATION
-// =========================================================
-
-function validateDynamicValue(
-  field:
-    DatabaseFormField,
-
-  value:
-    string,
-):
-  | string
-  | null {
-  const trimmed =
-    value.trim();
-
-
-  if (
-    !trimmed
-  ) {
-    return null;
-  }
-
-
-  if (
-    !SUPPORTED_FIELD_TYPES.has(
-      field.field_type,
-    )
-  ) {
-    return (
-      `${field.label} has an unsupported field type.`
-    );
-  }
-
-
-  if (
-    field.field_type ===
-    "select"
-  ) {
-    const options =
-      normalizeOptions(
-        field.options,
-      );
-
-
-    if (
-      !options.includes(
-        trimmed,
-      )
-    ) {
-      return (
-        `${field.label} contains an invalid selection.`
-      );
-    }
-  }
-
-
-  if (
-    field.field_type ===
-    "email"
-  ) {
-    const emailPattern =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-
-    if (
-      !emailPattern.test(
-        trimmed,
-      )
-    ) {
-      return (
-        `${field.label} must contain a valid email address.`
-      );
-    }
-  }
-
-
-  if (
-    field.field_type ===
-    "number"
-  ) {
-    const number =
-      Number(
-        trimmed,
-      );
-
-
-    if (
-      !Number.isFinite(
-        number,
-      )
-    ) {
-      return (
-        `${field.label} must contain a valid number.`
-      );
-    }
-  }
-
-
-  if (
-    field.field_type ===
-    "date"
-  ) {
-    const datePattern =
-      /^\d{4}-\d{2}-\d{2}$/;
-
-
-    if (
-      !datePattern.test(
-        trimmed,
-      )
-    ) {
-      return (
-        `${field.label} must contain a valid date.`
-      );
-    }
-  }
-
-
-  return null;
 }
 
 
@@ -1086,13 +898,6 @@ export async function POST(
 
     // =====================================================
     // LOAD ACTIVE PRICING OPTIONS
-    //
-    // We mirror the public-catalog rule here:
-    //
-    // active option + at least one active tier = usable.
-    //
-    // PostgreSQL still performs the final authoritative
-    // validation inside create_pricing_request_submission_v2.
     // =====================================================
 
     let usablePricingOptions:
@@ -1399,12 +1204,6 @@ export async function POST(
 
     // =====================================================
     // PRICING MODE VALIDATION
-    //
-    // This validation gives the customer a useful API error
-    // before a proof file is uploaded.
-    //
-    // PostgreSQL V2 repeats the important checks and remains
-    // the final authority.
     // =====================================================
 
     let pricingQuantity:
@@ -1723,9 +1522,22 @@ export async function POST(
           field_key,
           label,
           field_type,
+
           placeholder,
+          help_text,
+
           required,
           options,
+
+          allow_other,
+          other_label,
+
+          condition_field_id,
+          condition_operator,
+          condition_value,
+
+          validation_rules,
+
           sort_order
         `)
         .eq(
@@ -1781,13 +1593,23 @@ export async function POST(
       ) as DatabaseFormField[];
 
 
+    const runtimeFields =
+      fields.map(
+        catalogFieldFromDatabase,
+      );
+
+
+    // =====================================================
+    // REJECT UNKNOWN FIELD KEYS
+    // =====================================================
+
     const allowedFieldKeys =
       new Set(
-        fields.map(
+        runtimeFields.map(
           (
             field,
           ) =>
-            field.field_key,
+            field.key,
         ),
       );
 
@@ -1832,56 +1654,34 @@ export async function POST(
     }
 
 
-    const missingFields =
-      fields.filter(
-        (
-          field,
-        ) =>
-          field.required &&
-          !draft.responses[
-            field.field_key
-          ]?.trim(),
+    // =====================================================
+    // CONDITIONAL VISIBILITY
+    // =====================================================
+
+    const visibleFields =
+      getVisibleDynamicFields(
+        runtimeFields,
+        draft.responses,
       );
 
 
-    if (
-      missingFields.length >
-      0
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Required service information is missing.",
-
-          fields:
-            missingFields.map(
-              (
-                field,
-              ) =>
-                field.label,
-            ),
-        },
-        {
-          status:
-            400,
-        },
-      );
-    }
-
+    // =====================================================
+    // VALIDATE ONLY VISIBLE FIELDS
+    // =====================================================
 
     for (
       const field of
-      fields
+      visibleFields
     ) {
       const value =
         draft.responses[
-          field.field_key
+          field.key
         ] ??
         "";
 
 
       const fieldError =
-        validateDynamicValue(
+        validateDynamicFieldValue(
           field,
           value,
         );
@@ -1902,6 +1702,51 @@ export async function POST(
         );
       }
     }
+
+
+    // =====================================================
+    // IMMUTABLE DYNAMIC RESPONSE SNAPSHOT
+    //
+    // Only currently visible fields are saved.
+    // Hidden stale responses are ignored.
+    // =====================================================
+
+    const normalizedResponses =
+      visibleFields
+        .map(
+          (
+            field,
+          ) => {
+            const value =
+              draft.responses[
+                field.key
+              ] ??
+              "";
+
+
+            return {
+              fieldKey:
+                field.key,
+
+              label:
+                field.label,
+
+              value:
+                normalizeDynamicValueForStorage(
+                  field,
+                  value,
+                ),
+            };
+          },
+        )
+        .filter(
+          (
+            item,
+          ) =>
+            item.value
+              .trim() !==
+            "",
+        );
 
 
     // =====================================================
@@ -2173,52 +2018,10 @@ export async function POST(
 
 
     // =====================================================
-    // IMMUTABLE RESPONSE SNAPSHOT
-    // =====================================================
-
-    const responses =
-      fields
-        .map(
-          (
-            field,
-          ) => ({
-            fieldKey:
-              field.field_key,
-
-            label:
-              field.label,
-
-            value:
-              draft.responses[
-                field.field_key
-              ] ??
-              "",
-          }),
-        )
-        .filter(
-          (
-            item,
-          ) =>
-            item.value
-              .trim() !==
-            "",
-        );
-
-
-    // =====================================================
     // CREATE REQUEST
     //
-    // IMPORTANT:
-    //
-    // We pass only:
-    // - selected option ID
-    // - quantity
-    // - payment evidence
-    //
-    // We DO NOT pass an amount calculated by the browser.
-    //
-    // PostgreSQL V2 independently resolves the option/tier
-    // and calculates the authoritative price snapshot.
+    // Browser calculations are not trusted.
+    // PostgreSQL resolves authoritative pricing.
     // =====================================================
 
     const {
@@ -2267,7 +2070,7 @@ export async function POST(
             draft.notes,
 
           p_responses:
-            responses,
+            normalizedResponses,
 
           p_delivery:
             draft.delivery,
@@ -2362,11 +2165,11 @@ export async function POST(
 
 
     /*
-     * Pricing could theoretically change between the API
-     * validation query and the PostgreSQL transaction.
+     * Pricing may theoretically change between API
+     * validation and the PostgreSQL transaction.
      *
-     * If PostgreSQL ultimately decides that payment was not
-     * required, remove a proof uploaded during that race.
+     * If PostgreSQL determines that payment is not required,
+     * remove proof that was uploaded during that race.
      */
     if (
       uploadedPath &&
