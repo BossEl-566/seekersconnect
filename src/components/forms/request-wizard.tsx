@@ -79,6 +79,16 @@ import {
   parseMultiSelectValue,
 } from "@/lib/request/dynamic-field-runtime";
 
+import {
+  DynamicRequestUploadField,
+} from "@/components/forms/dynamic-request-upload-field";
+
+import {
+  validateRequestUploadSelection,
+  type RequestUploadFallback,
+  type RequestUploadFallbackMap,
+} from "@/lib/request/request-upload";
+
 
 // =========================================================
 // LOCAL STORAGE
@@ -366,6 +376,28 @@ export function RequestWizard() {
       File | null
     >(
       null,
+    );
+
+    const [
+    requestUploads,
+    setRequestUploads,
+  ] =
+    useState<
+      Record<
+        string,
+        File[]
+      >
+    >(
+      {},
+    );
+
+
+  const [
+    requestUploadFallbacks,
+    setRequestUploadFallbacks,
+  ] =
+    useState<RequestUploadFallbackMap>(
+      {},
     );
 
 
@@ -1148,6 +1180,7 @@ export function RequestWizard() {
     setPaymentProof(
       null,
     );
+    clearRequestUploads();
   }
 
 
@@ -1201,6 +1234,7 @@ export function RequestWizard() {
     setPaymentProof(
       null,
     );
+    clearRequestUploads();
   }
 
 
@@ -1252,6 +1286,7 @@ export function RequestWizard() {
     setPaymentProof(
       null,
     );
+    clearRequestUploads();
   }
 
 
@@ -1326,6 +1361,7 @@ export function RequestWizard() {
     setPaymentProof(
       null,
     );
+    clearRequestUploads();
   }
 
 
@@ -1415,6 +1451,60 @@ export function RequestWizard() {
     );
   }
 
+    // =======================================================
+  // DYNAMIC REQUEST UPLOADS
+  // =======================================================
+
+  function updateRequestUploadFiles(
+    fieldKey:
+      string,
+
+    files:
+      File[],
+  ) {
+    setRequestUploads(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [fieldKey]:
+          files,
+      }),
+    );
+  }
+
+
+  function updateRequestUploadFallback(
+    fieldKey:
+      string,
+
+    fallback:
+      RequestUploadFallback,
+  ) {
+    setRequestUploadFallbacks(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [fieldKey]:
+          fallback,
+      }),
+    );
+  }
+
+
+  function clearRequestUploads() {
+    setRequestUploads(
+      {},
+    );
+
+    setRequestUploadFallbacks(
+      {},
+    );
+  }
+
 
   // =======================================================
   // UPDATE DELIVERY
@@ -1488,18 +1578,43 @@ export function RequestWizard() {
         );
 
 
-      const dynamicFieldsComplete =
+            const dynamicFieldsComplete =
         visibleDynamicFields.every(
           (
             field,
-          ) =>
-            dynamicFieldIsValid(
+          ) => {
+            if (
+              isUploadFieldType(
+                field.type,
+              )
+            ) {
+              return (
+                validateRequestUploadSelection(
+                  field,
+
+                  requestUploads[
+                    field.key
+                  ] ??
+                  [],
+
+                  requestUploadFallbacks[
+                    field.key
+                  ],
+                ) ===
+                null
+              );
+            }
+
+
+            return dynamicFieldIsValid(
               field,
+
               draft.responses[
                 field.key
               ] ??
               "",
-            ),
+            );
+          },
         );
 
 
@@ -1818,6 +1933,55 @@ export function RequestWizard() {
     }
 
 
+    const visibleFieldsAtSubmit =
+      getVisibleDynamicFields(
+        dynamicFields,
+        draft.responses,
+      );
+
+
+    const visibleUploadFields =
+      visibleFieldsAtSubmit.filter(
+        (
+          field,
+        ) =>
+          isUploadFieldType(
+            field.type,
+          ),
+      );
+
+
+    for (
+      const field of
+      visibleUploadFields
+    ) {
+      const uploadError =
+        validateRequestUploadSelection(
+          field,
+
+          requestUploads[
+            field.key
+          ] ??
+          [],
+
+          requestUploadFallbacks[
+            field.key
+          ],
+        );
+
+
+      if (
+        uploadError
+      ) {
+        setSubmitError(
+          uploadError,
+        );
+
+        return;
+      }
+    }
+
+
     setSubmitting(
       true,
     );
@@ -1830,6 +1994,73 @@ export function RequestWizard() {
     try {
       const formData =
         new FormData();
+
+
+      const uploadFallbackPayload:
+        RequestUploadFallbackMap =
+        {};
+
+
+      const visibleFieldsForUpload =
+        getVisibleDynamicFields(
+          dynamicFields,
+          draft.responses,
+        ).filter(
+          (
+            field,
+          ) =>
+            isUploadFieldType(
+              field.type,
+            ),
+        );
+
+
+      for (
+        const field of
+        visibleFieldsForUpload
+      ) {
+        const fallback =
+          requestUploadFallbacks[
+            field.key
+          ];
+
+
+        if (
+          fallback?.sent
+        ) {
+          uploadFallbackPayload[
+            field.key
+          ] =
+            fallback;
+        }
+
+
+        const files =
+          requestUploads[
+            field.key
+          ] ??
+          [];
+
+
+        for (
+          const file of
+          files
+        ) {
+          formData.append(
+            `requestUpload:${field.id}`,
+            file,
+          );
+        }
+      }
+
+
+      formData.append(
+        "requestUploadFallbacks",
+
+        JSON.stringify(
+          uploadFallbackPayload,
+        ),
+      );
 
 
       formData.append(
@@ -1929,6 +2160,7 @@ export function RequestWizard() {
     setPaymentProof(
       null,
     );
+    clearRequestUploads();
 
     setSubmitError(
       "",
@@ -2264,7 +2496,7 @@ export function RequestWizard() {
 
             {currentStep ===
               3 && (
-              <DetailsStep
+                            <DetailsStep
                 draft={
                   draft
                 }
@@ -2282,6 +2514,23 @@ export function RequestWizard() {
                 }
                 onSelectPricingOption={
                   selectPricingOption
+                }
+                requestUploads={
+                  requestUploads
+                }
+                requestUploadFallbacks={
+                  requestUploadFallbacks
+                }
+                supportEmail={
+                  publicSettings
+                    .support
+                    .supportEmail
+                }
+                updateRequestUploadFiles={
+                  updateRequestUploadFiles
+                }
+                updateRequestUploadFallback={
+                  updateRequestUploadFallback
                 }
               />
             )}
@@ -2346,6 +2595,12 @@ export function RequestWizard() {
                 }
                 dynamicFields={
                   dynamicFields
+                }
+                requestUploads={
+                  requestUploads
+                }
+                requestUploadFallbacks={
+                  requestUploadFallbacks
                 }
               />
             )}
@@ -3055,6 +3310,11 @@ function DetailsStep({
   updateApplicant,
   updateResponse,
   onSelectPricingOption,
+    requestUploads,
+  requestUploadFallbacks,
+  supportEmail,
+  updateRequestUploadFiles,
+  updateRequestUploadFallback,
 }: {
   draft:
     RequestDraft;
@@ -3087,6 +3347,36 @@ function DetailsStep({
     (
       pricingOptionId:
         string,
+    ) => void;
+
+  requestUploads:
+    Record<
+      string,
+      File[]
+    >;
+
+  requestUploadFallbacks:
+    RequestUploadFallbackMap;
+
+  supportEmail:
+    string;
+
+  updateRequestUploadFiles:
+    (
+      fieldKey:
+        string,
+
+      files:
+        File[],
+    ) => void;
+
+  updateRequestUploadFallback:
+    (
+      fieldKey:
+        string,
+
+      fallback:
+        RequestUploadFallback,
     ) => void;
 }) {
   const isGeneralService =
@@ -3329,6 +3619,36 @@ function DetailsStep({
                     updateResponse(
                       field.key,
                       value,
+                    )
+                  }
+                  uploadFiles={
+                    requestUploads[
+                      field.key
+                    ] ??
+                    []
+                  }
+                  uploadFallback={
+                    requestUploadFallbacks[
+                      field.key
+                    ]
+                  }
+                  supportEmail={
+                    supportEmail
+                  }
+                  onUploadFilesChange={(
+                    files,
+                  ) =>
+                    updateRequestUploadFiles(
+                      field.key,
+                      files,
+                    )
+                  }
+                  onUploadFallbackChange={(
+                    fallback,
+                  ) =>
+                    updateRequestUploadFallback(
+                      field.key,
+                      fallback,
                     )
                   }
                 />
@@ -4674,6 +4994,8 @@ function ReviewStep({
   universityName,
   selectedService,
   dynamicFields,
+  requestUploads,
+  requestUploadFallbacks,
 }: {
   draft:
     RequestDraft;
@@ -4689,6 +5011,15 @@ function ReviewStep({
 
   dynamicFields:
     RequestCatalogField[];
+
+  requestUploads:
+    Record<
+      string,
+      File[]
+    >;
+
+  requestUploadFallbacks:
+    RequestUploadFallbackMap;
 }) {
   const isGeneralService =
     selectedService
@@ -4846,12 +5177,29 @@ function ReviewStep({
               ) => [
                 field.label,
 
-                formatDynamicResponse(
-  field,
-  draft.responses[
-    field.key
-  ] ?? "",
-),
+                isUploadFieldType(
+                  field.type,
+                )
+                  ? formatRequestUploadReview(
+                      field,
+
+                      requestUploads[
+                        field.key
+                      ] ??
+                      [],
+
+                      requestUploadFallbacks[
+                        field.key
+                      ],
+                    )
+                  : formatDynamicResponse(
+                      field,
+
+                      draft.responses[
+                        field.key
+                      ] ??
+                      "",
+                    ),
               ],
             )
           }
@@ -5117,6 +5465,11 @@ function DynamicField({
   field,
   value,
   onChange,
+  uploadFiles,
+  uploadFallback,
+  supportEmail,
+  onUploadFilesChange,
+  onUploadFallbackChange,
 }: {
   field:
     RequestCatalogField;
@@ -5128,6 +5481,28 @@ function DynamicField({
     (
       value:
         string,
+    ) => void;
+
+  uploadFiles:
+    File[];
+
+  uploadFallback:
+    RequestUploadFallback
+    | undefined;
+
+  supportEmail:
+    string;
+
+  onUploadFilesChange:
+    (
+      files:
+        File[],
+    ) => void;
+
+  onUploadFallbackChange:
+    (
+      fallback:
+        RequestUploadFallback,
     ) => void;
 }) {
   const fullWidth =
@@ -5149,9 +5524,7 @@ function DynamicField({
 
 
   // =======================================================
-  // UPLOAD DEFINITION
-  //
-  // Actual secure upload transaction is Phase 13E.
+  // SECURE REQUEST UPLOAD
   // =======================================================
 
   if (
@@ -5160,58 +5533,26 @@ function DynamicField({
     )
   ) {
     return (
-      <div
-        className={`space-y-2 ${
-          fullWidth
-            ? "sm:col-span-2"
-            : ""
-        }`}
-      >
-        <FieldLabel
-          field={
-            field
-          }
-        />
-
-        <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-5">
-          <Upload className="h-5 w-5 text-blue-600" />
-
-          <p className="mt-3 text-sm font-semibold text-slate-900">
-            {
-              field.type ===
-              "image"
-                ? "Image Upload"
-                : field.type ===
-                    "document"
-                  ? "Document Upload"
-                  : "File Upload"
-            }
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Upload requirements are configured for this field.
-            Secure customer uploads will be connected in Phase 13E.
-          </p>
-
-          {field.validationRules.maxFileSizeMb !==
-            null && (
-            <p className="mt-3 text-xs font-medium text-blue-700">
-              Maximum size:{" "}
-              {
-                field.validationRules
-                  .maxFileSizeMb
-              }{" "}
-              MB per file
-            </p>
-          )}
-        </div>
-
-        <FieldHelp
-          field={
-            field
-          }
-        />
-      </div>
+      <DynamicRequestUploadField
+        field={
+          field
+        }
+        files={
+          uploadFiles
+        }
+        fallback={
+          uploadFallback
+        }
+        supportEmail={
+          supportEmail
+        }
+        onFilesChange={
+          onUploadFilesChange
+        }
+        onFallbackChange={
+          onUploadFallbackChange
+        }
+      />
     );
   }
 
@@ -5879,6 +6220,54 @@ function FieldHelp({
       }
     </p>
   );
+}
+
+
+// =========================================================
+// REQUEST UPLOAD REVIEW
+// =========================================================
+
+function formatRequestUploadReview(
+  field:
+    RequestCatalogField,
+
+  files:
+    File[],
+
+  fallback:
+    RequestUploadFallback
+    | undefined,
+) {
+  if (
+    fallback?.sent
+  ) {
+    return (
+      `Sent by email — ` +
+      fallback.reference
+    );
+  }
+
+
+  if (
+    files.length ===
+    0
+  ) {
+    return field.required
+      ? "Required file not selected"
+      : "—";
+  }
+
+
+  return files
+    .map(
+      (
+        file,
+      ) =>
+        file.name,
+    )
+    .join(
+      ", ",
+    );
 }
 
 

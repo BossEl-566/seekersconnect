@@ -8,18 +8,6 @@ import {
 } from "next/server";
 
 import {
-  createAdminClient,
-} from "@/lib/supabase/admin";
-
-import {
-  requestSubmissionSchema,
-} from "@/lib/validation/request-submission";
-
-import {
-  getSystemSettings,
-} from "@/lib/settings/system-settings";
-
-import {
   isPaymentMethodAvailable,
 } from "@/lib/payment/payment-destinations";
 
@@ -30,6 +18,25 @@ import {
   validateDynamicFieldValue,
   type DatabaseDynamicFieldShape,
 } from "@/lib/request/dynamic-field-runtime";
+
+import {
+  RequestUploadValidationError,
+  cleanupUploadedRequestFiles,
+  uploadDynamicRequestFiles,
+  type UploadedRequestFilesResult,
+} from "@/lib/request/request-upload-server";
+
+import {
+  getSystemSettings,
+} from "@/lib/settings/system-settings";
+
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+import {
+  requestSubmissionSchema,
+} from "@/lib/validation/request-submission";
 
 
 export const runtime =
@@ -104,8 +111,7 @@ type DatabaseService = {
     string;
 
   university_id:
-    | string
-    | null;
+    string | null;
 
   service_category_id:
     string;
@@ -145,8 +151,7 @@ type DatabasePricing = {
     | null;
 
   unit_label:
-    | string
-    | null;
+    string | null;
 
   minimum_quantity:
     | string
@@ -159,8 +164,7 @@ type DatabasePricing = {
     | null;
 
   display_note:
-    | string
-    | null;
+    string | null;
 
   active:
     boolean;
@@ -181,8 +185,7 @@ type DatabasePricingOption = {
     string;
 
   unit_label:
-    | string
-    | null;
+    string | null;
 
   display_order:
     number;
@@ -200,8 +203,7 @@ type DatabasePricingTier = {
     string;
 
   label:
-    | string
-    | null;
+    string | null;
 
   amount:
     | string
@@ -375,9 +377,19 @@ export async function POST(
     Request,
 ) {
   let uploadedPath:
-    | string
-    | null =
+    string | null =
     null;
+
+
+  let dynamicUploads:
+    UploadedRequestFilesResult =
+    {
+      metadata:
+        [],
+
+      storagePaths:
+        [],
+    };
 
 
   try {
@@ -568,8 +580,7 @@ export async function POST(
     // =====================================================
 
     let university:
-      DatabaseUniversity
-      | null =
+      DatabaseUniversity | null =
       null;
 
 
@@ -814,8 +825,7 @@ export async function POST(
 
     const pricing =
       pricingData as
-        DatabasePricing
-        | null;
+        DatabasePricing | null;
 
 
     let pricingMode:
@@ -1125,8 +1135,7 @@ export async function POST(
 
 
     let selectedPricingOption:
-      UsablePricingOption
-      | null =
+      UsablePricingOption | null =
       null;
 
 
@@ -1212,8 +1221,7 @@ export async function POST(
 
 
     let previewTier:
-      DatabasePricingTier
-      | null =
+      DatabasePricingTier | null =
       null;
 
 
@@ -1373,7 +1381,7 @@ export async function POST(
           positiveNumber(
             previewTier.amount,
           ) ===
-          null
+            null
         ) {
           return NextResponse.json(
             {
@@ -1522,22 +1530,16 @@ export async function POST(
           field_key,
           label,
           field_type,
-
           placeholder,
           help_text,
-
           required,
           options,
-
           allow_other,
           other_label,
-
           condition_field_id,
           condition_operator,
           condition_value,
-
           validation_rules,
-
           sort_order
         `)
         .eq(
@@ -1666,7 +1668,10 @@ export async function POST(
 
 
     // =====================================================
-    // VALIDATE ONLY VISIBLE FIELDS
+    // VALIDATE ONLY VISIBLE NON-UPLOAD VALUES
+    //
+    // Upload fields are validated separately against the
+    // actual multipart File objects and email fallbacks.
     // =====================================================
 
     for (
@@ -1708,7 +1713,7 @@ export async function POST(
     // IMMUTABLE DYNAMIC RESPONSE SNAPSHOT
     //
     // Only currently visible fields are saved.
-    // Hidden stale responses are ignored.
+    // Upload metadata itself is stored in request_uploads.
     // =====================================================
 
     const normalizedResponses =
@@ -1946,6 +1951,71 @@ export async function POST(
 
 
     // =====================================================
+    // DYNAMIC CUSTOMER UPLOADS
+    //
+    // This validates:
+    // - required upload fields
+    // - field visibility
+    // - max file count
+    // - max size
+    // - accepted file type
+    // - email fallback
+    //
+    // before the request record is created.
+    // =====================================================
+
+    try {
+      dynamicUploads =
+        await uploadDynamicRequestFiles({
+          formData,
+
+          visibleFields,
+
+          requestId,
+        });
+    } catch (
+      error
+    ) {
+      if (
+        error instanceof
+        RequestUploadValidationError
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              error.message,
+          },
+          {
+            status:
+              400,
+          },
+        );
+      }
+
+
+      console.error(
+        "Dynamic request upload failed:",
+        error,
+      );
+
+
+      return NextResponse.json(
+        {
+          message:
+            error instanceof
+              Error
+              ? error.message
+              : "We could not upload the request documents.",
+        },
+        {
+          status:
+            500,
+        },
+      );
+    }
+
+
+    // =====================================================
     // PAYMENT PROOF UPLOAD
     // =====================================================
 
@@ -1997,6 +2067,22 @@ export async function POST(
           "Payment proof upload failed:",
           uploadError,
         );
+
+
+        await cleanupUploadedRequestFiles(
+          dynamicUploads
+            .storagePaths,
+        );
+
+
+        dynamicUploads =
+          {
+            metadata:
+              [],
+
+            storagePaths:
+              [],
+          };
 
 
         return NextResponse.json(
@@ -2095,7 +2181,7 @@ export async function POST(
 
 
     // =====================================================
-    // DATABASE FAILURE + UPLOAD ROLLBACK
+    // DATABASE FAILURE + STORAGE ROLLBACK
     // =====================================================
 
     if (
@@ -2122,6 +2208,22 @@ export async function POST(
         uploadedPath =
           null;
       }
+
+
+      await cleanupUploadedRequestFiles(
+        dynamicUploads
+          .storagePaths,
+      );
+
+
+      dynamicUploads =
+        {
+          metadata:
+            [],
+
+          storagePaths:
+            [],
+        };
 
 
       return NextResponse.json(
@@ -2152,6 +2254,160 @@ export async function POST(
         : data;
 
 
+    const createdRequestId =
+      created?.request_id ??
+      requestId;
+
+
+    // =====================================================
+    // ATTACH DYNAMIC UPLOAD METADATA
+    //
+    // Direct-upload objects already exist in the private
+    // bucket.
+    //
+    // Email fallbacks have no storage object.
+    //
+    // Both are linked to the newly created request here.
+    // =====================================================
+
+    if (
+      dynamicUploads
+        .metadata
+        .length >
+      0
+    ) {
+      const {
+        error:
+          attachUploadsError,
+      } =
+        await supabase.rpc(
+          "attach_request_uploads",
+          {
+            p_request_id:
+              createdRequestId,
+
+            p_uploads:
+              dynamicUploads
+                .metadata,
+          },
+        );
+
+
+      if (
+        attachUploadsError
+      ) {
+        console.error(
+          "Attaching request uploads failed:",
+          attachUploadsError,
+        );
+
+
+        /*
+         * The request must not remain valid if required
+         * document metadata could not be attached.
+         *
+         * Deleting the request cascades:
+         *
+         * - request form responses
+         * - payment
+         * - delivery
+         * - status history
+         * - request uploads already inserted
+         */
+        const {
+          error:
+            rollbackRequestError,
+        } =
+          await supabase
+            .from(
+              "requests",
+            )
+            .delete()
+            .eq(
+              "id",
+              createdRequestId,
+            );
+
+
+        if (
+          rollbackRequestError
+        ) {
+          console.error(
+            "Request rollback after upload failure failed:",
+            rollbackRequestError,
+          );
+        }
+
+
+        if (
+          uploadedPath
+        ) {
+          await supabase.storage
+            .from(
+              "payment-proofs",
+            )
+            .remove([
+              uploadedPath,
+            ]);
+
+
+          uploadedPath =
+            null;
+        }
+
+
+        await cleanupUploadedRequestFiles(
+          dynamicUploads
+            .storagePaths,
+        );
+
+
+        dynamicUploads =
+          {
+            metadata:
+              [],
+
+            storagePaths:
+              [],
+          };
+
+
+        return NextResponse.json(
+          {
+            message:
+              "We could not attach the uploaded documents to the request. Please try again.",
+          },
+          {
+            status:
+              500,
+          },
+        );
+      }
+
+
+      /*
+       * The request_uploads rows are now committed.
+       *
+       * The storage objects now belong to the request.
+       *
+       * Clear the temporary cleanup list so that the
+       * outer catch does not accidentally delete them.
+       */
+      dynamicUploads =
+        {
+          metadata:
+            [],
+
+          storagePaths:
+            [],
+        };
+    }
+
+
+    // =====================================================
+    // FINAL STATUS
+    // =====================================================
+
     const newStatus =
       created?.new_status ??
       (
@@ -2168,8 +2424,8 @@ export async function POST(
      * Pricing may theoretically change between API
      * validation and the PostgreSQL transaction.
      *
-     * If PostgreSQL determines that payment is not required,
-     * remove proof that was uploaded during that race.
+     * If PostgreSQL ultimately decides that payment is not
+     * required, remove any proof uploaded during that race.
      */
     if (
       uploadedPath &&
@@ -2190,6 +2446,10 @@ export async function POST(
     }
 
 
+    // =====================================================
+    // FINAL AMOUNT
+    // =====================================================
+
     const totalAmount =
       created?.total_amount ===
         null ||
@@ -2201,6 +2461,10 @@ export async function POST(
           );
 
 
+    // =====================================================
+    // SUCCESS RESPONSE
+    // =====================================================
+
     return NextResponse.json(
       {
         success:
@@ -2208,8 +2472,7 @@ export async function POST(
 
         request: {
           id:
-            created?.request_id ??
-            requestId,
+            createdRequestId,
 
           requestNumber:
             created?.request_number ??
@@ -2269,7 +2532,7 @@ export async function POST(
 
 
     // =====================================================
-    // SAFETY CLEANUP
+    // PAYMENT PROOF SAFETY CLEANUP
     // =====================================================
 
     if (
@@ -2292,6 +2555,32 @@ export async function POST(
       ) {
         console.error(
           "Payment proof cleanup failed:",
+          cleanupError,
+        );
+      }
+    }
+
+
+    // =====================================================
+    // DYNAMIC UPLOAD SAFETY CLEANUP
+    // =====================================================
+
+    if (
+      dynamicUploads
+        .storagePaths
+        .length >
+      0
+    ) {
+      try {
+        await cleanupUploadedRequestFiles(
+          dynamicUploads
+            .storagePaths,
+        );
+      } catch (
+        cleanupError
+      ) {
+        console.error(
+          "Dynamic request upload cleanup failed:",
           cleanupError,
         );
       }

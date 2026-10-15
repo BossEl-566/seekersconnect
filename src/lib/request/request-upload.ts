@@ -1,7 +1,3 @@
-import {
-  randomUUID,
-} from "crypto";
-
 import type {
   RequestCatalogField,
 } from "@/types/request-catalog";
@@ -26,7 +22,7 @@ export const GLOBAL_REQUEST_UPLOAD_MAX_BYTES =
 
 
 // =========================================================
-// DEFAULT MIME TYPES
+// PLATFORM-SUPPORTED MIME TYPES
 // =========================================================
 
 const IMAGE_MIME_TYPES = [
@@ -87,7 +83,7 @@ export type RequestUploadMetadata = {
     string;
 
   source:
-    "UPLOAD"
+    | "UPLOAD"
     | "EMAIL_FALLBACK";
 
   storagePath:
@@ -108,7 +104,7 @@ export type RequestUploadMetadata = {
 
 
 // =========================================================
-// CONFIG
+// MAXIMUM FILE COUNT
 // =========================================================
 
 export function getUploadMaximumFiles(
@@ -141,6 +137,10 @@ export function getUploadMaximumFiles(
   );
 }
 
+
+// =========================================================
+// MAXIMUM SIZE
+// =========================================================
 
 export function getUploadMaximumBytes(
   field:
@@ -190,36 +190,13 @@ export function getUploadMaximumMb(
 
 
 // =========================================================
-// ACCEPTED FILE TYPES
+// DEFAULT TYPES FOR FIELD
 // =========================================================
 
-export function getAcceptedUploadTypes(
+function defaultAcceptedTypes(
   field:
     RequestCatalogField,
 ) {
-  const configured =
-    field.validationRules
-      .accept
-      .map(
-        (
-          item,
-        ) =>
-          item.trim()
-            .toLowerCase(),
-      )
-      .filter(
-        Boolean,
-      );
-
-
-  if (
-    configured.length >
-    0
-  ) {
-    return configured;
-  }
-
-
   if (
     field.type ===
     "image"
@@ -241,8 +218,42 @@ export function getAcceptedUploadTypes(
 
 
 // =========================================================
-// HTML ACCEPT
+// ADMIN-CONFIGURED ACCEPT RULES
 // =========================================================
+
+export function getAcceptedUploadTypes(
+  field:
+    RequestCatalogField,
+) {
+  const configured =
+    field.validationRules
+      .accept
+      .map(
+        (
+          value,
+        ) =>
+          value
+            .trim()
+            .toLowerCase(),
+      )
+      .filter(
+        Boolean,
+      );
+
+
+  if (
+    configured.length >
+    0
+  ) {
+    return configured;
+  }
+
+
+  return defaultAcceptedTypes(
+    field,
+  );
+}
+
 
 export function getUploadAcceptAttribute(
   field:
@@ -257,73 +268,7 @@ export function getUploadAcceptAttribute(
 
 
 // =========================================================
-// FILE VALIDATION
-// =========================================================
-
-export function validateRequestUploadFile(
-  field:
-    RequestCatalogField,
-
-  file:
-    File,
-):
-  string | null {
-  if (
-    !isUploadFieldType(
-      field.type,
-    )
-  ) {
-    return "This field does not accept file uploads.";
-  }
-
-
-  if (
-    file.size <=
-    0
-  ) {
-    return `${file.name} is empty.`;
-  }
-
-
-  const maximumBytes =
-    getUploadMaximumBytes(
-      field,
-    );
-
-
-  if (
-    file.size >
-    maximumBytes
-  ) {
-    return (
-      `${file.name} exceeds the ` +
-      `${getUploadMaximumMb(field)} MB limit.`
-    );
-  }
-
-
-  const accepted =
-    getAcceptedUploadTypes(
-      field,
-    );
-
-
-  if (
-    !fileMatchesAcceptedType(
-      file,
-      accepted,
-    )
-  ) {
-    return `${file.name} is not an accepted file type.`;
-  }
-
-
-  return null;
-}
-
-
-// =========================================================
-// FILE-TYPE MATCHING
+// FILE TYPE MATCHING
 // =========================================================
 
 function fileMatchesAcceptedType(
@@ -333,7 +278,7 @@ function fileMatchesAcceptedType(
   accepted:
     string[],
 ) {
-  const mime =
+  const mimeType =
     file.type
       .trim()
       .toLowerCase();
@@ -378,7 +323,7 @@ function fileMatchesAcceptedType(
           "/*",
         )
       ) {
-        return mime.startsWith(
+        return mimeType.startsWith(
           normalized.slice(
             0,
             -1,
@@ -388,7 +333,7 @@ function fileMatchesAcceptedType(
 
 
       return (
-        mime ===
+        mimeType ===
         normalized
       );
     },
@@ -397,7 +342,197 @@ function fileMatchesAcceptedType(
 
 
 // =========================================================
-// STORAGE FILE NAME
+// FILE VALIDATION
+// =========================================================
+
+export function validateRequestUploadFile(
+  field:
+    RequestCatalogField,
+
+  file:
+    File,
+):
+  string | null {
+  if (
+    !isUploadFieldType(
+      field.type,
+    )
+  ) {
+    return "This field does not accept file uploads.";
+  }
+
+
+  if (
+    file.size <=
+    0
+  ) {
+    return `${file.name} is empty.`;
+  }
+
+
+  if (
+    file.size >
+    getUploadMaximumBytes(
+      field,
+    )
+  ) {
+    return (
+      `${file.name} exceeds the ` +
+      `${getUploadMaximumMb(field)} MB limit.`
+    );
+  }
+
+
+  /*
+   * First enforce the hard platform list for the particular
+   * field type.
+   */
+  if (
+    !fileMatchesAcceptedType(
+      file,
+      defaultAcceptedTypes(
+        field,
+      ),
+    )
+  ) {
+    return `${file.name} is not a supported file type.`;
+  }
+
+
+  /*
+   * Then apply the administrator's optional stricter list.
+   */
+  const configured =
+    field.validationRules
+      .accept;
+
+
+  if (
+    configured.length >
+      0 &&
+    !fileMatchesAcceptedType(
+      file,
+      configured,
+    )
+  ) {
+    return `${file.name} is not an accepted file type for ${field.label}.`;
+  }
+
+
+  return null;
+}
+
+
+// =========================================================
+// COMPLETE FIELD SELECTION VALIDATION
+// =========================================================
+
+export function validateRequestUploadSelection(
+  field:
+    RequestCatalogField,
+
+  files:
+    File[],
+
+  fallback:
+    RequestUploadFallback
+    | undefined,
+):
+  string | null {
+  const emailFallback =
+    fallback ?? {
+      sent:
+        false,
+
+      reference:
+        "",
+    };
+
+
+  if (
+    files.length >
+      0 &&
+    emailFallback.sent
+  ) {
+    return (
+      `${field.label}: choose either direct upload ` +
+      `or email fallback, not both.`
+    );
+  }
+
+
+  const maximumFiles =
+    getUploadMaximumFiles(
+      field,
+    );
+
+
+  if (
+    files.length >
+    maximumFiles
+  ) {
+    return (
+      `${field.label} allows a maximum of ` +
+      `${maximumFiles} file${maximumFiles === 1 ? "" : "s"}.`
+    );
+  }
+
+
+  for (
+    const file of
+    files
+  ) {
+    const error =
+      validateRequestUploadFile(
+        field,
+        file,
+      );
+
+
+    if (
+      error
+    ) {
+      return error;
+    }
+  }
+
+
+  if (
+    emailFallback.sent
+  ) {
+    if (
+      emailFallback
+        .reference
+        .trim()
+        .length <
+      3
+    ) {
+      return (
+        `Enter the email subject or reference used for ` +
+        `${field.label}.`
+      );
+    }
+
+
+    return null;
+  }
+
+
+  if (
+    field.required &&
+    files.length ===
+      0
+  ) {
+    return `${field.label} is required.`;
+  }
+
+
+  return null;
+}
+
+
+// =========================================================
+// STORAGE PATH
 // =========================================================
 
 export function createRequestUploadStoragePath(
@@ -409,6 +544,9 @@ export function createRequestUploadStoragePath(
 
   file:
     File,
+
+  uniqueId:
+    string,
 ) {
   const extension =
     safeExtension(
@@ -418,8 +556,8 @@ export function createRequestUploadStoragePath(
 
   const filename =
     extension
-      ? `${randomUUID()}.${extension}`
-      : randomUUID();
+      ? `${uniqueId}.${extension}`
+      : uniqueId;
 
 
   return (
@@ -431,7 +569,7 @@ export function createRequestUploadStoragePath(
 
 
 // =========================================================
-// SAFE PATH
+// SAFE PATH HELPERS
 // =========================================================
 
 function safePathSegment(
