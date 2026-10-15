@@ -99,14 +99,14 @@ export const serviceFormFieldValidationRulesSchema =
           .nullable(),
 
       maxFileSizeMb:
-        z
-          .number()
-          .positive()
-          .max(
-            50,
-            "Maximum file size cannot exceed 50 MB.",
-          )
-          .nullable(),
+  z
+    .number()
+    .positive()
+    .max(
+      10,
+      "Maximum file size cannot exceed 10 MB.",
+    )
+    .nullable(),
 
       accept:
         z
