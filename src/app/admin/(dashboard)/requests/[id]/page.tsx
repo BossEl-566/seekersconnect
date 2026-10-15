@@ -15,6 +15,7 @@ import {
   Mail,
   Package,
   Phone,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 
@@ -54,6 +55,14 @@ import {
   RequestPricingPanel,
 } from "@/components/admin/request-pricing-panel";
 
+import {
+  RequestUploadReview,
+} from "@/components/admin/request-upload-review";
+
+
+// =========================================================
+// TYPES
+// =========================================================
 
 type PageProps = {
   params: Promise<{
@@ -102,32 +111,26 @@ type RequestDetail = {
       }
     | null;
 
-    services:
+  services:
     | {
-        name:
-          string;
+        name: string;
 
-        short_name:
-          string;
+        short_name: string;
+
+        slug: string;
 
         service_scope:
-          "general"
+          | "general"
           | "academic";
 
         service_categories:
           | {
-              name:
-                string;
-
-              slug:
-                string;
+              name: string;
+              slug: string;
             }
           | {
-              name:
-                string;
-
-              slug:
-                string;
+              name: string;
+              slug: string;
             }[]
           | null;
       }
@@ -161,14 +164,20 @@ type RequestHistoryItem = {
 };
 
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default async function RequestDetailPage({
   params,
 }: PageProps) {
   await requireAdmin();
 
+
   const {
     id,
   } = await params;
+
 
   const supabase =
     createAdminClient();
@@ -214,9 +223,10 @@ export default async function RequestDetailPage({
           name
         ),
 
-               services (
+        services (
           name,
           short_name,
+          slug,
           service_scope,
 
           service_categories (
@@ -233,7 +243,7 @@ export default async function RequestDetailPage({
 
 
     // -----------------------------------------------------
-    // Dynamic academic form responses
+    // Dynamic form responses
     // -----------------------------------------------------
 
     supabase
@@ -294,7 +304,7 @@ export default async function RequestDetailPage({
 
 
     // -----------------------------------------------------
-    // Complete operational/status history
+    // Operational/status history
     // -----------------------------------------------------
 
     supabase
@@ -337,7 +347,9 @@ export default async function RequestDetailPage({
   }
 
 
-  if (responsesResult.error) {
+  if (
+    responsesResult.error
+  ) {
     console.error(
       "Could not load request responses:",
       responsesResult.error,
@@ -345,7 +357,9 @@ export default async function RequestDetailPage({
   }
 
 
-  if (deliveryResult.error) {
+  if (
+    deliveryResult.error
+  ) {
     console.error(
       "Could not load delivery:",
       deliveryResult.error,
@@ -353,7 +367,9 @@ export default async function RequestDetailPage({
   }
 
 
-  if (paymentResult.error) {
+  if (
+    paymentResult.error
+  ) {
     console.error(
       "Could not load payment:",
       paymentResult.error,
@@ -361,7 +377,9 @@ export default async function RequestDetailPage({
   }
 
 
-  if (historyResult.error) {
+  if (
+    historyResult.error
+  ) {
     console.error(
       "Could not load request history:",
       historyResult.error,
@@ -379,10 +397,11 @@ export default async function RequestDetailPage({
 
 
   const responses =
-    responsesResult.data ?? [];
+    responsesResult.data ??
+    [];
 
 
-    const delivery =
+  const delivery =
     deliveryResult.data;
 
 
@@ -405,6 +424,13 @@ export default async function RequestDetailPage({
   const isGeneralService =
     serviceScope ===
     "general";
+
+
+  const isGovernmentWorkerLoan =
+    request
+      .services
+      ?.slug ===
+    "government-worker-loans";
 
 
   const serviceCategoryRelation =
@@ -437,8 +463,10 @@ export default async function RequestDetailPage({
 
 
   const history =
-    (historyResult.data ??
-      []) as unknown as
+    (
+      historyResult.data ??
+      []
+    ) as unknown as
       RequestHistoryItem[];
 
 
@@ -448,7 +476,8 @@ export default async function RequestDetailPage({
 
   let paymentProofUrl:
     | string
-    | null = null;
+    | null =
+    null;
 
 
   if (
@@ -458,15 +487,20 @@ export default async function RequestDetailPage({
     const {
       data,
       error,
-    } = await supabase.storage
-      .from("payment-proofs")
-      .createSignedUrl(
-        payment.proof_storage_path,
-        60 * 10,
-      );
+    } =
+      await supabase.storage
+        .from(
+          "payment-proofs",
+        )
+        .createSignedUrl(
+          payment.proof_storage_path,
+          60 * 10,
+        );
 
 
-    if (error) {
+    if (
+      error
+    ) {
       console.error(
         "Payment proof signed URL failed:",
         error,
@@ -485,9 +519,17 @@ export default async function RequestDetailPage({
     request.other_names,
     request.surname,
   ]
-    .filter(Boolean)
-    .join(" ");
+    .filter(
+      Boolean,
+    )
+    .join(
+      " ",
+    );
 
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <>
@@ -513,26 +555,37 @@ export default async function RequestDetailPage({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-              {request.request_number}
+              {
+                request.request_number
+              }
             </h1>
 
+
             <span
-  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${getStatusClasses(
-    request.status,
-  )}`}
->
-  {readableStatus(
-    request.status,
-  )}
-</span>
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${getStatusClasses(
+                request.status,
+              )}`}
+            >
+              {readableStatus(
+                request.status,
+              )}
+            </span>
 
 
-{isGeneralService && (
-  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-    General Service
-  </span>
-)}
+            {isGeneralService && (
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                General Service
+              </span>
+            )}
+
+
+            {isGovernmentWorkerLoan && (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                Loan Application
+              </span>
+            )}
           </div>
+
 
           <p className="mt-2 text-sm text-slate-500">
             Submitted{" "}
@@ -541,9 +594,11 @@ export default async function RequestDetailPage({
             )}
           </p>
 
+
           {request.tracking_number && (
             <p className="mt-1 text-xs text-slate-400">
               Tracking:{" "}
+
               <span className="font-mono font-medium text-slate-600">
                 {
                   request.tracking_number
@@ -553,6 +608,40 @@ export default async function RequestDetailPage({
           )}
         </div>
       </div>
+
+
+      {/* =================================================
+          LOAN SECURITY WARNING
+      ================================================= */}
+
+      {isGovernmentWorkerLoan && (
+        <div className="mt-6 rounded-[22px] border border-amber-200 bg-amber-50 p-5">
+          <div className="flex gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+
+
+            <div>
+              <p className="font-semibold text-amber-950">
+                Sensitive Loan Application
+              </p>
+
+
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                This request may contain Ghana Card information,
+                salary information, bank account details and other
+                private customer documents. Only access information
+                required to process the application.
+              </p>
+
+
+              <p className="mt-2 text-xs font-medium leading-5 text-amber-900">
+                Never request or record an OTP, bank PIN, mandate PIN,
+                password or any other authentication secret.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* =================================================
@@ -569,313 +658,336 @@ export default async function RequestDetailPage({
               REQUEST OVERVIEW
           ============================================= */}
 
-<SectionCard
-  icon={FileText}
-  title="Request Overview"
->
-    <InfoGrid
-    rows={[
-      [
-        isGeneralService
-          ? "Service Category"
-          : "University",
+          <SectionCard
+            icon={
+              FileText
+            }
+            title="Request Overview"
+          >
+            <InfoGrid
+              rows={[
+                [
+                  isGeneralService
+                    ? "Service Category"
+                    : "University",
 
-        isGeneralService
-          ? serviceCategoryName
-          : request
-              .universities
-              ?.name ??
-            "—",
-      ],
+                  isGeneralService
+                    ? serviceCategoryName
+                    : request
+                        .universities
+                        ?.name ??
+                      "—",
+                ],
 
-      [
-        isGeneralService
-          ? "Service Scope"
-          : "University Code",
+                [
+                  isGeneralService
+                    ? "Service Scope"
+                    : "University Code",
 
-        isGeneralService
-          ? "General Service"
-          : request
-              .universities
-              ?.code ??
-            "—",
-      ],
+                  isGeneralService
+                    ? "General Service"
+                    : request
+                        .universities
+                        ?.code ??
+                      "—",
+                ],
 
-      [
-        "Service",
+                [
+                  "Service",
 
-        request
-          .services
-          ?.name ??
-          "—",
-      ],
+                  request
+                    .services
+                    ?.name ??
+                    "—",
+                ],
 
-      [
-        "Status",
+                [
+                  "Status",
 
-        readableStatus(
-          request.status,
-        ),
-      ],
+                  readableStatus(
+                    request.status,
+                  ),
+                ],
 
-      [
-        "Request Number",
+                [
+                  "Request Number",
 
-        request.request_number,
-      ],
+                  request.request_number,
+                ],
 
-      [
-        "Tracking Number",
+                [
+                  "Tracking Number",
 
-        request.tracking_number ??
-          "Not issued",
-      ],
-    ]}
-  />
-</SectionCard>
-
-
-{/* =============================================
-    CUSTOMER / APPLICANT
-============================================= */}
-
-<SectionCard
-  icon={UserRound}
-  title={
-    isGeneralService
-      ? "Customer"
-      : "Applicant"
-  }
->
-  <InfoGrid
-    rows={[
-      [
-        "Full Name",
-        customerName,
-      ],
-
-      [
-        "Gender",
-
-        request.gender ??
-          "—",
-      ],
-
-      [
-        "Mobile",
-
-        request.phone,
-      ],
-
-      [
-        "Email",
-
-        request.email,
-      ],
-    ]}
-  />
+                  request.tracking_number ??
+                    "Not issued",
+                ],
+              ]}
+            />
+          </SectionCard>
 
 
-  {request.notes && (
-    <div className="mt-5 border-t border-slate-100 pt-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-        Customer Notes
-      </p>
+          {/* =============================================
+              CUSTOMER / APPLICANT
+          ============================================= */}
+
+          <SectionCard
+            icon={
+              UserRound
+            }
+            title={
+              isGovernmentWorkerLoan
+                ? "Loan Applicant"
+                : isGeneralService
+                  ? "Customer"
+                  : "Applicant"
+            }
+          >
+            <InfoGrid
+              rows={[
+                [
+                  "Full Name",
+                  customerName,
+                ],
+
+                [
+                  "Gender",
+
+                  request.gender ??
+                    "—",
+                ],
+
+                [
+                  "Mobile",
+
+                  request.phone,
+                ],
+
+                [
+                  "Email",
+
+                  request.email,
+                ],
+              ]}
+            />
 
 
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-        {
-          request.notes
-        }
-      </p>
-    </div>
-  )}
-</SectionCard>
+            {request.notes && (
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  Customer Notes
+                </p>
 
 
-{/* =============================================
-    SERVICE / ACADEMIC INFORMATION
-============================================= */}
-
-<SectionCard
-  icon={
-    isGeneralService
-      ? Package
-      : Building2
-  }
-  title={
-    isGeneralService
-      ? "Service Details"
-      : "Academic Information"
-  }
->
-  {responses.length ===
-  0 ? (
-    <p className="text-sm text-slate-400">
-      {isGeneralService
-        ? "No additional service details were recorded."
-        : "No additional academic responses were recorded."}
-    </p>
-  ) : (
-    <InfoGrid
-      rows={responses.map(
-        (
-          item,
-        ) => [
-          item.field_label,
-
-          item.value ||
-            "—",
-        ],
-      )}
-    />
-  )}
-</SectionCard>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                  {
+                    request.notes
+                  }
+                </p>
+              </div>
+            )}
+          </SectionCard>
 
 
-{/* =============================================
-    DELIVERY
-============================================= */}
+          {/* =============================================
+              SERVICE / ACADEMIC INFORMATION
+          ============================================= */}
 
-<SectionCard
-  icon={Package}
-  title={
-    isGeneralService
-      ? "Physical Delivery"
-      : "Delivery"
-  }
->
-  {!delivery ? (
-    <p className="text-sm text-slate-400">
-      No delivery record is available.
-    </p>
-  ) : delivery
-      .physical_delivery_required ? (
-    <InfoGrid
-      rows={[
-        [
-          "Delivery Method",
+          <SectionCard
+            icon={
+              isGeneralService
+                ? Package
+                : Building2
+            }
+            title={
+              isGovernmentWorkerLoan
+                ? "Loan Application Details"
+                : isGeneralService
+                  ? "Service Details"
+                  : "Academic Information"
+            }
+          >
+            {responses.length ===
+            0 ? (
+              <p className="text-sm text-slate-400">
+                {isGovernmentWorkerLoan
+                  ? "No loan application details were recorded."
+                  : isGeneralService
+                    ? "No additional service details were recorded."
+                    : "No additional academic responses were recorded."}
+              </p>
+            ) : (
+              <InfoGrid
+                rows={responses.map(
+                  (
+                    item,
+                  ) => [
+                    item.field_label,
 
-          isGeneralService
-            ? "Physical Delivery"
-            : "EMS Delivery",
-        ],
-
-        [
-          "Recipient",
-
-          delivery.full_name ??
-            "—",
-        ],
-
-        [
-          "House Number",
-
-          delivery.house_number ??
-            "—",
-        ],
-
-        [
-          "Area / Town",
-
-          delivery.area_town ??
-            "—",
-        ],
-
-        [
-          "City / District",
-
-          delivery.city_district ??
-            "—",
-        ],
-
-        [
-          "Region",
-
-          delivery.region ??
-            "—",
-        ],
-
-        [
-          "Digital Address",
-
-          delivery.digital_address ??
-            "—",
-        ],
-
-        [
-          "Phone",
-
-          delivery.phone ??
-            "—",
-        ],
-
-        [
-          "Email",
-
-          delivery.email ??
-            "—",
-        ],
-
-        [
-          "Item Type",
-
-          delivery.item_type ??
-            "—",
-        ],
-
-        [
-          "Emergency Contact",
-
-          delivery.emergency_contact ??
-            "—",
-        ],
-
-        [
-          isGeneralService
-            ? "Delivery Reference"
-            : "EMS Tracking",
-
-          delivery.ems_tracking_number ??
-            "Not assigned",
-        ],
-
-        [
-          "Dispatch Date",
-
-          delivery.dispatch_date
-            ? formatDateTime(
-                delivery.dispatch_date,
-              )
-            : "Not dispatched",
-        ],
-
-        [
-          "Delivered Date",
-
-          delivery.delivered_date
-            ? formatDateTime(
-                delivery.delivered_date,
-              )
-            : "Not delivered",
-        ],
-      ]}
-    />
-  ) : (
-    <div>
-      <p className="text-sm font-medium text-slate-700">
-        No Physical Delivery
-      </p>
+                    item.value ||
+                      "—",
+                  ],
+                )}
+              />
+            )}
+          </SectionCard>
 
 
-      <p className="mt-1 text-sm leading-6 text-slate-500">
-        {isGeneralService
-          ? "No additional physical delivery was requested for this service."
-          : "Physical EMS delivery was not requested for this application."}
-      </p>
-    </div>
-  )}
-</SectionCard>
+          {/* =============================================
+              PRIVATE REQUEST UPLOADS
+          ============================================= */}
+
+          <RequestUploadReview
+            requestId={
+              request.id
+            }
+          />
+
+
+          {/* =============================================
+              DELIVERY
+          ============================================= */}
+
+          <SectionCard
+            icon={
+              Package
+            }
+            title={
+              isGeneralService
+                ? "Physical Delivery"
+                : "Delivery"
+            }
+          >
+            {!delivery ? (
+              <p className="text-sm text-slate-400">
+                No delivery record is available.
+              </p>
+            ) : delivery
+                .physical_delivery_required ? (
+              <InfoGrid
+                rows={[
+                  [
+                    "Delivery Method",
+
+                    isGeneralService
+                      ? "Physical Delivery"
+                      : "EMS Delivery",
+                  ],
+
+                  [
+                    "Recipient",
+
+                    delivery.full_name ??
+                      "—",
+                  ],
+
+                  [
+                    "House Number",
+
+                    delivery.house_number ??
+                      "—",
+                  ],
+
+                  [
+                    "Area / Town",
+
+                    delivery.area_town ??
+                      "—",
+                  ],
+
+                  [
+                    "City / District",
+
+                    delivery.city_district ??
+                      "—",
+                  ],
+
+                  [
+                    "Region",
+
+                    delivery.region ??
+                      "—",
+                  ],
+
+                  [
+                    "Digital Address",
+
+                    delivery.digital_address ??
+                      "—",
+                  ],
+
+                  [
+                    "Phone",
+
+                    delivery.phone ??
+                      "—",
+                  ],
+
+                  [
+                    "Email",
+
+                    delivery.email ??
+                      "—",
+                  ],
+
+                  [
+                    "Item Type",
+
+                    delivery.item_type ??
+                      "—",
+                  ],
+
+                  [
+                    "Emergency Contact",
+
+                    delivery.emergency_contact ??
+                      "—",
+                  ],
+
+                  [
+                    isGeneralService
+                      ? "Delivery Reference"
+                      : "EMS Tracking",
+
+                    delivery.ems_tracking_number ??
+                      "Not assigned",
+                  ],
+
+                  [
+                    "Dispatch Date",
+
+                    delivery.dispatch_date
+                      ? formatDateTime(
+                          delivery.dispatch_date,
+                        )
+                      : "Not dispatched",
+                  ],
+
+                  [
+                    "Delivered Date",
+
+                    delivery.delivered_date
+                      ? formatDateTime(
+                          delivery.delivered_date,
+                        )
+                      : "Not delivered",
+                  ],
+                ]}
+              />
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  No Physical Delivery
+                </p>
+
+
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {isGeneralService
+                    ? "No additional physical delivery was requested for this service."
+                    : "Physical EMS delivery was not requested for this application."}
+                </p>
+              </div>
+            )}
+          </SectionCard>
 
 
           {/* =============================================
@@ -883,14 +995,46 @@ export default async function RequestDetailPage({
           ============================================= */}
 
           <SectionCard
-            icon={CreditCard}
+            icon={
+              CreditCard
+            }
             title="Payment"
           >
             {!payment ? (
-              <p className="text-sm text-red-600">
-                No payment record was
-                found.
-              </p>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-950">
+                  {request.status ===
+                  "AWAITING_QUOTE"
+                    ? "Awaiting Quote"
+                    : request.status ===
+                        "QUOTE_READY"
+                      ? "Quote Ready"
+                      : request.status ===
+                          "AWAITING_PAYMENT"
+                        ? "Awaiting Customer Payment"
+                        : request.status ===
+                            "SUBMITTED"
+                          ? "Free Service"
+                          : "No Payment Submitted"}
+                </p>
+
+
+                <p className="mt-1 text-sm leading-6 text-blue-800">
+                  {request.status ===
+                  "AWAITING_QUOTE"
+                    ? "No payment is expected yet. Review the application and supporting documents before confirming the amount."
+                    : request.status ===
+                        "QUOTE_READY"
+                      ? "The request has been priced. Payment should only proceed using the approved quote."
+                      : request.status ===
+                          "AWAITING_PAYMENT"
+                        ? "The final price has been confirmed. The customer has not yet submitted payment proof."
+                        : request.status ===
+                            "SUBMITTED"
+                          ? "No service payment is required for this request."
+                          : "No payment record is currently attached to this request."}
+                </p>
+              </div>
             ) : (
               <>
                 <InfoGrid
@@ -901,16 +1045,26 @@ export default async function RequestDetailPage({
                       payment.payment_method ===
                       "momo"
                         ? "Mobile Money"
-                        : "Bank Transfer",
+                        : payment.payment_method ===
+                            "bank"
+                          ? "Bank Transfer"
+                          : readableStatus(
+                              payment.payment_method ??
+                                "unknown",
+                            ),
                     ],
 
                     [
                       "Status",
-                      payment.status,
+
+                      readableStatus(
+                        payment.status,
+                      ),
                     ],
 
                     [
                       "Submitted",
+
                       formatDateTime(
                         payment.created_at,
                       ),
@@ -918,6 +1072,7 @@ export default async function RequestDetailPage({
 
                     [
                       "Verified",
+
                       payment.verified_at
                         ? formatDateTime(
                             payment.verified_at,
@@ -927,7 +1082,11 @@ export default async function RequestDetailPage({
 
                     [
                       "Amount",
-                      payment.amount
+
+                      payment.amount !==
+                        null &&
+                      payment.amount !==
+                        undefined
                         ? `${payment.currency ?? "GHS"} ${Number(
                             payment.amount,
                           ).toFixed(
@@ -940,6 +1099,7 @@ export default async function RequestDetailPage({
                       ? [
                           [
                             "Rejection Reason",
+
                             payment.rejection_reason,
                           ] as [
                             string,
@@ -956,17 +1116,15 @@ export default async function RequestDetailPage({
                     Payment Proof
                   </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
-                    Private payment
-                    evidence submitted by
-                    the customer.
+
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    Private payment evidence submitted by the customer.
                   </p>
 
 
                   {!paymentProofUrl ? (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                      Payment proof could
-                      not be loaded.
+                      Payment proof could not be loaded.
                     </div>
                   ) : payment
                       .proof_storage_path
@@ -984,9 +1142,9 @@ export default async function RequestDetailPage({
                   ) : (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                       {/*
-                        Signed Supabase URL.
-                        We intentionally use
-                        a normal img element.
+                        The signed Supabase URL expires.
+                        A normal img element is intentionally
+                        used for the private proof preview.
                       */}
 
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1010,14 +1168,15 @@ export default async function RequestDetailPage({
           ============================================= */}
 
           <SectionCard
-            icon={Clock3}
+            icon={
+              Clock3
+            }
             title="Operations History"
           >
             {history.length ===
             0 ? (
               <p className="text-sm text-slate-400">
-                No workflow history is
-                available.
+                No workflow history is available.
               </p>
             ) : (
               <div className="space-y-0">
@@ -1030,6 +1189,7 @@ export default async function RequestDetailPage({
                       getHistoryAdminName(
                         item.admin_profiles,
                       );
+
 
                     return (
                       <div
@@ -1058,6 +1218,7 @@ export default async function RequestDetailPage({
                               )}
                             </p>
 
+
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
                               {
                                 formatDateTime(
@@ -1082,6 +1243,7 @@ export default async function RequestDetailPage({
                               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
                                 Internal Note
                               </p>
+
 
                               <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-amber-900">
                                 {
@@ -1113,137 +1275,158 @@ export default async function RequestDetailPage({
         =============================================== */}
 
         <aside className="space-y-5">
+          {/* =============================================
+              PRICING / QUOTE MANAGEMENT
+          ============================================= */}
+
           <RequestPricingPanel
-  requestId={
-    request.id
-  }
-/>
+            requestId={
+              request.id
+            }
+          />
+
+
           {/* =============================================
               PAYMENT REVIEW
           ============================================= */}
 
-         {!payment ? (
-  <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-    <p className="text-sm font-semibold text-slate-900">
-      Payment
-    </p>
+          {!payment ? (
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">
+                Payment
+              </p>
 
 
-    {request.status ===
-    "SUBMITTED" ? (
-      <>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          No payment is required for this request.
-        </p>
+              {request.status ===
+              "SUBMITTED" ? (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    No payment is required for this request.
+                  </p>
 
 
-        <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-700">
-          Free Service
-        </div>
-      </>
-    ) : request.status ===
-      "AWAITING_QUOTE" ? (
-      <>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          Payment is not required yet. The final price must first be
-          confirmed by an administrator.
-        </p>
+                  <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-700">
+                    Free Service
+                  </div>
+                </>
+              ) : request.status ===
+                "AWAITING_QUOTE" ? (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Payment is not required yet. The final price
+                    must first be confirmed by an administrator.
+                  </p>
 
 
-        <div className="mt-4 rounded-xl bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">
-          Awaiting Price Confirmation
-        </div>
-      </>
-    ) : request.status ===
-      "AWAITING_PAYMENT" ? (
-      <>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          The final price has been confirmed. The customer has not yet
-          submitted payment proof.
-        </p>
+                  <div className="mt-4 rounded-xl bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">
+                    Awaiting Price Confirmation
+                  </div>
+                </>
+              ) : request.status ===
+                "QUOTE_READY" ? (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    The quote has been prepared for this request.
+                  </p>
 
 
-        <div className="mt-4 rounded-xl bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
-          Awaiting Customer Payment
-        </div>
-      </>
-    ) : (
-      <>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          No payment record exists for this request.
-        </p>
+                  <div className="mt-4 rounded-xl bg-indigo-50 px-3 py-3 text-sm font-medium text-indigo-700">
+                    Quote Ready
+                  </div>
+                </>
+              ) : request.status ===
+                "AWAITING_PAYMENT" ? (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    The final price has been confirmed. The customer
+                    has not yet submitted payment proof.
+                  </p>
 
 
-        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-600">
-          No Payment Record
-        </div>
-      </>
-    )}
-  </div>
-) : payment.status ===
-  "PENDING" ? (
-  <PaymentReviewActions
-    requestId={
-      request.id
-    }
-  />
-) : (
-  <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-    <p className="text-sm font-semibold text-slate-900">
-      Payment Review
-    </p>
+                  <div className="mt-4 rounded-xl bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
+                    Awaiting Customer Payment
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    No payment record exists for this request.
+                  </p>
 
 
-    <p className="mt-2 text-sm leading-6 text-slate-500">
-      This payment has already been reviewed.
-    </p>
+                  <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-600">
+                    No Payment Record
+                  </div>
+                </>
+              )}
+            </div>
+          ) : payment.status ===
+            "PENDING" ? (
+            <PaymentReviewActions
+              requestId={
+                request.id
+              }
+            />
+          ) : (
+            <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">
+                Payment Review
+              </p>
 
 
-    <div
-      className={`mt-4 rounded-xl px-3 py-3 text-sm font-medium ${
-        payment.status ===
-        "CONFIRMED"
-          ? "bg-emerald-50 text-emerald-700"
-          : payment.status ===
-              "REJECTED"
-            ? "bg-red-50 text-red-700"
-            : "bg-slate-50 text-slate-700"
-      }`}
-    >
-      {
-        payment.status
-      }
-    </div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                This payment has already been reviewed.
+              </p>
 
 
-    {payment.verified_at && (
-      <p className="mt-3 text-xs leading-5 text-slate-400">
-        Reviewed{" "}
-        {
-          formatDateTime(
-            payment.verified_at,
-          )
-        }
-      </p>
-    )}
+              <div
+                className={`mt-4 rounded-xl px-3 py-3 text-sm font-medium ${
+                  payment.status ===
+                  "CONFIRMED"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : payment.status ===
+                        "REJECTED"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-slate-50 text-slate-700"
+                }`}
+              >
+                {
+                  readableStatus(
+                    payment.status,
+                  )
+                }
+              </div>
 
 
-    {payment.rejection_reason && (
-      <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-red-600">
-          Rejection Reason
-        </p>
+              {payment.verified_at && (
+                <p className="mt-3 text-xs leading-5 text-slate-400">
+                  Reviewed{" "}
+
+                  {
+                    formatDateTime(
+                      payment.verified_at,
+                    )
+                  }
+                </p>
+              )}
 
 
-        <p className="mt-1 text-xs leading-5 text-red-800">
-          {
-            payment.rejection_reason
-          }
-        </p>
-      </div>
-    )}
-  </div>
-)}
+              {payment.rejection_reason && (
+                <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-red-600">
+                    Rejection Reason
+                  </p>
+
+
+                  <p className="mt-1 text-xs leading-5 text-red-800">
+                    {
+                      payment.rejection_reason
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
 
           {/* =============================================
@@ -1251,48 +1434,53 @@ export default async function RequestDetailPage({
           ============================================= */}
 
           <RequestProcessingActions
-  requestId={
-    request.id
-  }
-  status={
-    request.status as RequestStatus
-  }
-  isGeneralService={
-    isGeneralService
-  }
-  deliveryRequired={
-    deliveryRequired
-  }
-/>
+            requestId={
+              request.id
+            }
+            status={
+              request.status as RequestStatus
+            }
+            isGeneralService={
+              isGeneralService
+            }
+            deliveryRequired={
+              deliveryRequired
+            }
+          />
 
-  {!isGeneralService &&
-  request.status ===
-    "DOCUMENT_READY" && (
-    <RequestDocumentUpload
-      requestId={
-        request.id
-      }
-    />
-  )}
-<RequestDeliveryActions
-  requestId={
-    request.id
-  }
-  status={
-    request.status as RequestStatus
-  }
-  deliveryRequired={
-    deliveryRequired
-  }
-  existingEmsTrackingNumber={
-    delivery
-      ?.ems_tracking_number ??
-    null
-  }
-  isGeneralService={
-    isGeneralService
-  }
-/>
+
+          {!isGeneralService &&
+            request.status ===
+              "DOCUMENT_READY" && (
+              <RequestDocumentUpload
+                requestId={
+                  request.id
+                }
+              />
+            )}
+
+
+          <RequestDeliveryActions
+            requestId={
+              request.id
+            }
+            status={
+              request.status as RequestStatus
+            }
+            deliveryRequired={
+              deliveryRequired
+            }
+            existingEmsTrackingNumber={
+              delivery
+                ?.ems_tracking_number ??
+              null
+            }
+            isGeneralService={
+              isGeneralService
+            }
+          />
+
+
           {/* =============================================
               CURRENT STATUS
           ============================================= */}
@@ -1301,6 +1489,7 @@ export default async function RequestDetailPage({
             <p className="text-sm font-semibold text-slate-900">
               Current Request Status
             </p>
+
 
             <div
               className={`mt-4 rounded-xl px-3 py-3 text-sm font-medium ${getStatusClasses(
@@ -1312,25 +1501,77 @@ export default async function RequestDetailPage({
               )}
             </div>
 
-            {!isGeneralService &&
-  request.status ===
-    "DOCUMENT_READY" && (
-  <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
-                <p className="text-xs font-semibold text-blue-900">
-                  Document upload is next
-                </p>
 
-                <p className="mt-1 text-xs leading-5 text-blue-700">
-                  The next phase will
-                  require the scanned
-                  document to be uploaded
-                  before the request can
-                  move to Document
-                  Scanned.
+            {isGovernmentWorkerLoan &&
+              request.status ===
+                "AWAITING_QUOTE" && (
+                <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-900">
+                    Review application before pricing
+                  </p>
+
+
+                  <p className="mt-1 text-xs leading-5 text-amber-700">
+                    Review the applicant information and supporting
+                    documents before confirming a service amount.
+                  </p>
+                </div>
+              )}
+
+
+            {!isGeneralService &&
+              request.status ===
+                "DOCUMENT_READY" && (
+                <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <p className="text-xs font-semibold text-blue-900">
+                    Document upload is next
+                  </p>
+
+
+                  <p className="mt-1 text-xs leading-5 text-blue-700">
+                    Upload the scanned document before moving the
+                    request to Document Scanned.
+                  </p>
+                </div>
+              )}
+          </div>
+
+
+          {/* =============================================
+              LOAN SECURITY
+          ============================================= */}
+
+          {isGovernmentWorkerLoan && (
+            <div className="rounded-[22px] border border-amber-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-amber-700" />
+
+                <p className="font-semibold text-slate-900">
+                  Loan Data Security
                 </p>
               </div>
-            )}
-          </div>
+
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Loan applications may contain identity, employment,
+                salary and banking information. Use the information
+                only for processing the customer&apos;s application.
+              </p>
+
+
+              <div className="mt-4 rounded-xl bg-red-50 p-3">
+                <p className="text-xs font-semibold text-red-700">
+                  Never request:
+                </p>
+
+
+                <p className="mt-1 text-xs leading-5 text-red-700">
+                  OTPs, bank PINs, mandate PINs, passwords or
+                  authentication credentials.
+                </p>
+              </div>
+            </div>
+          )}
 
 
           {/* =============================================
@@ -1342,6 +1583,7 @@ export default async function RequestDetailPage({
               Customer Contact
             </p>
 
+
             <div className="mt-4 space-y-3 text-sm">
               <a
                 href={`tel:${request.phone}`}
@@ -1350,7 +1592,9 @@ export default async function RequestDetailPage({
                 <Phone className="h-4 w-4 shrink-0 text-blue-600" />
 
                 <span>
-                  {request.phone}
+                  {
+                    request.phone
+                  }
                 </span>
               </a>
 
@@ -1362,7 +1606,9 @@ export default async function RequestDetailPage({
                 <Mail className="h-4 w-4 shrink-0 text-blue-600" />
 
                 <span className="break-all">
-                  {request.email}
+                  {
+                    request.email
+                  }
                 </span>
               </a>
             </div>
@@ -1379,13 +1625,21 @@ export default async function RequestDetailPage({
 // =========================================================
 
 function SectionCard({
-  icon: Icon,
+  icon:
+    Icon,
+
   title,
+
   children,
 }: {
-  icon: ElementType;
-  title: string;
-  children: ReactNode;
+  icon:
+    ElementType;
+
+  title:
+    string;
+
+  children:
+    ReactNode;
 }) {
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -1394,13 +1648,19 @@ function SectionCard({
           <Icon className="h-4 w-4" />
         </div>
 
+
         <h2 className="font-semibold text-slate-950">
-          {title}
+          {
+            title
+          }
         </h2>
       </div>
 
+
       <div className="pt-5">
-        {children}
+        {
+          children
+        }
       </div>
     </section>
   );
@@ -1427,6 +1687,7 @@ function InfoGrid({
             label,
             value,
           ],
+
           index,
         ) => (
           <div
@@ -1434,11 +1695,16 @@ function InfoGrid({
             className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)]"
           >
             <p className="text-sm text-slate-400">
-              {label}
+              {
+                label
+              }
             </p>
 
+
             <div className="break-words text-sm font-medium text-slate-800">
-              {value}
+              {
+                value
+              }
             </div>
           </div>
         ),
@@ -1455,16 +1721,21 @@ function InfoGrid({
 function getHistoryAdminName(
   adminProfiles:
     | {
-        full_name: string;
+        full_name:
+          string;
       }
     | {
-        full_name: string;
+        full_name:
+          string;
       }[]
     | null,
 ) {
-  if (!adminProfiles) {
+  if (
+    !adminProfiles
+  ) {
     return null;
   }
+
 
   if (
     Array.isArray(
@@ -1478,6 +1749,7 @@ function getHistoryAdminName(
     );
   }
 
+
   return (
     adminProfiles.full_name ??
     null
@@ -1490,7 +1762,8 @@ function getHistoryAdminName(
 // =========================================================
 
 function readableStatus(
-  status: string,
+  status:
+    string,
 ) {
   return status
     .replaceAll(
@@ -1500,7 +1773,9 @@ function readableStatus(
     .toLowerCase()
     .replace(
       /\b\w/g,
-      (letter) =>
+      (
+        letter,
+      ) =>
         letter.toUpperCase(),
     );
 }
@@ -1511,50 +1786,82 @@ function readableStatus(
 // =========================================================
 
 function getStatusClasses(
-  status: string,
+  status:
+    string,
 ) {
-  switch (status) {
+  switch (
+    status
+  ) {
+    case "SUBMITTED":
+      return "bg-slate-100 text-slate-700";
+
+
+    case "AWAITING_QUOTE":
+      return "bg-violet-50 text-violet-700";
+
+
+    case "QUOTE_READY":
+      return "bg-indigo-50 text-indigo-700";
+
+
+    case "AWAITING_PAYMENT":
+      return "bg-amber-50 text-amber-700";
+
+
     case "AWAITING_PAYMENT_VERIFICATION":
       return "bg-amber-50 text-amber-700";
+
 
     case "PAYMENT_CONFIRMED":
       return "bg-emerald-50 text-emerald-700";
 
+
     case "PROCESSING_REQUEST":
       return "bg-blue-50 text-blue-700";
+
 
     case "SUBMITTED_TO_UNIVERSITY":
       return "bg-indigo-50 text-indigo-700";
 
+
     case "AWAITING_UNIVERSITY":
       return "bg-violet-50 text-violet-700";
+
 
     case "DOCUMENT_READY":
       return "bg-cyan-50 text-cyan-700";
 
+
     case "DOCUMENT_SCANNED":
       return "bg-sky-50 text-sky-700";
+
 
     case "PREPARING_DELIVERY":
       return "bg-orange-50 text-orange-700";
 
+
     case "HANDED_TO_EMS":
       return "bg-purple-50 text-purple-700";
 
+
     case "IN_TRANSIT":
       return "bg-yellow-50 text-yellow-700";
+
 
     case "DELIVERED":
     case "COMPLETED":
       return "bg-emerald-50 text-emerald-700";
 
+
     case "PAYMENT_REJECTED":
     case "CANCELLED":
       return "bg-red-50 text-red-700";
 
+
     case "MORE_INFORMATION_REQUIRED":
     case "ON_HOLD":
       return "bg-amber-50 text-amber-700";
+
 
     default:
       return "bg-slate-100 text-slate-600";
@@ -1567,7 +1874,8 @@ function getStatusClasses(
 // =========================================================
 
 function formatDateTime(
-  value: string,
+  value:
+    string,
 ) {
   return new Date(
     value,

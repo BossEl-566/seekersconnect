@@ -24,11 +24,13 @@ import {
 type ServiceRelation =
   | {
       service_scope:
-        string | null;
+        "general"
+        | "academic";
     }
   | {
       service_scope:
-        string | null;
+        "general"
+        | "academic";
     }[]
   | null;
 
@@ -57,8 +59,20 @@ export type AdvanceRequestState = {
 };
 
 
+export type DeliveryWorkflowState = {
+  success:
+    boolean;
+
+  error:
+    string;
+
+  newStatus?:
+    string;
+};
+
+
 // =========================================================
-// HELPERS
+// SERVICE SCOPE
 // =========================================================
 
 function getServiceScope(
@@ -93,6 +107,66 @@ function getServiceScope(
 
 
 // =========================================================
+// LOAD REQUEST WORKFLOW CONTEXT
+// =========================================================
+
+async function getRequestWorkflowRow(
+  requestId:
+    string,
+) {
+  const supabase =
+    createAdminClient();
+
+
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "requests",
+      )
+      .select(`
+        id,
+        status,
+
+        services (
+          service_scope
+        )
+      `)
+      .eq(
+        "id",
+        requestId,
+      )
+      .maybeSingle();
+
+
+  if (
+    error ||
+    !data
+  ) {
+    return {
+      request:
+        null,
+
+      error:
+        "The request could not be found.",
+    };
+  }
+
+
+  return {
+    request:
+      data as unknown as
+        RequestWorkflowRow,
+
+    error:
+      "",
+  };
+}
+
+
+// =========================================================
 // ADVANCE PROCESSING WORKFLOW
 // =========================================================
 
@@ -111,53 +185,27 @@ export async function advanceRequest(
     createAdminClient();
 
 
-  // -------------------------------------------------------
-  // Load request + authoritative service scope
-  // -------------------------------------------------------
-
   const {
-    data:
-      requestData,
-
+    request,
     error:
       requestError,
   } =
-    await supabase
-      .from(
-        "requests",
-      )
-      .select(`
-        id,
-        status,
-
-        services (
-          service_scope
-        )
-      `)
-      .eq(
-        "id",
-        requestId,
-      )
-      .single();
+    await getRequestWorkflowRow(
+      requestId,
+    );
 
 
   if (
-    requestError ||
-    !requestData
+    !request
   ) {
     return {
       success:
         false,
 
       error:
-        "The request could not be found.",
+        requestError,
     };
   }
-
-
-  const request =
-    requestData as unknown as
-      RequestWorkflowRow;
 
 
   const serviceScope =
@@ -167,26 +215,14 @@ export async function advanceRequest(
 
 
   if (
-    serviceScope !==
-      "general" &&
-    serviceScope !==
-      "academic"
+    !serviceScope
   ) {
-    console.error(
-      "Request service scope is invalid:",
-      {
-        requestId,
-        serviceScope,
-      },
-    );
-
-
     return {
       success:
         false,
 
       error:
-        "The service workflow is not configured correctly.",
+        "The service type for this request could not be determined.",
     };
   }
 
@@ -212,12 +248,9 @@ export async function advanceRequest(
   }
 
 
-  // -------------------------------------------------------
-  // Use the appropriate workflow
-  // -------------------------------------------------------
-
   let data:
     unknown;
+
 
   let error:
     {
@@ -339,22 +372,6 @@ export async function advanceRequest(
 
 
 // =========================================================
-// DELIVERY TYPES
-// =========================================================
-
-export type DeliveryWorkflowState = {
-  success:
-    boolean;
-
-  error:
-    string;
-
-  newStatus?:
-    string;
-};
-
-
-// =========================================================
 // ADVANCE DELIVERY WORKFLOW
 // =========================================================
 
@@ -376,53 +393,27 @@ export async function advanceDeliveryWorkflow(
     createAdminClient();
 
 
-  // -------------------------------------------------------
-  // Load request + authoritative service scope
-  // -------------------------------------------------------
-
   const {
-    data:
-      requestData,
-
+    request,
     error:
       requestError,
   } =
-    await supabase
-      .from(
-        "requests",
-      )
-      .select(`
-        id,
-        status,
-
-        services (
-          service_scope
-        )
-      `)
-      .eq(
-        "id",
-        requestId,
-      )
-      .single();
+    await getRequestWorkflowRow(
+      requestId,
+    );
 
 
   if (
-    requestError ||
-    !requestData
+    !request
   ) {
     return {
       success:
         false,
 
       error:
-        "The request could not be found.",
+        requestError,
     };
   }
-
-
-  const request =
-    requestData as unknown as
-      RequestWorkflowRow;
 
 
   const serviceScope =
@@ -432,26 +423,14 @@ export async function advanceDeliveryWorkflow(
 
 
   if (
-    serviceScope !==
-      "general" &&
-    serviceScope !==
-      "academic"
+    !serviceScope
   ) {
-    console.error(
-      "Delivery service scope is invalid:",
-      {
-        requestId,
-        serviceScope,
-      },
-    );
-
-
     return {
       success:
         false,
 
       error:
-        "The service delivery workflow is not configured correctly.",
+        "The service type for this request could not be determined.",
     };
   }
 
@@ -460,10 +439,6 @@ export async function advanceDeliveryWorkflow(
     serviceScope ===
     "general";
 
-
-  // -------------------------------------------------------
-  // Validate allowed status
-  // -------------------------------------------------------
 
   const allowedStatuses =
     isGeneralService
@@ -496,12 +471,9 @@ export async function advanceDeliveryWorkflow(
   }
 
 
-  // -------------------------------------------------------
-  // Run correct delivery workflow
-  // -------------------------------------------------------
-
   let data:
     unknown;
+
 
   let error:
     {
