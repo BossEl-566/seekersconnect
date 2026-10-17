@@ -15,6 +15,7 @@ import {
   CircleOff,
   FileText,
   ListChecks,
+  Images,
   Loader2,
   Pencil,
   Plus,
@@ -1947,6 +1948,14 @@ function ServiceCard({
 
               Manage Fields
             </Link>
+            <Link
+  href={`/admin/services/${currentService.id}/media`}
+  className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 hover:text-slate-900"
+>
+  <Images className="mr-2 h-4 w-4" />
+
+  Media
+</Link>
 
             <Link
   href={`/admin/services/${currentService.id}/pricing`}
