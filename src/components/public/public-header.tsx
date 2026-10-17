@@ -38,6 +38,13 @@ const navigation = [
     href:
       "/services",
   },
+  {
+  label:
+    "About",
+
+  href:
+    "/about",
+},
 
   {
     label:

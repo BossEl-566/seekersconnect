@@ -3,6 +3,7 @@
 import {
   type Dispatch,
   type SetStateAction,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -92,6 +93,10 @@ import {
 import {
   ServicePublicMedia,
 } from "@/components/forms/service-public-media";
+
+import {
+  TermsAcceptanceCard,
+} from "@/components/forms/terms-acceptance-card";
 
 
 // =========================================================
@@ -189,6 +194,10 @@ const initialDraft:
   },
 
   paymentMethod: "",
+
+  termsAccepted: false,
+
+  termsVersion: null,
 
   notes: "",
 };
@@ -484,6 +493,16 @@ export function RequestWizard() {
             responses:
               parsed.responses ??
               {},
+
+            // Terms acceptance is intentionally not restored from
+            // localStorage. A customer must confirm the current
+            // published Terms again in the review step for the
+            // active browser session.
+            termsAccepted:
+              false,
+
+            termsVersion:
+              null,
           });
         }
       } catch {
@@ -1511,6 +1530,49 @@ export function RequestWizard() {
 
 
   // =======================================================
+  // TERMS ACCEPTANCE
+  // =======================================================
+
+  const handleTermsChange =
+    useCallback(
+      (
+        accepted:
+          boolean,
+
+        version:
+          number | null,
+      ) => {
+        setDraft(
+          (
+            current,
+          ) => {
+            if (
+              current.termsAccepted ===
+                accepted &&
+              current.termsVersion ===
+                version
+            ) {
+              return current;
+            }
+
+
+            return {
+              ...current,
+
+              termsAccepted:
+                accepted,
+
+              termsVersion:
+                version,
+            };
+          },
+        );
+      },
+      [],
+    );
+
+
+  // =======================================================
   // UPDATE DELIVERY
   // =======================================================
 
@@ -1796,6 +1858,19 @@ export function RequestWizard() {
 
 
   function previousStep() {
+    // Once the customer leaves Review, require a fresh
+    // confirmation after any edits made in earlier steps.
+    if (
+      currentStep ===
+      6
+    ) {
+      handleTermsChange(
+        false,
+        null,
+      );
+    }
+
+
     setCurrentStep(
       (
         step,
@@ -1832,6 +1907,17 @@ export function RequestWizard() {
     if (
       submitting
     ) {
+      return;
+    }
+
+    if (
+      !draft.termsAccepted ||
+      !draft.termsVersion
+    ) {
+      setSubmitError(
+        "Please review and accept the current Terms and Conditions before submitting.",
+      );
+
       return;
     }
 
@@ -2606,6 +2692,9 @@ export function RequestWizard() {
                 requestUploadFallbacks={
                   requestUploadFallbacks
                 }
+                onTermsChange={
+                  handleTermsChange
+                }
               />
             )}
 
@@ -2661,6 +2750,8 @@ export function RequestWizard() {
                   className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 sm:w-auto"
                   disabled={
                     submitting ||
+                    !draft.termsAccepted ||
+                    !draft.termsVersion ||
                     (
                       paymentRequiredNow &&
                       !paymentProof
@@ -5049,6 +5140,7 @@ function ReviewStep({
   dynamicFields,
   requestUploads,
   requestUploadFallbacks,
+  onTermsChange,
 }: {
   draft:
     RequestDraft;
@@ -5073,6 +5165,15 @@ function ReviewStep({
 
   requestUploadFallbacks:
     RequestUploadFallbackMap;
+
+  onTermsChange:
+    (
+      accepted:
+        boolean,
+
+      version:
+        number | null,
+    ) => void;
 }) {
   const isGeneralService =
     selectedService
@@ -5353,24 +5454,54 @@ function ReviewStep({
         )}
 
 
-        <div className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <TermsAcceptanceCard
+          accepted={
+            draft.termsAccepted
+          }
+          acceptedVersion={
+            draft.termsVersion
+          }
+          onChange={
+            onTermsChange
+          }
+        />
 
-          <div>
-            <p className="text-sm font-semibold text-emerald-950">
-              Ready for submission
-            </p>
 
-            <p className="mt-1 text-sm leading-6 text-emerald-800">
-              {paymentRequiredNow
-                ? "Your information and payment proof are ready. Please confirm that all details are correct before submitting."
-                : pricingMode ===
-                    "FREE"
-                  ? "No service payment is required. Please confirm your details before submitting."
-                  : "No payment is required at this stage. Submit your request and our team will confirm the final amount before payment."}
-            </p>
+        {draft.termsAccepted &&
+        draft.termsVersion ? (
+          <div className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+
+            <div>
+              <p className="text-sm font-semibold text-emerald-950">
+                Ready for submission
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-emerald-800">
+                {paymentRequiredNow
+                  ? "Your information, payment proof and Terms acceptance are ready. Submit when you are satisfied that all details are correct."
+                  : pricingMode ===
+                      "FREE"
+                    ? "No service payment is required. Your details and Terms acceptance are ready for submission."
+                    : "No payment is required at this stage. Your details and Terms acceptance are ready; our team will confirm the final amount after submission."}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+            <div>
+              <p className="text-sm font-semibold text-amber-950">
+                One final confirmation required
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                Review and accept the current Terms and Conditions above before submitting this request.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -6529,7 +6660,7 @@ function resolvePricingPreview(
     pricing.amount;
 
 
-  let unitLabel =
+  const unitLabel =
     selectedOption
       ?.unitLabel ||
     pricing.unitLabel ||

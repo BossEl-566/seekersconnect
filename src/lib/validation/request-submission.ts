@@ -296,6 +296,25 @@ export const requestSubmissionSchema =
         z.literal(""),
       ]),
 
+      termsAccepted:
+  z.literal(
+    true,
+    {
+      error:
+        "You must accept the Terms and Conditions before submitting.",
+    },
+  ),
+
+
+termsVersion:
+  z
+    .number()
+    .int()
+    .min(
+      1,
+      "A valid Terms version is required.",
+    ),
+
 
     notes:
       z

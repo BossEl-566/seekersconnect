@@ -136,6 +136,19 @@ export type RequestDraft = {
     | "bank"
     | "";
 
+  /**
+ * Customer Terms acceptance.
+ *
+ * The browser records which published version was displayed.
+ * The server/database independently verifies that this is
+ * still the current published Terms version.
+ */
+termsAccepted:
+  boolean;
+
+termsVersion:
+  number | null;
+
 
   notes:
     string;

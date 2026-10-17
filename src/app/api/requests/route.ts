@@ -497,6 +497,95 @@ export async function POST(
       createAdminClient();
 
 
+    // =========================================================
+// CURRENT TERMS
+//
+// Never trust the browser to decide which Terms version is
+// current.
+// =========================================================
+
+const {
+  data:
+    currentTerms,
+
+  error:
+    termsError,
+} =
+  await supabase
+    .from(
+      "site_pages",
+    )
+    .select(`
+      version,
+      status
+    `)
+    .eq(
+      "slug",
+      "terms",
+    )
+    .eq(
+      "status",
+      "PUBLISHED",
+    )
+    .maybeSingle();
+
+
+if (
+  termsError
+) {
+  console.error(
+    "Current Terms lookup failed:",
+    termsError,
+  );
+
+
+  return NextResponse.json(
+    {
+      message:
+        "We could not verify the current Terms and Conditions.",
+    },
+    {
+      status:
+        500,
+    },
+  );
+}
+
+
+if (
+  !currentTerms
+) {
+  return NextResponse.json(
+    {
+      message:
+        "Terms and Conditions are currently unavailable. Please try again later.",
+    },
+    {
+      status:
+        503,
+    },
+  );
+}
+
+
+if (
+  !draft.termsAccepted ||
+  draft.termsVersion !==
+    currentTerms.version
+) {
+  return NextResponse.json(
+    {
+      message:
+        "The Terms and Conditions have changed. Please return to the review step and accept the latest version.",
+    },
+    {
+      status:
+        409,
+    },
+  );
+}
+
+
     // =====================================================
     // AUTHORITATIVE SERVICE
     // =====================================================

@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Users,
   MessageSquareQuote,
+  BookOpenText,
 Newspaper,
 } from "lucide-react";
 
@@ -123,6 +124,11 @@ const superAdminNavigation = [
   label: "Testimonials",
   href: "/admin/testimonials",
   icon: MessageSquareQuote,
+},
+{
+  label: "Pages",
+  href: "/admin/pages",
+  icon: BookOpenText,
 },
 
   {
