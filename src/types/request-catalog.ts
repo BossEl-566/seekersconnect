@@ -210,7 +210,47 @@ export type RequestCatalogServiceCategorySummary = {
   displayOrder:
     number;
 };
+// =========================================================
+// SERVICE MEDIA
+// =========================================================
 
+export type RequestCatalogServiceMediaKind =
+  | "HERO_IMAGE"
+  | "GALLERY_IMAGE"
+  | "DOWNLOAD";
+
+
+export type RequestCatalogServiceMedia = {
+  id:
+    string;
+
+  kind:
+    RequestCatalogServiceMediaKind;
+
+  title:
+    string;
+
+  description:
+    string | null;
+
+  altText:
+    string | null;
+
+  url:
+    string;
+
+  originalFilename:
+    string;
+
+  mimeType:
+    string;
+
+  sizeBytes:
+    number;
+
+  displayOrder:
+    number;
+};
 
 // =========================================================
 // SERVICE
@@ -265,12 +305,14 @@ export type RequestCatalogService = {
   featured:
     boolean;
 
-  imageUrl:
-    string | null;
+imageUrl:
+  string | null;
 
-  pricing:
-    RequestCatalogPricing | null;
+media:
+  RequestCatalogServiceMedia[];
 
+pricing:
+  RequestCatalogPricing | null;
   fields:
     RequestCatalogField[];
 };

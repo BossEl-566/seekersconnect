@@ -89,6 +89,10 @@ import {
   type RequestUploadFallbackMap,
 } from "@/lib/request/request-upload";
 
+import {
+  ServicePublicMedia,
+} from "@/components/forms/service-public-media";
+
 
 // =========================================================
 // LOCAL STORAGE
@@ -3012,12 +3016,27 @@ function ServiceStep({
                       service,
                     )
                   }
-                  className={`flex min-h-[180px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                  className={`flex min-h-[180px] w-full flex-col overflow-hidden rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
                       : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                   }`}
                 >
+                  {service.imageUrl && (
+  <div className="-mx-5 -mt-5 mb-5 h-36 overflow-hidden border-b border-slate-100 bg-slate-100">
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+
+    <img
+      src={
+        service.imageUrl
+      }
+      alt={
+        service.name
+      }
+      className="h-full w-full object-cover"
+    />
+  </div>
+)}
                   <div className="flex items-start justify-between gap-3">
                     <div
                       className={`flex h-11 w-11 items-center justify-center rounded-xl ${
@@ -3078,6 +3097,19 @@ function ServiceStep({
                 selectedServiceKey ===
                 family.key;
 
+              const familyImageUrl =
+  family.offerings.find(
+    (
+      offering,
+    ) =>
+      Boolean(
+        offering.service
+          .imageUrl,
+      ),
+  )
+    ?.service
+    .imageUrl ??
+  null;
 
               return (
                 <button
@@ -3090,12 +3122,27 @@ function ServiceStep({
                       family,
                     )
                   }
-                  className={`flex min-h-[180px] w-full flex-col rounded-[22px] border p-5 text-left transition ${
+                  className={`flex min-h-[180px] w-full flex-col overflow-hidden rounded-[22px] border p-5 text-left transition ${
                     selected
                       ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
                       : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
                   }`}
                 >
+                  {familyImageUrl && (
+  <div className="-mx-5 -mt-5 mb-5 h-36 overflow-hidden border-b border-slate-100 bg-slate-100">
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+
+    <img
+      src={
+        familyImageUrl
+      }
+      alt={
+        family.name
+      }
+      className="h-full w-full object-cover"
+    />
+  </div>
+)}
                   <div className="flex items-start justify-between gap-3">
                     <div
                       className={`flex h-11 w-11 items-center justify-center rounded-xl ${
@@ -3418,6 +3465,12 @@ function DetailsStep({
               }`
         }
       />
+
+      <ServicePublicMedia
+  service={
+    selectedService
+  }
+/>
 
 
       <PricingOptionSelector

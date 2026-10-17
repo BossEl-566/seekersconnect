@@ -17,6 +17,7 @@ import type {
   RequestCatalogPricingTier,
   RequestCatalogService,
   RequestCatalogServiceCategorySummary,
+  RequestCatalogServiceMedia,
   RequestCatalogUniversity,
 } from "@/types/request-catalog";
 
@@ -87,6 +88,49 @@ type RawService = {
   image_url:
     | string
     | null;
+
+  active:
+    boolean;
+};
+
+type RawServiceMedia = {
+  id:
+    string;
+
+  service_id:
+    string;
+
+  media_kind:
+    "HERO_IMAGE"
+    | "GALLERY_IMAGE"
+    | "DOWNLOAD";
+
+  title:
+    string;
+
+  description:
+    string | null;
+
+  alt_text:
+    string | null;
+
+  storage_bucket:
+    string;
+
+  storage_path:
+    string;
+
+  original_filename:
+    string;
+
+  mime_type:
+    string;
+
+  size_bytes:
+    number;
+
+  display_order:
+    number;
 
   active:
     boolean;
@@ -599,14 +643,15 @@ export async function GET() {
     // =====================================================
 
     const [
-      universitiesResult,
-      categoriesResult,
-      servicesResult,
-      fieldsResult,
-      pricingResult,
-      pricingOptionsResult,
-      pricingTiersResult,
-    ] =
+  universitiesResult,
+  categoriesResult,
+  servicesResult,
+  serviceMediaResult,
+  fieldsResult,
+  pricingResult,
+  pricingOptionsResult,
+  pricingTiersResult,
+] =
       await Promise.all([
         // -------------------------------------------------
         // UNIVERSITIES
@@ -715,7 +760,47 @@ export async function GET() {
                 true,
             },
           ),
+// -------------------------------------------------
+// SERVICE MEDIA
+// -------------------------------------------------
 
+supabase
+  .from(
+    "service_media",
+  )
+  .select(`
+    id,
+    service_id,
+    media_kind,
+    title,
+    description,
+    alt_text,
+    storage_bucket,
+    storage_path,
+    original_filename,
+    mime_type,
+    size_bytes,
+    display_order,
+    active
+  `)
+  .eq(
+    "active",
+    true,
+  )
+  .order(
+    "display_order",
+    {
+      ascending:
+        true,
+    },
+  )
+  .order(
+    "created_at",
+    {
+      ascending:
+        true,
+    },
+  ),
 
         // -------------------------------------------------
         // FORM FIELDS
@@ -908,6 +993,17 @@ export async function GET() {
       return catalogErrorResponse();
     }
 
+    if (
+  serviceMediaResult.error
+) {
+  console.error(
+    "Request catalog service media failed:",
+    serviceMediaResult.error,
+  );
+
+  return catalogErrorResponse();
+}
+
 
     if (
       fieldsResult.error
@@ -981,6 +1077,11 @@ export async function GET() {
         []
       ) as RawService[];
 
+    const serviceMediaRows =
+  (
+    serviceMediaResult.data ??
+    []
+  ) as RawServiceMedia[];
 
     const fields =
       (
@@ -1260,6 +1361,125 @@ export async function GET() {
         ),
       );
 
+      // =====================================================
+// MEDIA BY SERVICE
+// =====================================================
+
+const mediaByServiceId =
+  new Map<
+    string,
+    RequestCatalogServiceMedia[]
+  >();
+
+
+for (
+  const media of
+  serviceMediaRows
+) {
+  if (
+    !activeServiceIds.has(
+      media.service_id,
+    )
+  ) {
+    continue;
+  }
+
+
+  const {
+    data:
+      publicUrlData,
+  } =
+    supabase.storage
+      .from(
+        media.storage_bucket,
+      )
+      .getPublicUrl(
+        media.storage_path,
+      );
+
+
+  const item:
+    RequestCatalogServiceMedia =
+  {
+    id:
+      media.id,
+
+    kind:
+      media.media_kind,
+
+    title:
+      media.title,
+
+    description:
+      media.description,
+
+    altText:
+      media.alt_text,
+
+    url:
+      publicUrlData.publicUrl,
+
+    originalFilename:
+      media.original_filename,
+
+    mimeType:
+      media.mime_type,
+
+    sizeBytes:
+      Number(
+        media.size_bytes,
+      ),
+
+    displayOrder:
+      media.display_order,
+  };
+
+
+  const current =
+    mediaByServiceId.get(
+      media.service_id,
+    ) ??
+    [];
+
+
+  current.push(
+    item,
+  );
+
+
+  mediaByServiceId.set(
+    media.service_id,
+    current,
+  );
+}
+
+
+for (
+  const [
+    serviceId,
+    items,
+  ] of
+  mediaByServiceId
+) {
+  items.sort(
+    (
+      first,
+      second,
+    ) =>
+      first.displayOrder -
+        second.displayOrder ||
+      first.title.localeCompare(
+        second.title,
+      ),
+  );
+
+
+  mediaByServiceId.set(
+    serviceId,
+    items,
+  );
+}
+
 
     // =====================================================
     // FIELDS BY SERVICE
@@ -1390,6 +1610,23 @@ export async function GET() {
             : [],
         );
 
+        const serviceMedia =
+  mediaByServiceId.get(
+    service.id,
+  ) ??
+  [];
+
+
+const heroMedia =
+  serviceMedia.find(
+    (
+      item,
+    ) =>
+      item.kind ===
+      "HERO_IMAGE",
+  ) ??
+  null;
+
 
       return {
         id:
@@ -1430,11 +1667,15 @@ export async function GET() {
         featured:
           service.featured,
 
-        imageUrl:
-          service.image_url,
+imageUrl:
+  heroMedia?.url ??
+  service.image_url,
 
-        pricing:
-          publicPricing,
+media:
+  serviceMedia,
+
+pricing:
+  publicPricing,
 
         fields:
           serviceFields,
