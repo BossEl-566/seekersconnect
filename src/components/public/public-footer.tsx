@@ -157,6 +157,14 @@ export async function PublicFooter() {
                 Services
               </Link>
 
+              <Link href="/blog" className="hover:text-blue-600">
+  Blog
+</Link>
+
+<Link href="/testimonials" className="hover:text-blue-600">
+  Testimonials
+</Link>
+
 
               <Link
                 href="/request"

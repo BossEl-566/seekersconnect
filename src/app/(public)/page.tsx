@@ -47,6 +47,10 @@ import {
   getPublicServiceCatalog,
 } from "@/lib/catalog/public-service-catalog";
 
+import {
+  FeaturedPublicContent,
+} from "@/components/public/featured-public-content";
+
 
 // =========================================================
 // PRIMARY SERVICES
@@ -275,7 +279,10 @@ export default async function HomePage() {
     settings;
 
 
-  // Safety filter:
+  // =======================================================
+  // UNIVERSITY / PROVIDER SPLIT
+  // =======================================================
+
   // SC247 is our internal general-services provider,
   // not a university that should be displayed publicly.
   const universities =
@@ -307,6 +314,10 @@ export default async function HomePage() {
         "SC247",
     );
 
+
+  // =======================================================
+  // WHATSAPP
+  // =======================================================
 
   const whatsappDigits =
     company.whatsapp.replace(
@@ -408,6 +419,7 @@ export default async function HomePage() {
         );
       }
 
+
       continue;
     }
 
@@ -459,7 +471,9 @@ export default async function HomePage() {
 
 
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[0.96fr_1.04fr] lg:px-8 lg:py-28">
-          {/* COPY */}
+          {/* ===============================================
+              COPY
+          =============================================== */}
 
           <div>
             <Badge
@@ -593,9 +607,9 @@ export default async function HomePage() {
           </div>
 
 
-          {/* =================================================
+          {/* ===============================================
               HERO IMAGE
-          ================================================= */}
+          =============================================== */}
 
           <div className="relative mx-auto w-full max-w-2xl">
             <div className="absolute -inset-6 -z-10 rounded-[48px] bg-blue-100/80 blur-3xl" />
@@ -649,7 +663,9 @@ export default async function HomePage() {
             </div>
 
 
-            {/* FLOATING SERVICES */}
+            {/* =============================================
+                FLOATING SERVICES
+            ============================================= */}
 
             <div className="relative -mt-7 mx-4 grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-xl sm:mx-8 sm:grid-cols-4">
               {[
@@ -702,6 +718,7 @@ export default async function HomePage() {
                       <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                         <Icon className="h-4 w-4" />
                       </div>
+
 
                       <p className="mt-2 text-xs font-semibold text-slate-800">
                         {
@@ -841,7 +858,9 @@ export default async function HomePage() {
 
       <section className="overflow-hidden bg-white">
         <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-28">
-          {/* IMAGE */}
+          {/* ===============================================
+              IMAGE
+          =============================================== */}
 
           <div className="relative">
             <div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-blue-100 blur-3xl" />
@@ -873,6 +892,7 @@ export default async function HomePage() {
                         Pickup to destination
                       </p>
 
+
                       <p className="mt-1 text-xs leading-5 text-slate-300">
                         One request. Clear delivery details.
                       </p>
@@ -884,7 +904,9 @@ export default async function HomePage() {
           </div>
 
 
-          {/* COPY */}
+          {/* ===============================================
+              COPY
+          =============================================== */}
 
           <div>
             <Badge
@@ -968,6 +990,7 @@ export default async function HomePage() {
                             item.title
                           }
                         </p>
+
 
                         <p className="mt-1 text-sm leading-6 text-slate-500">
                           {
@@ -1239,7 +1262,9 @@ export default async function HomePage() {
 
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-            {/* INTRO */}
+            {/* =============================================
+                INTRO
+            ============================================= */}
 
             <div className="lg:sticky lg:top-28">
               <Badge
@@ -1298,7 +1323,9 @@ export default async function HomePage() {
             </div>
 
 
-            {/* CARDS */}
+            {/* =============================================
+                CARDS
+            ============================================= */}
 
             {serviceHighlights.length >
             0 ? (
@@ -1532,6 +1559,7 @@ export default async function HomePage() {
                       Request Status
                     </p>
 
+
                     <p className="mt-1 text-sm font-semibold text-white">
                       Processing timeline
                     </p>
@@ -1574,6 +1602,7 @@ export default async function HomePage() {
                           }`}
                         />
 
+
                         <span className="text-sm text-white">
                           {
                             item.label
@@ -1595,6 +1624,13 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+
+      {/* ===================================================
+          LATEST CONTENT & TESTIMONIALS
+      =================================================== */}
+
+      <FeaturedPublicContent />
 
 
       {/* ===================================================
@@ -1642,10 +1678,12 @@ export default async function HomePage() {
                     WhatsApp Support
                   </h3>
 
+
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     Need help before submitting a request? Talk to our
                     support team directly.
                   </p>
+
 
                   <p className="mt-4 text-sm font-semibold text-emerald-700">
                     {
@@ -1678,6 +1716,7 @@ export default async function HomePage() {
                   <h3 className="font-semibold text-slate-950">
                     Customer Support
                   </h3>
+
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     Our team can assist with request information,
