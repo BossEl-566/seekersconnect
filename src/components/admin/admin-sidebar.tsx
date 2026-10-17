@@ -17,6 +17,8 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  MessageSquareQuote,
+Newspaper,
 } from "lucide-react";
 
 import type {
@@ -112,6 +114,16 @@ const superAdminNavigation = [
     icon:
       ShieldCheck,
   },
+  {
+  label: "Blog",
+  href: "/admin/blog",
+  icon: Newspaper,
+},
+{
+  label: "Testimonials",
+  href: "/admin/testimonials",
+  icon: MessageSquareQuote,
+},
 
   {
     label:
@@ -335,7 +347,7 @@ export function AdminSidebar({
           </p>
         </div>
       </div>
-      
+
     </aside>
   );
 }
