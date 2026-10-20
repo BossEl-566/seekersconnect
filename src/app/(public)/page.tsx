@@ -3,24 +3,9 @@ import Link from "next/link";
 
 import {
   ArrowRight,
-  BookOpen,
-  Building2,
-  Check,
   CheckCircle2,
-  Clock3,
   FileCheck2,
-  FileText,
-  Headphones,
-  Languages,
-  MapPin,
   MessageCircle,
-  Package,
-  PackageCheck,
-  Search,
-  ShieldCheck,
-  ShoppingBasket,
-  Sparkles,
-  Upload,
 } from "lucide-react";
 
 import {
@@ -36,6 +21,14 @@ import {
 } from "@/components/public/university-logo";
 
 import {
+  HomeTrackingCard,
+} from "@/components/public/home-tracking-card";
+
+import {
+  FeaturedPublicContent,
+} from "@/components/public/featured-public-content";
+
+import {
   getSystemSettings,
 } from "@/lib/settings/system-settings";
 
@@ -47,216 +40,9 @@ import {
   getPublicServiceCatalog,
 } from "@/lib/catalog/public-service-catalog";
 
-import {
-  FeaturedPublicContent,
-} from "@/components/public/featured-public-content";
-
 
 // =========================================================
-// PRIMARY SERVICES
-// =========================================================
-
-const primaryServices = [
-  {
-    title:
-      "Run an Errand",
-
-    description:
-      "Need something handled on your behalf? Give us the task, location and instructions and our team will take care of it.",
-
-    icon:
-      Package,
-
-    features: [
-      "Pickup & drop-off",
-      "Queue on your behalf",
-      "Submit or collect items",
-    ],
-  },
-
-  {
-    title:
-      "Pickup & Delivery",
-
-    description:
-      "Send documents, books, packages and other permitted items from one location to another.",
-
-    icon:
-      PackageCheck,
-
-    features: [
-      "Document delivery",
-      "Book & parcel delivery",
-      "Recipient delivery",
-    ],
-  },
-
-  {
-    title:
-      "Document Services",
-
-    description:
-      "Let us submit, collect, process or deliver documents from universities, offices and organizations.",
-
-    icon:
-      FileText,
-
-    features: [
-      "Academic documents",
-      "Document collection",
-      "Document submission",
-    ],
-  },
-
-  {
-    title:
-      "Shop For Me",
-
-    description:
-      "Send us your shopping list and let us purchase and deliver the items you need.",
-
-    icon:
-      ShoppingBasket,
-
-    features: [
-      "Groceries",
-      "Books",
-      "Stationery",
-    ],
-  },
-];
-
-
-// =========================================================
-// HOW IT WORKS
-// =========================================================
-
-const steps = [
-  {
-    number:
-      "01",
-
-    title:
-      "Choose what you need",
-
-    description:
-      "Select an errand, delivery, shopping or document service and tell us what you need.",
-
-    icon:
-      Package,
-  },
-
-  {
-    number:
-      "02",
-
-    title:
-      "Provide the details",
-
-    description:
-      "Add locations, contacts, shopping lists, document information and any special instructions.",
-
-    icon:
-      FileText,
-  },
-
-  {
-    number:
-      "03",
-
-    title:
-      "Confirm payment",
-
-    description:
-      "Follow the payment instructions and securely upload your proof of payment.",
-
-    icon:
-      Upload,
-  },
-
-  {
-    number:
-      "04",
-
-    title:
-      "We handle it",
-
-    description:
-      "Our team reviews the request and carries out the errand, shopping, document or delivery workflow.",
-
-    icon:
-      FileCheck2,
-  },
-
-  {
-    number:
-      "05",
-
-    title:
-      "Track & receive",
-
-    description:
-      "Use your secure tracking details to follow progress until your request is completed.",
-
-    icon:
-      PackageCheck,
-  },
-];
-
-
-// =========================================================
-// TRACKING PREVIEW
-// =========================================================
-
-const trackingPreview = [
-  {
-    label:
-      "Payment confirmed",
-
-    status:
-      "Completed",
-
-    state:
-      "complete",
-  },
-
-  {
-    label:
-      "Request processing",
-
-    status:
-      "In progress",
-
-    state:
-      "active",
-  },
-
-  {
-    label:
-      "Pickup / service",
-
-    status:
-      "Pending",
-
-    state:
-      "pending",
-  },
-
-  {
-    label:
-      "Delivery / completion",
-
-    status:
-      "Pending",
-
-    state:
-      "pending",
-  },
-] as const;
-
-
-// =========================================================
-// HOME PAGE
+// HOMEPAGE
 // =========================================================
 
 export default async function HomePage() {
@@ -280,11 +66,9 @@ export default async function HomePage() {
 
 
   // =======================================================
-  // UNIVERSITY / PROVIDER SPLIT
+  // UNIVERSITIES
   // =======================================================
 
-  // SC247 is our internal general-services provider,
-  // not a university that should be displayed publicly.
   const universities =
     loadedUniversities.filter(
       (
@@ -295,28 +79,148 @@ export default async function HomePage() {
     );
 
 
-  const generalProvider =
-    serviceCatalog.find(
-      (
-        provider,
-      ) =>
-        provider.code ===
-        "SC247",
-    );
+  // =======================================================
+  // SERVICES
+  //
+  // We combine all providers/institutions, then remove
+  // duplicate service types so the homepage becomes a
+  // complete discovery surface instead of repeating the
+  // same transcript service five times.
+  // =======================================================
+
+  const serviceMap =
+    new Map<
+      string,
+      {
+        id:
+          string;
+
+        slug:
+          string;
+
+        name:
+          string;
+
+        shortName:
+          string;
+
+        description:
+          string | null;
+
+        category:
+          string;
+
+        providerCodes:
+          string[];
+      }
+    >();
 
 
-  const academicCatalog =
-    serviceCatalog.filter(
+  for (
+    const provider of
+    serviceCatalog
+  ) {
+    for (
+      const service of
+      provider.services
+    ) {
+      const key =
+        (
+          service.slug ||
+          service.name
+        )
+          .trim()
+          .toLowerCase();
+
+
+      const existing =
+        serviceMap.get(
+          key,
+        );
+
+
+      if (
+        existing
+      ) {
+        if (
+          provider.code !==
+            "SC247" &&
+          !existing
+            .providerCodes
+            .includes(
+              provider.code,
+            )
+        ) {
+          existing
+            .providerCodes
+            .push(
+              provider.code,
+            );
+        }
+
+
+        continue;
+      }
+
+
+      serviceMap.set(
+        key,
+        {
+          id:
+            service.id,
+
+          slug:
+            service.slug,
+
+          name:
+            service.name,
+
+          shortName:
+            service.shortName,
+
+          description:
+            service.description,
+
+          category:
+            service.category,
+
+          providerCodes:
+            provider.code ===
+            "SC247"
+              ? []
+              : [
+                  provider.code,
+                ],
+        },
+      );
+    }
+  }
+
+
+  const allServices =
+    Array.from(
+      serviceMap.values(),
+    ).sort(
       (
-        provider,
+        first,
+        second,
       ) =>
-        provider.code !==
-        "SC247",
+        servicePriority(
+          first.slug,
+          first.name,
+        ) -
+          servicePriority(
+            second.slug,
+            second.name,
+          ) ||
+        first.name.localeCompare(
+          second.name,
+        ),
     );
 
 
   // =======================================================
-  // WHATSAPP
+  // CONTACT
   // =======================================================
 
   const whatsappDigits =
@@ -336,122 +240,9 @@ export default async function HomePage() {
       : whatsappDigits;
 
 
-  const universityCodes =
-    universities
-      .map(
-        (
-          university,
-        ) =>
-          university.code,
-      )
-      .join(
-        ", ",
-      );
-
-
-  // =======================================================
-  // DYNAMIC ACADEMIC SERVICE HIGHLIGHTS
-  // =======================================================
-
-  const allAcademicServices =
-    academicCatalog.flatMap(
-      (
-        university,
-      ) =>
-        university.services.map(
-          (
-            service,
-          ) => ({
-            ...service,
-
-            universityCode:
-              university.code,
-          }),
-        ),
-    );
-
-
-  const serviceGroups =
-    new Map<
-      string,
-      {
-        name:
-          string;
-
-        category:
-          string;
-
-        description:
-          string;
-
-        universityCodes:
-          string[];
-      }
-    >();
-
-
-  for (
-    const service of
-      allAcademicServices
-  ) {
-    const key =
-      `${service.category}:${service.name}`
-        .trim()
-        .toLowerCase();
-
-
-    const existing =
-      serviceGroups.get(
-        key,
-      );
-
-
-    if (
-      existing
-    ) {
-      if (
-        !existing.universityCodes.includes(
-          service.universityCode,
-        )
-      ) {
-        existing.universityCodes.push(
-          service.universityCode,
-        );
-      }
-
-
-      continue;
-    }
-
-
-    serviceGroups.set(
-      key,
-      {
-        name:
-          service.name,
-
-        category:
-          service.category,
-
-        description:
-          service.description ||
-          "Academic document service available from supported institutions.",
-
-        universityCodes: [
-          service.universityCode,
-        ],
-      },
-    );
-  }
-
-
-  const serviceHighlights =
-    Array.from(
-      serviceGroups.values(),
-    ).slice(
-      0,
-      4,
-    );
+  const supportPhone =
+    support.phones[0] ||
+    "0550414552";
 
 
   return (
@@ -460,47 +251,44 @@ export default async function HomePage() {
           HERO
       =================================================== */}
 
-      <section className="relative overflow-hidden bg-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-0 h-[560px] w-[960px] -translate-x-1/2 rounded-full bg-blue-100/60 blur-3xl" />
+      <section className="relative overflow-hidden border-b border-slate-200 bg-[#f7faff]">
+        <div className="absolute inset-0">
+          <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-blue-200/35 blur-[90px]" />
 
-          <div className="absolute -left-48 top-72 h-80 w-80 rounded-full bg-indigo-100/60 blur-3xl" />
-
-          <div className="absolute -right-48 top-40 h-96 w-96 rounded-full bg-sky-100/70 blur-3xl" />
+          <div className="absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-sky-200/40 blur-[120px]" />
         </div>
 
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[0.96fr_1.04fr] lg:px-8 lg:py-28">
+        <div className="relative mx-auto grid max-w-[1440px] gap-10 px-4 pb-12 pt-10 sm:px-6 lg:grid-cols-[0.84fr_1.16fr] lg:items-center lg:px-8 lg:pb-16 lg:pt-14">
           {/* ===============================================
-              COPY
+              HERO COPY
           =============================================== */}
 
-          <div>
+          <div className="relative z-10">
             <Badge
               variant="outline"
-              className="rounded-full border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700"
+              className="rounded-full border-blue-200 bg-white/90 px-3 py-1.5 text-blue-700 shadow-sm"
             >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
 
-              Errands, deliveries & document services
+              Services built around your everyday needs
             </Badge>
 
 
-            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.04]">
-              Your errands and deliveries,
+            <h1 className="mt-6 max-w-3xl text-[42px] font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-[64px]">
+              Errands, documents and delivery{" "}
 
               <span className="text-blue-600">
-                {" "}
-                handled for you.
+                made simple.
               </span>
             </h1>
 
 
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              Request errands, pickups, deliveries, document services
-              and shopping assistance from one place. From groceries
-              and books to stationery and academic documents, tell us
-              what you need and we will help you handle it.
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 lg:text-[17px]">
+              Seekers Connect 247 helps you handle academic documents,
+              errands, pickup and delivery, printing, applications,
+              loans, legal documentation, study abroad support and
+              other important services from one place.
             </p>
 
 
@@ -512,7 +300,7 @@ export default async function HomePage() {
                     "lg",
 
                   className:
-                    "h-12 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-700",
+                    "h-12 rounded-xl bg-blue-600 px-6 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700",
                 })}
               >
                 Request a Service
@@ -522,7 +310,7 @@ export default async function HomePage() {
 
 
               <Link
-                href="/track"
+                href="#track-request"
                 className={buttonVariants({
                   variant:
                     "outline",
@@ -531,76 +319,48 @@ export default async function HomePage() {
                     "lg",
 
                   className:
-                    "h-12 rounded-xl bg-white px-6",
+                    "h-12 rounded-xl border-blue-200 bg-white px-6 text-blue-700",
                 })}
               >
-                <Search className="mr-2 h-4 w-4" />
-
-                Track Existing Request
+                Track Request
               </Link>
             </div>
 
 
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-
-                No account required
-              </div>
-
-
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-
-                Secure request tracking
-              </div>
-
-
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-
-                Customer support
-              </div>
-            </div>
-
-
-            <div className="mt-10 flex flex-wrap gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+            <div className="mt-8 grid max-w-xl grid-cols-3 divide-x divide-slate-200 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+              <div className="px-3 first:pl-0">
                 <p className="text-xl font-semibold text-slate-950">
                   {
-                    generalProvider
-                      ?.services
-                      .length ??
-                    4
+                    allServices.length
                   }
                 </p>
 
-                <p className="mt-0.5 text-xs text-slate-500">
-                  General service types
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Available services
                 </p>
               </div>
 
 
-              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+              <div className="px-3">
                 <p className="text-xl font-semibold text-slate-950">
                   {
                     universities.length
                   }
                 </p>
 
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Supported universities
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Supported institutions
                 </p>
               </div>
 
 
-              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
+              <div className="px-3">
                 <p className="text-xl font-semibold text-slate-950">
-                  1
+                  No
                 </p>
 
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Place to manage it all
+                <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                  Account required
                 </p>
               </div>
             </div>
@@ -608,777 +368,212 @@ export default async function HomePage() {
 
 
           {/* ===============================================
-              HERO IMAGE
+              HERO IMAGE COLLAGE
           =============================================== */}
 
-          <div className="relative mx-auto w-full max-w-2xl">
-            <div className="absolute -inset-6 -z-10 rounded-[48px] bg-blue-100/80 blur-3xl" />
+          <div className="relative min-h-[520px] lg:min-h-[560px]">
+            <div className="absolute left-[5%] top-[7%] h-[78%] w-[49%] overflow-hidden rounded-[34px] border-[6px] border-white bg-slate-200 shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+              <Image
+                src="/office-of-seekers.jpg"
+                alt="Seekers Connect office"
+                fill
+                priority
+                sizes="(max-width: 1024px) 50vw, 420px"
+                className="object-cover"
+              />
+
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
 
 
-            <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-slate-950 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
-              <div className="relative aspect-[4/3] sm:aspect-[5/4]">
-                <Image
-                  src="/pick-up.jpg"
-                  alt="Seekers Connect pickup and errand service"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 600px"
-                  className="object-cover"
-                />
+              <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-slate-950/55 p-4 text-white backdrop-blur">
+                <p className="text-xs font-medium text-blue-200">
+                  One place for your requests
+                </p>
 
-
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/10 to-transparent" />
-
-
-                <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
-                  <div className="rounded-full border border-white/20 bg-slate-950/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
-                    Seekers Connect 247
-                  </div>
-
-
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white backdrop-blur">
-                    <Package className="h-4 w-4" />
-                  </div>
-                </div>
-
-
-                <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
-                    On-demand assistance
-                  </p>
-
-
-                  <h2 className="mt-2 max-w-md text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                    Tell us what needs to be done.
-                  </h2>
-
-
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-200">
-                    From a quick pickup to shopping, documents or
-                    delivery, submit the request and let our team
-                    handle the rest.
-                  </p>
-                </div>
+                <p className="mt-1 text-lg font-semibold">
+                  Real support. Clear processes.
+                </p>
               </div>
             </div>
 
 
-            {/* =============================================
-                FLOATING SERVICES
-            ============================================= */}
-
-            <div className="relative -mt-7 mx-4 grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-xl sm:mx-8 sm:grid-cols-4">
-              {[
-                {
-                  label:
-                    "Errands",
-
-                  icon:
-                    Package,
-                },
-
-                {
-                  label:
-                    "Delivery",
-
-                  icon:
-                    PackageCheck,
-                },
-
-                {
-                  label:
-                    "Documents",
-
-                  icon:
-                    FileText,
-                },
-
-                {
-                  label:
-                    "Shopping",
-
-                  icon:
-                    ShoppingBasket,
-                },
-              ].map(
-                (
-                  item,
-                ) => {
-                  const Icon =
-                    item.icon;
-
-
-                  return (
-                    <div
-                      key={
-                        item.label
-                      }
-                      className="rounded-2xl bg-slate-50 px-3 py-4 text-center"
-                    >
-                      <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                        <Icon className="h-4 w-4" />
-                      </div>
-
-
-                      <p className="mt-2 text-xs font-semibold text-slate-800">
-                        {
-                          item.label
-                        }
-                      </p>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* ===================================================
-          PRIMARY SERVICES
-      =================================================== */}
-
-      <section className="border-y border-slate-200 bg-slate-50/70">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <Badge
-                variant="outline"
-                className="rounded-full border-blue-200 bg-white text-blue-700"
-              >
-                What We Do
-              </Badge>
-
-
-              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Everyday tasks should not take over your day.
-              </h2>
-
-
-              <p className="mt-4 leading-7 text-slate-600">
-                Tell us what needs to be handled. Our service flow is
-                designed for errands, pickups, deliveries, shopping
-                and document requests.
-              </p>
+            <div className="absolute right-[2%] top-[2%] h-[31%] w-[43%] rotate-[2deg] overflow-hidden rounded-[24px] border-[6px] border-white bg-slate-100 shadow-xl">
+              <Image
+                src="/ceo-with-transcrip-flier.jpg"
+                alt="Seekers Connect transcript service"
+                fill
+                sizes="360px"
+                className="object-cover"
+              />
             </div>
 
 
-            <Link
-              href="/request"
-              className={buttonVariants({
-                variant:
-                  "outline",
-
-                size:
-                  "lg",
-
-                className:
-                  "rounded-xl bg-white",
-              })}
-            >
-              Start a Request
-
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
-
-
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {primaryServices.map(
-              (
-                service,
-              ) => {
-                const Icon =
-                  service.icon;
-
-
-                return (
-                  <Link
-                    key={
-                      service.title
-                    }
-                    href="/request"
-                    className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/60 sm:p-7"
-                  >
-                    <div className="flex items-start justify-between gap-5">
-                      <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
-                        <Icon className="h-5 w-5" />
-                      </div>
-
-
-                      <ArrowRight className="mt-2 h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600" />
-                    </div>
-
-
-                    <h3 className="mt-6 text-xl font-semibold text-slate-950">
-                      {
-                        service.title
-                      }
-                    </h3>
-
-
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                      {
-                        service.description
-                      }
-                    </p>
-
-
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {service.features.map(
-                        (
-                          feature,
-                        ) => (
-                          <span
-                            key={
-                              feature
-                            }
-                            className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600"
-                          >
-                            {
-                              feature
-                            }
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  </Link>
-                );
-              },
-            )}
-          </div>
-        </div>
-      </section>
-
-
-      {/* ===================================================
-          DELIVERY FEATURE WITH SECOND IMAGE
-      =================================================== */}
-
-      <section className="overflow-hidden bg-white">
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-28">
-          {/* ===============================================
-              IMAGE
-          =============================================== */}
-
-          <div className="relative">
-            <div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-blue-100 blur-3xl" />
-
-
-            <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-slate-50 shadow-xl shadow-slate-200/50">
-              <div className="relative aspect-[5/4]">
-                <Image
-                  src="/delivery.png"
-                  alt="Seekers Connect delivery service"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                />
-
-
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
-
-
-                <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-slate-950/65 p-4 text-white backdrop-blur-md sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                      <PackageCheck className="h-5 w-5" />
-                    </div>
-
-
-                    <div>
-                      <p className="text-sm font-semibold">
-                        Pickup to destination
-                      </p>
-
-
-                      <p className="mt-1 text-xs leading-5 text-slate-300">
-                        One request. Clear delivery details.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-
-          {/* ===============================================
-              COPY
-          =============================================== */}
-
-          <div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
-            >
-              Errands & Delivery
-            </Badge>
-
-
-            <h2 className="mt-5 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              From the pickup point to where it needs to go.
-            </h2>
-
-
-            <p className="mt-5 max-w-xl leading-7 text-slate-600">
-              Whether you need someone to collect a document, purchase
-              a book, deliver a parcel or handle a local errand,
-              Seekers Connect gives you one structured way to submit
-              the details and follow the request.
-            </p>
-
-
-            <div className="mt-8 space-y-4">
-              {[
-                {
-                  title:
-                    "Give us the location",
-
-                  description:
-                    "Provide the pickup point, office, shop, institution or landmark.",
-
-                  icon:
-                    MapPin,
-                },
-
-                {
-                  title:
-                    "Tell us what to collect or do",
-
-                  description:
-                    "Add item information, shopping lists, document details or special instructions.",
-
-                  icon:
-                    FileText,
-                },
-
-                {
-                  title:
-                    "Track what happens next",
-
-                  description:
-                    "After payment verification, use your secure tracking details to follow progress.",
-
-                  icon:
-                    Search,
-                },
-              ].map(
-                (
-                  item,
-                ) => {
-                  const Icon =
-                    item.icon;
-
-
-                  return (
-                    <div
-                      key={
-                        item.title
-                      }
-                      className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                        <Icon className="h-5 w-5" />
-                      </div>
-
-
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {
-                            item.title
-                          }
-                        </p>
-
-
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          {
-                            item.description
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  );
-                },
-              )}
+            <div className="absolute right-[1%] top-[35%] h-[27%] w-[37%] -rotate-[2deg] overflow-hidden rounded-[24px] border-[6px] border-white bg-slate-100 shadow-xl">
+              <Image
+                src="/printing-and-other-services.jpg"
+                alt="Seekers Connect printing services"
+                fill
+                sizes="320px"
+                className="object-cover"
+              />
             </div>
 
 
-            <Link
-              href="/request"
-              className={buttonVariants({
-                size:
-                  "lg",
-
-                className:
-                  "mt-8 rounded-xl bg-blue-600 text-white hover:bg-blue-700",
-              })}
-            >
-              Send Us a Request
-
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+            <div className="absolute bottom-[4%] right-[5%] h-[31%] w-[45%] rotate-[1deg] overflow-hidden rounded-[24px] border-[6px] border-white bg-slate-100 shadow-xl">
+              <Image
+                src="/seekers-delivery-flier.jpg"
+                alt="Seekers Connect delivery service"
+                fill
+                sizes="360px"
+                className="object-cover"
+              />
+            </div>
 
 
-      {/* ===================================================
-          SHOP FOR ME
-      =================================================== */}
-
-      <section className="bg-slate-950 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-            <div>
-              <Badge className="rounded-full bg-blue-500/15 text-blue-300 hover:bg-blue-500/15">
-                Shop For Me
-              </Badge>
-
-
-              <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Groceries, books and stationery — add them to the list.
-              </h2>
-
-
-              <p className="mt-4 max-w-xl leading-7 text-slate-400">
-                You do not need to browse a complicated online store.
-                Tell us what you need, add quantities and preferences,
-                and provide the delivery information.
+            <div className="absolute bottom-[1%] left-[0%] w-[42%] rounded-[22px] border border-slate-200 bg-white p-4 shadow-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-600">
+                Seekers Connect 247
               </p>
 
-
-              <Link
-                href="/request"
-                className={buttonVariants({
-                  size:
-                    "lg",
-
-                  className:
-                    "mt-7 rounded-xl bg-white text-slate-950 hover:bg-slate-100",
-                })}
-              >
-                Create Shopping Request
-
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </div>
-
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                {
-                  title:
-                    "Groceries",
-
-                  description:
-                    "Food, household products and everyday essentials.",
-
-                  icon:
-                    ShoppingBasket,
-                },
-
-                {
-                  title:
-                    "Books",
-
-                  description:
-                    "Textbooks, novels, study materials and requested titles.",
-
-                  icon:
-                    BookOpen,
-                },
-
-                {
-                  title:
-                    "Stationery",
-
-                  description:
-                    "Notebooks, pens, paper and school or office supplies.",
-
-                  icon:
-                    FileText,
-                },
-              ].map(
-                (
-                  item,
-                ) => {
-                  const Icon =
-                    item.icon;
-
-
-                  return (
-                    <div
-                      key={
-                        item.title
-                      }
-                      className="rounded-[24px] border border-white/10 bg-white/[0.05] p-6"
-                    >
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
-                        <Icon className="h-5 w-5" />
-                      </div>
-
-
-                      <h3 className="mt-5 text-lg font-semibold">
-                        {
-                          item.title
-                        }
-                      </h3>
-
-
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
-                        {
-                          item.description
-                        }
-                      </p>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* ===================================================
-          ACADEMIC UNIVERSITIES
-      =================================================== */}
-
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
-              Academic Document Services
-            </p>
-
-
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              We also handle requests from supported universities.
-            </h2>
-
-
-            <p className="mt-4 text-sm leading-7 text-slate-500">
-              Need a transcript, attestation, proficiency letter or
-              another supported academic document? Select your
-              institution when starting a request.
-            </p>
-          </div>
-
-
-          {universities.length >
-          0 ? (
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {universities.map(
-                (
-                  university,
-                ) => (
-                  <div
-                    key={
-                      university.id
-                    }
-                    className="group overflow-hidden rounded-[24px] border border-slate-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/60"
-                  >
-                    <div className="relative flex h-32 items-center justify-center bg-gradient-to-br from-blue-50 via-white to-slate-50">
-                      <div className="absolute right-3 top-3 rounded-full border border-blue-100 bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                        Supported
-                      </div>
-
-
-                      <UniversityLogo
-                        code={
-                          university.code
-                        }
-                        name={
-                          university.name
-                        }
-                        className="h-20 w-20 shadow-sm transition duration-300 group-hover:scale-105"
-                      />
-                    </div>
-
-
-                    <div className="border-t border-slate-100 p-5">
-                      <p className="text-lg font-semibold text-slate-950">
-                        {
-                          university.code
-                        }
-                      </p>
-
-
-                      <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-slate-500">
-                        {
-                          university.name
-                        }
-                      </p>
-
-
-                      <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-
-                        <span className="line-clamp-1">
-                          {
-                            university.location ||
-                            "Ghana"
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
-          ) : (
-            <div className="mt-10 rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-              <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-
-              <p className="mt-4 font-semibold text-slate-800">
-                No universities are currently available.
-              </p>
-            </div>
-          )}
-
-
-          <div className="mt-8 text-center">
-            <p className="text-xs text-slate-400">
-              Currently supported:{" "}
-              {
-                universityCodes ||
-                "Contact us for current availability."
-              }
-            </p>
-          </div>
-        </div>
-      </section>
-
-
-      {/* ===================================================
-          ACADEMIC SERVICES
-      =================================================== */}
-
-      <section className="relative overflow-hidden bg-slate-50/60">
-        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-blue-100/40 blur-3xl" />
-
-
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-            {/* =============================================
-                INTRO
-            ============================================= */}
-
-            <div className="lg:sticky lg:top-28">
-              <Badge
-                variant="outline"
-                className="rounded-full border-blue-200 bg-white text-blue-700"
-              >
-                Academic Services
-              </Badge>
-
-
-              <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Academic services when you need them.
-              </h2>
-
-
-              <p className="mt-4 max-w-xl leading-7 text-slate-600">
-                Academic document services remain available for
-                supported universities alongside our broader errand
-                and delivery services.
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                From academic documents to everyday errands.
               </p>
 
-
-              <div className="mt-8 overflow-hidden rounded-[26px] border border-blue-100 bg-white p-5 shadow-sm">
-                <div className="relative aspect-[16/7] overflow-hidden rounded-2xl bg-slate-50">
+              <div className="mt-3 flex items-center gap-2">
+                <div className="relative h-8 w-8 overflow-hidden rounded-full border-2 border-white">
                   <Image
-                    src="/universities-logos-together.png"
-                    alt="Universities supported by Seekers Connect"
+                    src="/seekersconnect-logo.jpg"
+                    alt=""
                     fill
-                    sizes="(max-width: 1024px) 100vw, 420px"
-                    className="object-contain p-4"
+                    className="object-contain"
                   />
                 </div>
 
-
-                <p className="mt-4 text-sm leading-6 text-slate-500">
-                  Services are configured individually for each
-                  supported institution.
+                <p className="text-xs text-slate-500">
+                  Your needs. Our support.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
 
-              <Link
-                href="/services"
-                className={buttonVariants({
-                  variant:
-                    "outline",
+      {/* ===================================================
+          ALL SERVICES
+      =================================================== */}
 
-                  className:
-                    "mt-6 rounded-xl bg-white",
-                })}
-              >
-                View All Services
+      <section
+        id="services"
+        className="border-b border-slate-200 bg-white"
+      >
+        <div className="mx-auto max-w-[1440px] px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-blue-600">
+                Explore Our Services
+              </p>
 
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
+                Everything we can help you with.
+              </h2>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                No hidden tabs. Browse the services available on the
+                platform and start the one you need.
+              </p>
             </div>
 
 
-            {/* =============================================
-                CARDS
-            ============================================= */}
+            <Link
+              href="/request"
+              className="inline-flex items-center text-sm font-semibold text-blue-600"
+            >
+              Start a request
 
-            {serviceHighlights.length >
-            0 ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {serviceHighlights.map(
-                  (
-                    service,
-                  ) => {
-                    const Icon =
-                      getServiceIcon(
-                        service.category,
-                      );
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
 
 
-                    return (
-                      <div
-                        key={`${service.category}-${service.name}`}
-                        className="group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
-                            <Icon className="h-5 w-5" />
-                          </div>
+          {allServices.length >
+          0 ? (
+            <div className="mt-9 grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {allServices.map(
+                (
+                  service,
+                ) => (
+                  <Link
+                    key={
+                      service.id
+                    }
+                    href="/request"
+                    className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_50px_rgba(15,23,42,0.10)]"
+                  >
+                    <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                      <Image
+                        src={
+                          getServiceImage(
+                            service.slug,
+                            service.name,
+                            service.category,
+                          )
+                        }
+                        alt={
+                          service.name
+                        }
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 260px"
+                        className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                      />
 
 
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            {
-                              service.category
-                            }
-                          </span>
-                        </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
 
 
-                        <h3 className="mt-6 text-lg font-semibold text-slate-950">
+                      <span className="absolute bottom-3 left-3 rounded-full border border-white/30 bg-slate-950/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur">
+                        {service.providerCodes.length >
+                        0
+                          ? "Academic"
+                          : "General"}
+                      </span>
+                    </div>
+
+
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-[15px] font-semibold leading-5 text-slate-950">
                           {
                             service.name
                           }
                         </h3>
 
 
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          {
-                            service.description
-                          }
-                        </p>
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </div>
+                      </div>
 
 
-                        <div className="mt-5 flex flex-wrap gap-2">
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                        {service.description ||
+                          getFallbackServiceDescription(
+                            service.slug,
+                            service.name,
+                          )}
+                      </p>
+
+
+                      {service
+                        .providerCodes
+                        .length >
+                        0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
                           {service
-                            .universityCodes
+                            .providerCodes
                             .slice(
                               0,
-                              5,
+                              4,
                             )
                             .map(
                               (
@@ -1388,7 +583,7 @@ export default async function HomePage() {
                                   key={
                                     code
                                   }
-                                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600"
+                                  className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-500"
                                 >
                                   {
                                     code
@@ -1396,33 +591,170 @@ export default async function HomePage() {
                                 </span>
                               ),
                             )}
+
+
+                          {service
+                            .providerCodes
+                            .length >
+                            4 && (
+                            <span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-500">
+                              +
+                              {service
+                                .providerCodes
+                                .length -
+                                4}
+                            </span>
+                          )}
                         </div>
+                      )}
+                    </div>
+                  </Link>
+                ),
+              )}
+            </div>
+          ) : (
+            <div className="mt-9 rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+              <p className="font-semibold text-slate-800">
+                Services are being updated.
+              </p>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Contact Seekers Connect for current service availability.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
 
 
-                        <Link
-                          href="/request"
-                          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:gap-3 hover:text-blue-700"
-                        >
-                          Start request
+      {/* ===================================================
+          EXPERIENCE / IMAGE STORY
+      =================================================== */}
 
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </div>
-                    );
-                  },
-                )}
-              </div>
-            ) : (
-              <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-8 text-center">
-                <FileText className="mx-auto h-7 w-7 text-slate-400" />
+      <section className="bg-slate-50">
+        <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-20">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="relative min-h-[470px] overflow-hidden rounded-[30px] bg-slate-200 sm:row-span-2">
+              <Image
+                src="/most-services.jpg"
+                alt="Seekers Connect services"
+                fill
+                sizes="(max-width: 1024px) 100vw, 520px"
+                className="object-cover"
+              />
 
-                <p className="mt-4 font-semibold text-slate-800">
-                  No academic services are currently available.
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/5 to-transparent" />
+
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-200">
+                  More than one kind of service
                 </p>
+
+                <h2 className="mt-3 max-w-md text-3xl font-semibold tracking-tight">
+                  One platform for the things that usually take too much time.
+                </h2>
               </div>
-            )}
+            </div>
+
+
+            <div className="relative min-h-[225px] overflow-hidden rounded-[26px] bg-slate-200">
+              <Image
+                src="/passpost-application-flier.jpg"
+                alt="Application support"
+                fill
+                sizes="420px"
+                className="object-cover"
+              />
+            </div>
+
+
+            <div className="relative min-h-[225px] overflow-hidden rounded-[26px] bg-slate-200">
+              <Image
+                src="/proof-of-someone-acceptance-scholarship.jpg"
+                alt="Study abroad and scholarship support"
+                fill
+                sizes="420px"
+                className="object-cover"
+              />
+            </div>
+          </div>
+
+
+          <div className="flex flex-col justify-center rounded-[30px] border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+            <p className="text-sm font-semibold text-blue-600">
+              Making complicated tasks easier
+            </p>
+
+
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
+              You tell us what needs to happen. We help move it forward.
+            </h2>
+
+
+            <p className="mt-5 text-sm leading-7 text-slate-600">
+              Some requests involve a university. Others involve
+              documents, delivery, applications, printing, errands,
+              shopping or third-party institutions. The platform gives
+              each service a structured request process instead of
+              forcing every customer through the same form.
+            </p>
+
+
+            <div className="mt-8 grid gap-3">
+              {[
+                "Choose the exact service you need.",
+                "Provide only the information required for that service.",
+                "Upload supporting documents securely when required.",
+                "Follow the request through tracking after credentials are issued.",
+              ].map(
+                (
+                  item,
+                ) => (
+                  <div
+                    key={
+                      item
+                    }
+                    className="flex items-start gap-3 rounded-xl bg-slate-50 p-4"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+
+                    <p className="text-sm leading-6 text-slate-600">
+                      {
+                        item
+                      }
+                    </p>
+                  </div>
+                ),
+              )}
+            </div>
+
+
+            <Link
+              href="/request"
+              className={buttonVariants({
+                size:
+                  "lg",
+
+                className:
+                  "mt-8 w-fit rounded-xl bg-slate-950 px-6 text-white hover:bg-slate-800",
+              })}
+            >
+              Start Your Request
+
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </div>
         </div>
+      </section>
+
+
+      {/* ===================================================
+          TRACKING
+      =================================================== */}
+
+      <section className="bg-white py-16 lg:py-20">
+        <HomeTrackingCard />
       </section>
 
 
@@ -1430,74 +762,103 @@ export default async function HomePage() {
           HOW IT WORKS
       =================================================== */}
 
-      <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-blue-600/10 blur-3xl" />
+      <section className="border-y border-slate-200 bg-[#f7faff]">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-blue-600">
+                How Seekers Connect Works
+              </p>
+
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+                Clear from the first step.
+              </h2>
+            </div>
 
 
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="max-w-2xl">
-            <Badge className="rounded-full bg-blue-500/15 text-blue-300 hover:bg-blue-500/15">
-              How it works
-            </Badge>
-
-
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-              From request to completion, without the guesswork.
-            </h2>
-
-
-            <p className="mt-4 leading-7 text-slate-400">
-              Whether it is an errand, a shopping request, document
-              processing or delivery, the process stays clear.
+            <p className="max-w-xl text-sm leading-6 text-slate-500">
+              Different services may ask for different information,
+              but the overall request process remains simple.
             </p>
           </div>
 
 
-          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {steps.map(
+          <div className="mt-9 grid gap-3 lg:grid-cols-4">
+            {[
+              {
+                number:
+                  "01",
+
+                title:
+                  "Choose a service",
+
+                description:
+                  "Browse the full service list and choose exactly what you need.",
+              },
+
+              {
+                number:
+                  "02",
+
+                title:
+                  "Submit the details",
+
+                description:
+                  "Complete the service-specific form and attach documents where necessary.",
+              },
+
+              {
+                number:
+                  "03",
+
+                title:
+                  "Payment or quotation",
+
+                description:
+                  "Follow the applicable payment or quotation process for the selected service.",
+              },
+
+              {
+                number:
+                  "04",
+
+                title:
+                  "Track progress",
+
+                description:
+                  "Use your tracking details to follow the request through completion.",
+              },
+            ].map(
               (
                 step,
-              ) => {
-                const Icon =
-                  step.icon;
-
-
-                return (
-                  <div
-                    key={
+              ) => (
+                <div
+                  key={
+                    step.number
+                  }
+                  className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white p-6"
+                >
+                  <span className="text-[44px] font-semibold leading-none tracking-[-0.06em] text-blue-100">
+                    {
                       step.number
                     }
-                    className="group rounded-[22px] border border-white/10 bg-white/[0.04] p-5 transition hover:-translate-y-1 hover:border-blue-500/30 hover:bg-white/[0.07]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
-                        <Icon className="h-5 w-5" />
-                      </div>
+                  </span>
 
 
-                      <span className="text-xs font-medium text-slate-600">
-                        {
-                          step.number
-                        }
-                      </span>
-                    </div>
+                  <h3 className="mt-6 font-semibold text-slate-950">
+                    {
+                      step.title
+                    }
+                  </h3>
 
 
-                    <h3 className="mt-5 font-semibold">
-                      {
-                        step.title
-                      }
-                    </h3>
-
-
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      {
-                        step.description
-                      }
-                    </p>
-                  </div>
-                );
-              },
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {
+                      step.description
+                    }
+                  </p>
+                </div>
+              ),
             )}
           </div>
         </div>
@@ -1505,129 +866,130 @@ export default async function HomePage() {
 
 
       {/* ===================================================
-          TRACKING CTA
+          INSTITUTIONS
       =================================================== */}
 
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-        <div className="relative overflow-hidden rounded-[34px] bg-blue-600">
-          <div className="absolute -right-16 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-
-          <div className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-indigo-900/20 blur-3xl" />
-
-
-          <div className="relative grid gap-10 p-7 sm:p-10 lg:grid-cols-[1fr_0.75fr] lg:p-14">
+      <section className="bg-white">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
             <div>
-              <Badge className="bg-white/15 text-white hover:bg-white/15">
-                Request Tracking
-              </Badge>
+              <p className="text-sm font-semibold text-blue-600">
+                Supported Institutions
+              </p>
 
-
-              <h2 className="mt-5 max-w-xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Already submitted a request?
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950">
+                Academic support across multiple universities.
               </h2>
 
-
-              <p className="mt-4 max-w-xl leading-7 text-blue-100">
-                Use your secure tracking details to follow your
-                request from payment verification through processing,
-                pickup, delivery or completion.
+              <p className="mt-4 text-sm leading-7 text-slate-500">
+                Academic services are linked to the institutions that
+                currently support them, so customers only see
+                combinations that are actually available.
               </p>
 
 
-              <Link
-                href="/track"
-                className={buttonVariants({
-                  size:
-                    "lg",
-
-                  className:
-                    "mt-7 rounded-xl bg-white text-blue-700 hover:bg-blue-50",
-                })}
-              >
-                Track My Request
-
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              <div className="mt-7 relative aspect-[16/8] overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
+                <Image
+                  src="/universities-logos-together.png"
+                  alt="Universities supported by Seekers Connect"
+                  fill
+                  sizes="520px"
+                  className="object-contain p-5"
+                />
+              </div>
             </div>
 
 
-            <div className="flex items-center">
-              <div className="w-full rounded-[24px] border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur">
-                <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-4">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-blue-200">
-                      Request Status
-                    </p>
-
-
-                    <p className="mt-1 text-sm font-semibold text-white">
-                      Processing timeline
-                    </p>
-                  </div>
-
-
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                    <Clock3 className="h-5 w-5 text-white" />
-                  </div>
-                </div>
-
-
-                {trackingPreview.map(
+            {universities.length >
+            0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {universities.map(
                   (
-                    item,
-                    index,
+                    university,
                   ) => (
                     <div
                       key={
-                        item.label
+                        university.id
                       }
-                      className={`flex items-center justify-between py-3 ${
-                        index !==
-                        trackingPreview.length -
-                          1
-                          ? "border-b border-white/10"
-                          : ""
-                      }`}
+                      className="flex min-h-[150px] flex-col items-center justify-center rounded-[22px] border border-slate-200 bg-white p-5 text-center transition hover:border-blue-200 hover:shadow-md"
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-2.5 w-2.5 rounded-full ${
-                            item.state ===
-                            "complete"
-                              ? "bg-emerald-300"
-                              : item.state ===
-                                  "active"
-                                ? "bg-yellow-300"
-                                : "bg-white/30"
-                          }`}
-                        />
-
-
-                        <span className="text-sm text-white">
-                          {
-                            item.label
-                          }
-                        </span>
-                      </div>
-
-
-                      <span className="text-xs text-blue-100">
-                        {
-                          item.status
+                      <UniversityLogo
+                        code={
+                          university.code
                         }
-                      </span>
+                        name={
+                          university.name
+                        }
+                        className="h-16 w-16"
+                      />
+
+
+                      <p className="mt-4 text-sm font-semibold text-slate-900">
+                        {
+                          university.code
+                        }
+                      </p>
+
+
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-400">
+                        {
+                          university.name
+                        }
+                      </p>
                     </div>
                   ),
                 )}
               </div>
-            </div>
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-500">
+                Institution information is currently being updated.
+              </div>
+            )}
           </div>
         </div>
       </section>
 
 
       {/* ===================================================
-          LATEST CONTENT & TESTIMONIALS
+          MORE REAL IMAGES
+      =================================================== */}
+
+      <section className="border-y border-slate-200 bg-slate-50">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ImageStoryCard
+              image="/pick-up.jpg"
+              title="Pickup & Errands"
+              text="Send us the task, location and instructions."
+            />
+
+
+            <ImageStoryCard
+              image="/delivery.png"
+              title="Delivery"
+              text="Move documents, books and permitted items."
+            />
+
+
+            <ImageStoryCard
+              image="/world-education-service.jpg"
+              title="Education Support"
+              text="Support for education and document-related processes."
+            />
+
+
+            <ImageStoryCard
+              image="/company-official-flier.jpg"
+              title="More Services"
+              text="Explore the full range of services managed by the platform."
+            />
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===================================================
+          BLOG + TESTIMONIALS
       =================================================== */}
 
       <FeaturedPublicContent />
@@ -1637,104 +999,98 @@ export default async function HomePage() {
           SUPPORT
       =================================================== */}
 
-      <section className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <p className="text-sm font-semibold text-blue-600">
-              Need assistance?
-            </p>
+      <section className="bg-slate-950">
+        <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.72fr] lg:px-8 lg:py-20">
+          <div className="relative min-h-[420px] overflow-hidden rounded-[30px]">
+            <Image
+              src="/office-of-seekers.jpg"
+              alt="Seekers Connect customer support"
+              fill
+              sizes="(max-width: 1024px) 100vw, 760px"
+              className="object-cover"
+            />
 
 
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Our support team is here to help.
-            </h2>
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-slate-950/15" />
 
 
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-              Ask about a new request, payment verification, an errand,
-              delivery, academic document or an existing tracking issue.
-            </p>
+            <div className="relative flex min-h-[420px] max-w-xl flex-col justify-end p-7 text-white sm:p-10">
+              <p className="text-sm font-semibold text-blue-300">
+                Need help?
+              </p>
+
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Talk to a real support person.
+              </h2>
+
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Ask about service requirements, an existing request,
+                payment verification, document submission or delivery.
+              </p>
+
+
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a
+                  href={`https://wa.me/${whatsappNumber}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-11 items-center rounded-xl bg-emerald-500 px-5 text-sm font-semibold text-white hover:bg-emerald-600"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+
+                  WhatsApp Us
+                </a>
+
+
+                <a
+                  href={`tel:${supportPhone}`}
+                  className="inline-flex h-11 items-center rounded-xl border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur hover:bg-white/15"
+                >
+                  Call{" "}
+
+                  {
+                    supportPhone
+                  }
+                </a>
+              </div>
+            </div>
           </div>
 
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <a
-              href={`https://wa.me/${whatsappNumber}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group relative overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl"
-            >
-              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-100/70 blur-2xl" />
+          <div className="grid gap-4">
+            <div className="relative min-h-[200px] overflow-hidden rounded-[26px]">
+              <Image
+                src="/5927016763990150890_121.jpg"
+                alt="Seekers Connect service information"
+                fill
+                sizes="500px"
+                className="object-cover"
+              />
+            </div>
 
 
-              <div className="relative flex gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                  <MessageCircle className="h-5 w-5" />
-                </div>
+            <div className="rounded-[26px] border border-white/10 bg-white/[0.06] p-7 text-white">
+              <FileCheck2 className="h-5 w-5 text-blue-300" />
+
+              <h3 className="mt-5 text-xl font-semibold">
+                Ready to get something handled?
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Start with the service you need and the request wizard
+                will guide you through the required information.
+              </p>
 
 
-                <div>
-                  <h3 className="font-semibold text-slate-950">
-                    WhatsApp Support
-                  </h3>
+              <Link
+                href="/request"
+                className="mt-6 inline-flex items-center text-sm font-semibold text-blue-300"
+              >
+                Start a Request
 
-
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Need help before submitting a request? Talk to our
-                    support team directly.
-                  </p>
-
-
-                  <p className="mt-4 text-sm font-semibold text-emerald-700">
-                    {
-                      company.whatsapp
-                    }
-                  </p>
-                </div>
-              </div>
-            </a>
-
-
-            <a
-              href={
-                support.phones[0]
-                  ? `tel:${support.phones[0]}`
-                  : "/contact"
-              }
-              className="group relative overflow-hidden rounded-[26px] border border-slate-200 bg-gradient-to-br from-blue-50 via-white to-white p-6 transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
-            >
-              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-100/70 blur-2xl" />
-
-
-              <div className="relative flex gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                  <Headphones className="h-5 w-5" />
-                </div>
-
-
-                <div>
-                  <h3 className="font-semibold text-slate-950">
-                    Customer Support
-                  </h3>
-
-
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Our team can assist with request information,
-                    payment verification, shopping, document and
-                    delivery enquiries.
-                  </p>
-
-
-                  {support.phones[0] && (
-                    <p className="mt-4 text-sm font-semibold text-blue-700">
-                      {
-                        support.phones[0]
-                      }
-                    </p>
-                  )}
-                </div>
-              </div>
-            </a>
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -1744,26 +1100,389 @@ export default async function HomePage() {
 
 
 // =========================================================
-// ACADEMIC SERVICE ICON
+// IMAGE STORY CARD
 // =========================================================
 
-function getServiceIcon(
+function ImageStoryCard({
+  image,
+  title,
+  text,
+}: {
+  image:
+    string;
+
+  title:
+    string;
+
+  text:
+    string;
+}) {
+  return (
+    <div className="group overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+        <Image
+          src={
+            image
+          }
+          alt={
+            title
+          }
+          fill
+          sizes="(max-width: 768px) 100vw, 320px"
+          className="object-cover transition duration-500 group-hover:scale-[1.04]"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+      </div>
+
+
+      <div className="p-5">
+        <h3 className="font-semibold text-slate-950">
+          {
+            title
+          }
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {
+            text
+          }
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+// =========================================================
+// SERVICE PRIORITY
+//
+// Keeps the most recognisable customer-facing services near
+// the beginning without hiding any service.
+// =========================================================
+
+function servicePriority(
+  slug:
+    string,
+
+  name:
+    string,
+) {
+  const value =
+    `${slug} ${name}`.toLowerCase();
+
+
+  const priorities = [
+    [
+      "transcript",
+      1,
+    ],
+
+    [
+      "delivery",
+      2,
+    ],
+
+    [
+      "errand",
+      3,
+    ],
+
+    [
+      "printing",
+      4,
+    ],
+
+    [
+      "loan",
+      5,
+    ],
+
+    [
+      "study-abroad",
+      6,
+    ],
+
+    [
+      "affidavit",
+      7,
+    ],
+
+    [
+      "gazette",
+      8,
+    ],
+
+    [
+      "plagiarism",
+      9,
+    ],
+
+    [
+      "research",
+      10,
+    ],
+
+    [
+      "job",
+      11,
+    ],
+
+    [
+      "practicum",
+      12,
+    ],
+
+    [
+      "result",
+      13,
+    ],
+
+    [
+      "placement",
+      14,
+    ],
+
+    [
+      "security",
+      15,
+    ],
+  ] as const;
+
+
+  for (
+    const [
+      keyword,
+      priority,
+    ] of
+    priorities
+  ) {
+    if (
+      value.includes(
+        keyword,
+      )
+    ) {
+      return priority;
+    }
+  }
+
+
+  return 100;
+}
+
+
+// =========================================================
+// SERVICE IMAGE
+// =========================================================
+
+function getServiceImage(
+  slug:
+    string,
+
+  name:
+    string,
+
   category:
     string,
 ) {
-  switch (
-    category.toLowerCase()
+  const value =
+    `${slug} ${name} ${category}`
+      .toLowerCase();
+
+
+  if (
+    value.includes(
+      "transcript",
+    ) ||
+    value.includes(
+      "attestation",
+    ) ||
+    value.includes(
+      "proficiency",
+    )
   ) {
-    case "transcript":
-      return FileText;
-
-    case "attestation":
-      return ShieldCheck;
-
-    case "proficiency":
-      return Languages;
-
-    default:
-      return FileCheck2;
+    return "/ceo-with-transcrip-flier.jpg";
   }
+
+
+  if (
+    value.includes(
+      "delivery",
+    ) ||
+    value.includes(
+      "pickup",
+    )
+  ) {
+    return "/seekers-delivery-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "errand",
+    ) ||
+    value.includes(
+      "shop",
+    )
+  ) {
+    return "/pick-up.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "print",
+    )
+  ) {
+    return "/printing-and-other-services.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "study",
+    ) ||
+    value.includes(
+      "scholar",
+    )
+  ) {
+    return "/proof-of-someone-acceptance-scholarship.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "passport",
+    ) ||
+    value.includes(
+      "application",
+    ) ||
+    value.includes(
+      "security",
+    ) ||
+    value.includes(
+      "job",
+    )
+  ) {
+    return "/passpost-application-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "wes",
+    ) ||
+    value.includes(
+      "world education",
+    )
+  ) {
+    return "/world-education-service.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "loan",
+    )
+  ) {
+    return "/office-of-seekers.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "affidavit",
+    ) ||
+    value.includes(
+      "gazette",
+    ) ||
+    value.includes(
+      "legal",
+    )
+  ) {
+    return "/company-official-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "plagiarism",
+    ) ||
+    value.includes(
+      "research",
+    ) ||
+    value.includes(
+      "practicum",
+    )
+  ) {
+    return "/5927016763990150890_121.jpg";
+  }
+
+
+  return "/most-services.jpg";
+}
+
+
+// =========================================================
+// FALLBACK DESCRIPTION
+// =========================================================
+
+function getFallbackServiceDescription(
+  slug:
+    string,
+
+  name:
+    string,
+) {
+  const value =
+    `${slug} ${name}`
+      .toLowerCase();
+
+
+  if (
+    value.includes(
+      "delivery",
+    )
+  ) {
+    return "Pickup and delivery support for documents, books and permitted items.";
+  }
+
+
+  if (
+    value.includes(
+      "print",
+    )
+  ) {
+    return "Printing and document support based on your selected requirements.";
+  }
+
+
+  if (
+    value.includes(
+      "loan",
+    )
+  ) {
+    return "Structured application support for eligible government workers.";
+  }
+
+
+  if (
+    value.includes(
+      "study",
+    )
+  ) {
+    return "Application and document guidance for study-abroad opportunities.";
+  }
+
+
+  if (
+    value.includes(
+      "research",
+    )
+  ) {
+    return "Academic research guidance, review and methodological support.";
+  }
+
+
+  return "Submit your request and follow the service-specific process provided by Seekers Connect 247.";
 }
