@@ -3,19 +3,10 @@ import Link from "next/link";
 
 import {
   ArrowRight,
-  BookOpen,
-  Building2,
-  FileText,
+  CheckCircle2,
   MapPin,
-  Package,
-  PackageCheck,
   Search,
-  ShoppingBasket,
 } from "lucide-react";
-
-import {
-  Badge,
-} from "@/components/ui/badge";
 
 import {
   buttonVariants,
@@ -27,81 +18,8 @@ import {
 
 import {
   getPublicServiceCatalog,
+  type PublicServiceSummary,
 } from "@/lib/catalog/public-service-catalog";
-
-
-// =========================================================
-// GENERAL SERVICE ICONS
-// =========================================================
-
-function getGeneralServiceIcon(
-  slug:
-    string,
-) {
-  switch (
-    slug
-  ) {
-    case "run-an-errand":
-      return Package;
-
-    case "pickup-delivery":
-      return PackageCheck;
-
-    case "document-errands":
-      return FileText;
-
-    case "shop-for-me":
-      return ShoppingBasket;
-
-    default:
-      return Package;
-  }
-}
-
-
-// =========================================================
-// GENERAL SERVICE LABELS
-// =========================================================
-
-function getGeneralServiceFeatures(
-  slug:
-    string,
-) {
-  switch (
-    slug
-  ) {
-    case "run-an-errand":
-      return [
-        "Pickup & drop-off",
-        "Queue on your behalf",
-        "Submit or collect items",
-      ];
-
-    case "pickup-delivery":
-      return [
-        "Documents",
-        "Books",
-        "Packages",
-      ];
-
-    case "document-errands":
-      return [
-        "Submit documents",
-        "Collect documents",
-        "Document enquiries",
-      ];
-
-    case "shop-for-me":
-      return [
-        "Groceries",
-        "Books",
-        "Stationery",
-      ];
-
-    default:
-      return [];
-  }
-}
 
 
 // =========================================================
@@ -123,6 +41,12 @@ export default async function ServicesPage() {
     );
 
 
+  const generalServices =
+    generalProvider
+      ?.services ??
+    [];
+
+
   const academicProviders =
     catalog.filter(
       (
@@ -133,184 +57,295 @@ export default async function ServicesPage() {
     );
 
 
-  const generalServices =
-    generalProvider
-      ?.services ??
-    [];
+  // =======================================================
+  // UNIQUE ACADEMIC SERVICE TYPES
+  // =======================================================
+
+  const academicServiceMap =
+    new Map<
+      string,
+      {
+        service:
+          PublicServiceSummary;
+
+        universities:
+          string[];
+      }
+    >();
 
 
-  const academicServiceCount =
-    academicProviders.reduce(
+  for (
+    const university of
+    academicProviders
+  ) {
+    for (
+      const service of
+      university.services
+    ) {
+      const key =
+        `${service.slug}:${service.name}`
+          .trim()
+          .toLowerCase();
+
+
+      const existing =
+        academicServiceMap.get(
+          key,
+        );
+
+
+      if (
+        existing
+      ) {
+        if (
+          !existing.universities.includes(
+            university.code,
+          )
+        ) {
+          existing.universities.push(
+            university.code,
+          );
+        }
+
+
+        continue;
+      }
+
+
+      academicServiceMap.set(
+        key,
+        {
+          service,
+
+          universities: [
+            university.code,
+          ],
+        },
+      );
+    }
+  }
+
+
+  const academicServiceTypes =
+    Array.from(
+      academicServiceMap.values(),
+    );
+
+
+  const totalServices =
+    generalServices.length +
+    academicServiceTypes.length;
+
+
+  // =======================================================
+  // GENERAL SERVICE GROUPS
+  // =======================================================
+
+  const groups =
+    buildServiceGroups(
+      generalServices,
+    );
+
+
+  // =======================================================
+  // FEATURED / IMPORTANT SERVICES
+  // =======================================================
+
+  const priorityServices =
+    [
+      findService(
+        generalServices,
+        [
+          "government-worker-loans",
+          "government worker loan",
+          "loan",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "study-abroad-support",
+          "study abroad",
+          "scholarship",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "printing",
+          "printing service",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "affidavit",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "gazette",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "plagiarism-check",
+          "plagiarism",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "research-guidance",
+          "research guidance",
+        ],
+      ),
+
+      findService(
+        generalServices,
+        [
+          "job-seekers",
+          "job seekers",
+        ],
+      ),
+    ].filter(
       (
-        total,
-        provider,
-      ) =>
-        total +
-        provider.services.length,
-      0,
+        service,
+      ): service is
+        PublicServiceSummary =>
+        Boolean(
+          service,
+        ),
     );
 
 
   return (
     <>
       {/* ===================================================
-          HERO
+          HERO — SERVICE DIRECTORY STYLE
       =================================================== */}
 
-      <section className="relative overflow-hidden border-b border-slate-200 bg-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-blue-100/60 blur-3xl" />
-
-          <div className="absolute -right-32 top-28 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl" />
-        </div>
+      <section className="relative overflow-hidden bg-slate-950 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(37,99,235,0.22),transparent_34%),radial-gradient(circle_at_8%_80%,rgba(14,165,233,0.12),transparent_30%)]" />
 
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-24">
-          {/* COPY */}
+        <div className="relative mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+          {/* ===============================================
+              DIRECTORY TOP BAR
+          =============================================== */}
 
-          <div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700"
-            >
-              Our Services
-            </Badge>
+          <div className="flex flex-col gap-5 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
+                <span className="h-px w-8 bg-blue-400" />
 
-
-            <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-              What do you need us to
-              <span className="text-blue-600">
-                {" "}
-                handle for you?
-              </span>
-            </h1>
+                Service Directory
+              </div>
 
 
-            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
-              Seekers Connect 247 helps with everyday errands,
-              pickups and deliveries, shopping requests and document
-              services — including supported university document
-              requests.
-            </p>
+              <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-[1.04] tracking-[-0.045em] sm:text-5xl lg:text-[66px]">
+                Find the service you need.
 
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/request"
-                className={buttonVariants({
-                  size:
-                    "lg",
-
-                  className:
-                    "h-12 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-700",
-                })}
-              >
-                Request a Service
-
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-
-
-              <Link
-                href="/track"
-                className={buttonVariants({
-                  variant:
-                    "outline",
-
-                  size:
-                    "lg",
-
-                  className:
-                    "h-12 rounded-xl bg-white px-6",
-                })}
-              >
-                <Search className="mr-2 h-4 w-4" />
-
-                Track Existing Request
-              </Link>
+                <span className="block text-slate-400">
+                  Everything is listed here.
+                </span>
+              </h1>
             </div>
 
 
-            <div className="mt-9 flex flex-wrap gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-2xl font-semibold text-slate-950">
-                  {
-                    generalServices.length
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  General services
-                </p>
-              </div>
+            <div className="max-w-md">
+              <p className="text-sm leading-7 text-slate-400">
+                Browse every active Seekers Connect service — from
+                Government Worker Loans and academic documents to
+                scholarship support, printing, legal services,
+                applications, errands and delivery.
+              </p>
 
 
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-2xl font-semibold text-slate-950">
-                  {
-                    academicProviders.length
-                  }
-                </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link
+                  href="/request"
+                  className="inline-flex h-11 items-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                >
+                  Start a Request
 
-                <p className="mt-1 text-xs text-slate-500">
-                  Supported institutions
-                </p>
-              </div>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
 
 
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-2xl font-semibold text-slate-950">
-                  {
-                    academicServiceCount
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Academic services
-                </p>
+                <Link
+                  href="/track"
+                  className="inline-flex h-11 items-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Track Request
+                </Link>
               </div>
             </div>
           </div>
 
 
-          {/* IMAGE */}
+          {/* ===============================================
+              SERVICE INDEX / HERO VISUAL
+          =============================================== */}
 
-          <div className="relative mx-auto w-full max-w-xl">
-            <div className="absolute -inset-6 -z-10 rounded-[44px] bg-blue-100/70 blur-2xl" />
+          <div className="grid gap-6 pt-8 lg:grid-cols-[0.82fr_1.18fr]">
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[26px] border border-white/10 bg-white/10">
+              <HeroStat
+                value={
+                  generalServices.length
+                }
+                label="General services"
+              />
+
+              <HeroStat
+                value={
+                  academicServiceTypes.length
+                }
+                label="Academic service types"
+              />
+
+              <HeroStat
+                value={
+                  academicProviders.length
+                }
+                label="Supported institutions"
+              />
+
+              <HeroStat
+                value={
+                  totalServices
+                }
+                label="Service types visible"
+              />
+            </div>
 
 
-            <div className="overflow-hidden rounded-[32px] border border-white/80 bg-slate-950 shadow-[0_25px_80px_rgba(15,23,42,0.16)]">
-              <div className="relative aspect-[5/4]">
-                <Image
-                  src="/delivery.png"
-                  alt="Seekers Connect delivery service"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                />
+            <div className="grid grid-cols-3 gap-3">
+              <HeroImage
+                src="/printing-and-other-services.jpg"
+                label="Printing & Documents"
+                className="min-h-[245px]"
+              />
 
+              <HeroImage
+                src="/proof-of-someone-acceptance-scholarship.jpg"
+                label="Study & Scholarship"
+                className="min-h-[245px]"
+              />
 
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/10 to-transparent" />
-
-
-                <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-7">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
-                    More than document requests
-                  </p>
-
-
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                    Errands, shopping, pickup and delivery.
-                  </h2>
-
-
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-200">
-                    One request flow for the everyday tasks you need
-                    handled.
-                  </p>
-                </div>
-              </div>
+              <HeroImage
+                src="/company-official-flier.jpg"
+                label="Applications & Support"
+                className="min-h-[245px]"
+              />
             </div>
           </div>
         </div>
@@ -318,119 +353,237 @@ export default async function ServicesPage() {
 
 
       {/* ===================================================
-          GENERAL SERVICES
+          QUICK SERVICE INDEX
       =================================================== */}
 
-      <section className="bg-slate-50/70">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
-              Errands & Delivery
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+              Jump to
+            </span>
+
+
+            {groups.map(
+              (
+                group,
+              ) => (
+                <a
+                  key={
+                    group.id
+                  }
+                  href={`#${group.id}`}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  {
+                    group.name
+                  }
+
+                  <span className="ml-2 text-slate-400">
+                    {
+                      group.services
+                        .length
+                    }
+                  </span>
+                </a>
+              ),
+            )}
+
+
+            {academicServiceTypes.length >
+              0 && (
+              <a
+                href="#academic-services"
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
+                Academic Services
+
+                <span className="ml-2 text-slate-400">
+                  {
+                    academicServiceTypes.length
+                  }
+                </span>
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===================================================
+          IMPORTANT SERVICES
+      =================================================== */}
+
+      {priorityServices.length >
+        0 && (
+        <section className="bg-[#f7f8fb]">
+          <div className="mx-auto max-w-[1440px] px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-blue-600">
+                  Popular & Important Services
+                </p>
+
+
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em] text-slate-950">
+                  Start with one of these.
+                </h2>
+
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                  Key services customers frequently need are highlighted
+                  here, but every active service remains available below.
+                </p>
+              </div>
+
+
+              <Link
+                href="/request"
+                className="inline-flex items-center text-sm font-semibold text-blue-600"
+              >
+                Open request form
+
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
+
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {priorityServices.map(
+                (
+                  service,
+                ) => (
+                  <ServiceCard
+                    key={
+                      service.id
+                    }
+                    service={
+                      service
+                    }
+                    prominent
+                  />
+                ),
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+
+      {/* ===================================================
+          ALL GENERAL SERVICES
+      =================================================== */}
+
+      <section className="bg-white">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold text-blue-600">
+              Complete Service Directory
             </p>
 
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Start with what you need done.
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
+              All general services.
             </h2>
 
 
-            <p className="mt-4 leading-7 text-slate-600">
-              Choose one of our general services. The request form
-              will automatically ask for the information required for
-              that specific task.
+            <p className="mt-4 text-sm leading-7 text-slate-500">
+              This section is generated from the active services in
+              the database. When a new general service is activated by
+              the admin, it automatically appears here.
             </p>
           </div>
 
 
-          {generalServices.length >
+          {groups.length >
           0 ? (
-            <div className="mt-10 grid gap-5 md:grid-cols-2">
-              {generalServices.map(
+            <div className="mt-12 space-y-16">
+              {groups.map(
                 (
-                  service,
-                ) => {
-                  const Icon =
-                    getGeneralServiceIcon(
-                      service.slug,
-                    );
+                  group,
+                ) => (
+                  <section
+                    key={
+                      group.id
+                    }
+                    id={
+                      group.id
+                    }
+                    className="scroll-mt-28"
+                  >
+                    <div className="grid gap-7 lg:grid-cols-[260px_minmax(0,1fr)]">
+                      {/* ===================================
+                          GROUP LABEL
+                      =================================== */}
+
+                      <div>
+                        <div className="lg:sticky lg:top-28">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
+                            Service Category
+                          </p>
 
 
-                  const features =
-                    getGeneralServiceFeatures(
-                      service.slug,
-                    );
+                          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                            {
+                              group.name
+                            }
+                          </h3>
 
 
-                  return (
-                    <Link
-                      key={
-                        service.id
-                      }
-                      href="/request"
-                      className="group overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/60 sm:p-7"
-                    >
-                      <div className="flex items-start justify-between gap-5">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
-                          <Icon className="h-5 w-5" />
+                          <p className="mt-3 text-sm leading-6 text-slate-500">
+                            {
+                              getGroupDescription(
+                                group.id,
+                              )
+                            }
+                          </p>
+
+
+                          <p className="mt-5 text-xs font-medium text-slate-400">
+                            {
+                              group.services
+                                .length
+                            }{" "}
+
+                            {group.services
+                              .length ===
+                            1
+                              ? "service"
+                              : "services"}
+                          </p>
                         </div>
-
-
-                        <ArrowRight className="mt-2 h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600" />
                       </div>
 
 
-                      <h3 className="mt-6 text-xl font-semibold text-slate-950">
-                        {
-                          service.name
-                        }
-                      </h3>
+                      {/* ===================================
+                          CARDS
+                      =================================== */}
 
-
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {service.description ||
-                          "Request this service from Seekers Connect 247."}
-                      </p>
-
-
-                      {features.length >
-                        0 && (
-                        <div className="mt-5 flex flex-wrap gap-2">
-                          {features.map(
-                            (
-                              feature,
-                            ) => (
-                              <span
-                                key={
-                                  feature
-                                }
-                                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600"
-                              >
-                                {
-                                  feature
-                                }
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      )}
-
-
-                      <p className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-                        Start request
-
-                        <ArrowRight className="h-4 w-4" />
-                      </p>
-                    </Link>
-                  );
-                },
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {group.services.map(
+                          (
+                            service,
+                          ) => (
+                            <ServiceCard
+                              key={
+                                service.id
+                              }
+                              service={
+                                service
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                ),
               )}
             </div>
           ) : (
-            <div className="mt-10 rounded-[26px] border border-dashed border-slate-300 bg-white p-10 text-center">
-              <Package className="mx-auto h-8 w-8 text-slate-400" />
-
-              <p className="mt-4 font-semibold text-slate-800">
-                General services are temporarily unavailable.
+            <div className="mt-10 rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+              <p className="font-semibold text-slate-800">
+                General services are currently being updated.
               </p>
             </div>
           )}
@@ -439,127 +592,79 @@ export default async function ServicesPage() {
 
 
       {/* ===================================================
-          SHOP FOR ME FEATURE
+          STUDY ABROAD / SCHOLARSHIP FEATURE
       =================================================== */}
 
-      <section className="overflow-hidden bg-white">
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-24">
-          {/* IMAGE */}
-
-          <div className="relative">
-            <div className="absolute -left-10 -top-8 h-48 w-48 rounded-full bg-blue-100 blur-3xl" />
-
-
-            <div className="relative overflow-hidden rounded-[32px] border border-slate-200 shadow-xl shadow-slate-200/50">
-              <div className="relative aspect-[5/4]">
-                <Image
-                  src="/pick-up.jpg"
-                  alt="Seekers Connect pickup and shopping assistance"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                />
+      <section className="overflow-hidden bg-slate-950 text-white">
+        <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="relative min-h-[470px]">
+            <Image
+              src="/proof-of-someone-acceptance-scholarship.jpg"
+              alt="Study abroad and scholarship support"
+              fill
+              sizes="(max-width: 1024px) 100vw, 700px"
+              className="object-cover"
+            />
 
 
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
-
-
-                <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-slate-950/60 p-4 text-white backdrop-blur">
-                  <p className="text-sm font-semibold">
-                    Need us to get something for you?
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-300">
-                    Send the shopping list, quantity, preferences and
-                    destination.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-950/20 to-slate-950 lg:bg-gradient-to-r" />
           </div>
 
 
-          {/* SHOPPING COPY */}
-
-          <div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
-            >
-              Shop For Me
-            </Badge>
-
-
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Tell us what to buy. We will handle the errand.
-            </h2>
-
-
-            <p className="mt-4 max-w-xl leading-7 text-slate-600">
-              Shopping requests are handled as errands. Add your list,
-              useful preferences and estimated budget, then provide
-              the delivery information.
+          <div className="flex flex-col justify-center px-6 py-14 sm:px-10 lg:px-14 lg:py-20">
+            <p className="text-sm font-semibold text-blue-300">
+              Study Abroad & Scholarship Support
             </p>
 
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <ShoppingBasket className="h-5 w-5" />
-                </div>
-
-                <h3 className="mt-4 font-semibold text-slate-950">
-                  Groceries
-                </h3>
-
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Food, household items and everyday essentials.
-                </p>
-              </div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+              Looking for the next academic opportunity?
+            </h2>
 
 
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <BookOpen className="h-5 w-5" />
-                </div>
-
-                <h3 className="mt-4 font-semibold text-slate-950">
-                  Books
-                </h3>
-
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Textbooks, novels and other requested titles.
-                </p>
-              </div>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-slate-400">
+              Seekers Connect can support students with institution and
+              programme searches, application guidance, document
+              preparation and study-abroad enquiries. Scholarship-related
+              opportunities and application guidance can be discussed as
+              part of the support process.
+            </p>
 
 
-              <div className="rounded-[22px] border border-slate-200 bg-white p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <FileText className="h-5 w-5" />
-                </div>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              {[
+                "University and programme search",
+                "Application guidance",
+                "Document preparation support",
+                "Scholarship opportunity guidance",
+              ].map(
+                (
+                  item,
+                ) => (
+                  <div
+                    key={
+                      item
+                    }
+                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] p-4"
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-300" />
 
-                <h3 className="mt-4 font-semibold text-slate-950">
-                  Stationery
-                </h3>
-
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Pens, notebooks, paper and school or office supplies.
-                </p>
-              </div>
+                    <span className="text-sm text-slate-300">
+                      {
+                        item
+                      }
+                    </span>
+                  </div>
+                ),
+              )}
             </div>
 
 
             <Link
               href="/request"
-              className={buttonVariants({
-                size:
-                  "lg",
-
-                className:
-                  "mt-8 rounded-xl bg-blue-600 text-white hover:bg-blue-700",
-              })}
+              className="mt-8 inline-flex h-11 w-fit items-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
             >
-              Start Shopping Request
+              Request Study Abroad Support
 
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
@@ -569,28 +674,66 @@ export default async function ServicesPage() {
 
 
       {/* ===================================================
-          DOCUMENT SERVICES
+          GOVERNMENT WORKER LOANS FEATURE
       =================================================== */}
 
-      <section className="bg-slate-950 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-            <div>
-              <Badge className="rounded-full bg-blue-500/15 text-blue-300 hover:bg-blue-500/15">
-                Document Services
-              </Badge>
+      <section className="bg-[#f4f7ff]">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid overflow-hidden rounded-[30px] border border-blue-100 bg-white shadow-[0_24px_70px_rgba(37,99,235,0.08)] lg:grid-cols-[1fr_0.82fr]">
+            <div className="p-7 sm:p-10 lg:p-12">
+              <p className="text-sm font-semibold text-blue-600">
+                Government Worker Loans
+              </p>
 
 
-              <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Documents are one part of what we handle.
+              <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
+                Structured loan application support for government workers.
               </h2>
 
 
-              <p className="mt-4 max-w-xl leading-7 text-slate-400">
-                Ask us to submit, collect, pick up or deliver a
-                document. Academic document processing is available
-                for supported universities.
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600">
+                Submit the information and supporting documents needed
+                for direct-bank, Controller-related, payoff or refinance
+                loan application workflows.
               </p>
+
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                {[
+                  "Direct bank loan applications",
+                  "Controller-related loan applications",
+                  "Payoff / settlement support",
+                  "Refinance applications",
+                ].map(
+                  (
+                    item,
+                  ) => (
+                    <div
+                      key={
+                        item
+                      }
+                      className="flex items-start gap-3 rounded-xl bg-slate-50 p-4"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+
+                      <span className="text-sm leading-6 text-slate-600">
+                        {
+                          item
+                        }
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+
+
+              <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs leading-6 text-amber-900">
+                  Seekers Connect will never ask you to submit your bank
+                  PIN, mobile-money PIN, mandate PIN, password, OTP or
+                  another authentication secret.
+                </p>
+              </div>
 
 
               <Link
@@ -600,77 +743,27 @@ export default async function ServicesPage() {
                     "lg",
 
                   className:
-                    "mt-7 rounded-xl bg-white text-slate-950 hover:bg-slate-100",
+                    "mt-7 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-700",
                 })}
               >
-                Request Document Service
+                Start Loan Request
 
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </div>
 
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                {
-                  title:
-                    "Submit a Document",
+            <div className="relative min-h-[380px] bg-slate-100">
+              <Image
+                src="/office-of-seekers.jpg"
+                alt="Seekers Connect Government Worker Loan support"
+                fill
+                sizes="(max-width: 1024px) 100vw, 520px"
+                className="object-cover"
+              />
 
-                  description:
-                    "Let our team submit a document to an office, institution or organization.",
-                },
 
-                {
-                  title:
-                    "Collect a Document",
-
-                  description:
-                    "Provide the collection details and contact information required for pickup.",
-                },
-
-                {
-                  title:
-                    "Document Delivery",
-
-                  description:
-                    "Request delivery of documents to a specified recipient or destination.",
-                },
-
-                {
-                  title:
-                    "Academic Documents",
-
-                  description:
-                    "Request transcripts, attestations, proficiency letters and other supported documents.",
-                },
-              ].map(
-                (
-                  item,
-                ) => (
-                  <div
-                    key={
-                      item.title
-                    }
-                    className="rounded-[24px] border border-white/10 bg-white/[0.05] p-6"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
-                      <FileText className="h-5 w-5" />
-                    </div>
-
-                    <h3 className="mt-5 font-semibold">
-                      {
-                        item.title
-                      }
-                    </h3>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      {
-                        item.description
-                      }
-                    </p>
-                  </div>
-                ),
-              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-950/55 via-transparent to-transparent" />
             </div>
           </div>
         </div>
@@ -678,33 +771,173 @@ export default async function ServicesPage() {
 
 
       {/* ===================================================
-          ACADEMIC CATALOG
+          ACADEMIC SERVICES
       =================================================== */}
 
-      <section className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">
-              Academic Document Services
-            </p>
+      <section
+        id="academic-services"
+        className="scroll-mt-24 bg-white"
+      >
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr]">
+            <div>
+              <div className="lg:sticky lg:top-28">
+                <p className="text-sm font-semibold text-blue-600">
+                  Academic Services
+                </p>
 
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Services available by institution.
-            </h2>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950">
+                  University services in one directory.
+                </h2>
 
 
-            <p className="mt-4 leading-7 text-slate-600">
-              Select your university when starting the request. The
-              form will show only the services and information
-              configured for that institution.
-            </p>
+                <p className="mt-4 text-sm leading-7 text-slate-500">
+                  Academic services are displayed once here with the
+                  institutions where each one is currently available.
+                </p>
+
+
+                <div className="relative mt-7 aspect-[16/9] overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50">
+                  <Image
+                    src="/universities-logos-together.png"
+                    alt="Supported universities"
+                    fill
+                    sizes="460px"
+                    className="object-contain p-5"
+                  />
+                </div>
+              </div>
+            </div>
+
+
+            {academicServiceTypes.length >
+            0 ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {academicServiceTypes.map(
+                  (
+                    entry,
+                  ) => (
+                    <article
+                      key={
+                        `${entry.service.slug}-${entry.service.id}`
+                      }
+                      className="group overflow-hidden rounded-[24px] border border-slate-200 bg-white transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50"
+                    >
+                      <div className="relative aspect-[16/8] overflow-hidden bg-slate-100">
+                        <Image
+                          src={
+                            getServiceImage(
+                              entry.service,
+                            )
+                          }
+                          alt={
+                            entry.service.name
+                          }
+                          fill
+                          sizes="(max-width: 768px) 100vw, 420px"
+                          className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                        />
+
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
+
+
+                        <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-700 backdrop-blur">
+                          Academic Service
+                        </span>
+                      </div>
+
+
+                      <div className="p-5">
+                        <h3 className="font-semibold text-slate-950">
+                          {
+                            entry.service.name
+                          }
+                        </h3>
+
+
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                          {entry.service
+                            .description ||
+                            "Academic document request service available through supported institutions."}
+                        </p>
+
+
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {entry.universities.map(
+                            (
+                              code,
+                            ) => (
+                              <span
+                                key={
+                                  code
+                                }
+                                className="rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700"
+                              >
+                                {
+                                  code
+                                }
+                              </span>
+                            ),
+                          )}
+                        </div>
+
+
+                        <Link
+                          href="/request"
+                          className="mt-5 inline-flex items-center text-xs font-semibold text-blue-600"
+                        >
+                          Start request
+
+                          <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                        </Link>
+                      </div>
+                    </article>
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                <p className="font-semibold text-slate-800">
+                  Academic services are currently being updated.
+                </p>
+              </div>
+            )}
           </div>
+        </div>
+      </section>
 
 
-          {academicProviders.length >
-          0 ? (
-            <div className="mt-12 space-y-6">
+      {/* ===================================================
+          INSTITUTIONS
+      =================================================== */}
+
+      {academicProviders.length >
+        0 && (
+        <section className="border-y border-slate-200 bg-slate-50">
+          <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-blue-600">
+                  Supported Institutions
+                </p>
+
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+                  Choose the institution linked to your request.
+                </h2>
+              </div>
+
+
+              <p className="max-w-lg text-sm leading-6 text-slate-500">
+                The request wizard automatically shows only the
+                academic services configured for the institution you
+                select.
+              </p>
+            </div>
+
+
+            <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {academicProviders.map(
                 (
                   university,
@@ -713,155 +946,105 @@ export default async function ServicesPage() {
                     key={
                       university.id
                     }
-                    className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
+                    className="rounded-[22px] border border-slate-200 bg-white p-5"
                   >
-                    <div className="flex flex-col gap-5 border-b border-slate-100 bg-slate-50/70 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-                      <div className="flex items-center gap-4">
-                        <UniversityLogo
-                          code={
-                            university.code
-                          }
-                          name={
-                            university.name
-                          }
-                          className="h-16 w-16 shrink-0"
-                        />
+                    <div className="flex items-center gap-4">
+                      <UniversityLogo
+                        code={
+                          university.code
+                        }
+                        name={
+                          university.name
+                        }
+                        className="h-14 w-14 shrink-0"
+                      />
 
 
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold text-slate-950">
-                              {
-                                university.name
-                              }
-                            </h3>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate font-semibold text-slate-950">
+                            {
+                              university.name
+                            }
+                          </h3>
 
 
-                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
-                              {
-                                university.code
-                              }
-                            </span>
-                          </div>
+                          <span className="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-semibold text-blue-700">
+                            {
+                              university.code
+                            }
+                          </span>
+                        </div>
 
 
-                          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                        {university.location && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
                             <MapPin className="h-3.5 w-3.5" />
 
                             {
-                              university.location ||
-                              "Ghana"
+                              university.location
                             }
                           </div>
-                        </div>
+                        )}
                       </div>
-
-
-                      <p className="text-xs font-medium text-slate-400">
-                        {
-                          university.services.length
-                        }{" "}
-                        service
-                        {university.services.length ===
-                        1
-                          ? ""
-                          : "s"}
-                      </p>
                     </div>
 
 
-                    <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
-                      {university.services.map(
-                        (
-                          service,
-                        ) => (
-                          <Link
-                            key={
-                              service.id
-                            }
-                            href="/request"
-                            className="group rounded-[22px] border border-slate-200 p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-md"
-                          >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                              <FileText className="h-4 w-4" />
-                            </div>
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                      <p className="text-xs font-medium text-slate-400">
+                        {
+                          university.services
+                            .length
+                        }{" "}
 
+                        academic{" "}
 
-                            <h4 className="mt-4 font-semibold text-slate-950">
-                              {
-                                service.name
-                              }
-                            </h4>
-
-
-                            <p className="mt-2 text-sm leading-6 text-slate-500">
-                              {service.description ||
-                                "Academic document request service."}
-                            </p>
-
-
-                            <div className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-blue-600">
-                              Start request
-
-                              <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
-                            </div>
-                          </Link>
-                        ),
-                      )}
+                        {university.services
+                          .length ===
+                        1
+                          ? "service"
+                          : "services"}
+                      </p>
                     </div>
                   </div>
                 ),
               )}
             </div>
-          ) : (
-            <div className="mt-10 rounded-[26px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-              <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-
-              <p className="mt-4 font-semibold text-slate-800">
-                No academic services are currently available.
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
 
       {/* ===================================================
-          FINAL CTA
+          CAN'T FIND SERVICE
       =================================================== */}
 
-      <section className="border-t border-slate-200 bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="overflow-hidden rounded-[32px] bg-blue-600 p-7 text-white sm:p-10 lg:p-12">
-            <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-sm font-semibold text-blue-200">
-                  Ready when you are
-                </p>
+      <section className="bg-white">
+        <div className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid overflow-hidden rounded-[30px] bg-blue-600 lg:grid-cols-[1fr_0.55fr]">
+            <div className="p-7 text-white sm:p-10 lg:p-12">
+              <p className="text-sm font-semibold text-blue-100">
+                Still not sure which service to choose?
+              </p>
 
 
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-                  Tell us what you need handled.
-                </h2>
+              <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                Tell us what you need done.
+              </h2>
 
 
-                <p className="mt-3 leading-7 text-blue-100">
-                  Start an errand, shopping, delivery or document
-                  request without creating an account.
-                </p>
-              </div>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-100">
+                The directory above contains all currently active
+                services. If your request overlaps several areas,
+                contact us or begin a request and select the closest
+                service option.
+              </p>
 
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/request"
-                  className={buttonVariants({
-                    size:
-                      "lg",
-
-                    className:
-                      "rounded-xl bg-white text-blue-700 hover:bg-blue-50",
-                  })}
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-blue-700 hover:bg-blue-50"
                 >
                   Request a Service
 
@@ -870,25 +1053,862 @@ export default async function ServicesPage() {
 
 
                 <Link
-                  href="/track"
-                  className={buttonVariants({
-                    variant:
-                      "outline",
-
-                    size:
-                      "lg",
-
-                    className:
-                      "rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white",
-                  })}
+                  href="/contact"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white hover:bg-white/15"
                 >
-                  Track Request
+                  Contact Support
                 </Link>
               </div>
+            </div>
+
+
+            <div className="relative min-h-[290px]">
+              <Image
+                src="/most-services.jpg"
+                alt="Seekers Connect available services"
+                fill
+                sizes="520px"
+                className="object-cover"
+              />
+
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-600/25 to-transparent" />
             </div>
           </div>
         </div>
       </section>
     </>
   );
+}
+
+
+// =========================================================
+// HERO STAT
+// =========================================================
+
+function HeroStat({
+  value,
+  label,
+}: {
+  value:
+    number;
+
+  label:
+    string;
+}) {
+  return (
+    <div className="bg-white/[0.045] p-5 sm:p-6">
+      <p className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+        {
+          value
+        }
+      </p>
+
+      <p className="mt-2 text-xs leading-5 text-slate-400">
+        {
+          label
+        }
+      </p>
+    </div>
+  );
+}
+
+
+// =========================================================
+// HERO IMAGE
+// =========================================================
+
+function HeroImage({
+  src,
+  label,
+  className,
+}: {
+  src:
+    string;
+
+  label:
+    string;
+
+  className?:
+    string;
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[22px] border border-white/10 bg-slate-900 ${className ?? ""}`}
+    >
+      <Image
+        src={
+          src
+        }
+        alt={
+          label
+        }
+        fill
+        sizes="420px"
+        className="object-cover"
+      />
+
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent" />
+
+      <p className="absolute bottom-4 left-4 right-4 text-xs font-semibold text-white">
+        {
+          label
+        }
+      </p>
+    </div>
+  );
+}
+
+
+// =========================================================
+// SERVICE CARD
+// =========================================================
+
+function ServiceCard({
+  service,
+  prominent = false,
+}: {
+  service:
+    PublicServiceSummary;
+
+  prominent?:
+    boolean;
+}) {
+  const displayName =
+    getDisplayServiceName(
+      service,
+    );
+
+
+  return (
+    <Link
+      href="/request"
+      className={`group overflow-hidden rounded-[22px] border border-slate-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] ${
+        prominent
+          ? "shadow-sm"
+          : ""
+      }`}
+    >
+      <div
+        className={`relative overflow-hidden bg-slate-100 ${
+          prominent
+            ? "aspect-[16/10]"
+            : "aspect-[16/9]"
+        }`}
+      >
+        <Image
+          src={
+            getServiceImage(
+              service,
+            )
+          }
+          alt={
+            displayName
+          }
+          fill
+          sizes="(max-width: 640px) 100vw, 360px"
+          className="object-cover transition duration-500 group-hover:scale-[1.04]"
+        />
+
+
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+
+
+        {service.featured && (
+          <span className="absolute left-3 top-3 rounded-full bg-blue-600 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
+            Featured
+          </span>
+        )}
+
+
+        <span className="absolute bottom-3 left-3 rounded-full border border-white/20 bg-slate-950/55 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">
+          {service.serviceCategoryName ||
+            readableCategory(
+              service.category,
+            )}
+        </span>
+      </div>
+
+
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <h3 className="font-semibold leading-6 text-slate-950">
+            {
+              displayName
+            }
+          </h3>
+
+
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+            <ArrowRight className="h-3.5 w-3.5" />
+          </div>
+        </div>
+
+
+        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">
+          {service.description ||
+            getFallbackDescription(
+              service,
+            )}
+        </p>
+
+
+        <p className="mt-5 text-xs font-semibold text-blue-600">
+          Start request
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+
+// =========================================================
+// GENERAL SERVICE GROUPING
+// =========================================================
+
+function buildServiceGroups(
+  services:
+    PublicServiceSummary[],
+) {
+  const map =
+    new Map<
+      string,
+      {
+        id:
+          string;
+
+        name:
+          string;
+
+        order:
+          number;
+
+        services:
+          PublicServiceSummary[];
+      }
+    >();
+
+
+  for (
+    const service of
+    services
+  ) {
+    const id =
+      service.serviceCategorySlug ||
+      normalizeAnchor(
+        service.serviceCategoryName ||
+        service.category ||
+        "other-services",
+      );
+
+
+    const name =
+      service.serviceCategoryName ||
+      readableCategory(
+        service.category,
+      );
+
+
+    const existing =
+      map.get(
+        id,
+      );
+
+
+    if (
+      existing
+    ) {
+      existing.services.push(
+        service,
+      );
+
+      continue;
+    }
+
+
+    map.set(
+      id,
+      {
+        id,
+
+        name,
+
+        order:
+          service.displayOrder,
+
+        services: [
+          service,
+        ],
+      },
+    );
+  }
+
+
+  return Array.from(
+    map.values(),
+  )
+    .map(
+      (
+        group,
+      ) => ({
+        ...group,
+
+        services:
+          group.services.sort(
+            (
+              first,
+              second,
+            ) =>
+              first.displayOrder -
+                second.displayOrder ||
+              first.name.localeCompare(
+                second.name,
+              ),
+          ),
+      }),
+    )
+    .sort(
+      (
+        first,
+        second,
+      ) =>
+        first.order -
+          second.order ||
+        first.name.localeCompare(
+          second.name,
+        ),
+    );
+}
+
+
+// =========================================================
+// FIND SERVICE
+// =========================================================
+
+function findService(
+  services:
+    PublicServiceSummary[],
+
+  terms:
+    string[],
+) {
+  for (
+    const service of
+    services
+  ) {
+    const value =
+      `${service.slug} ${service.name} ${service.shortName}`
+        .toLowerCase();
+
+
+    if (
+      terms.some(
+        (
+          term,
+        ) =>
+          value.includes(
+            term.toLowerCase(),
+          ),
+      )
+    ) {
+      return service;
+    }
+  }
+
+
+  return null;
+}
+
+
+// =========================================================
+// DISPLAY NAME
+// =========================================================
+
+function getDisplayServiceName(
+  service:
+    PublicServiceSummary,
+) {
+  if (
+    service.slug ===
+    "study-abroad-support"
+  ) {
+    return "Study Abroad & Scholarship Support";
+  }
+
+
+  if (
+    service.slug ===
+    "government-worker-loans"
+  ) {
+    return "Government Worker Loans";
+  }
+
+
+  if (
+    service.slug ===
+    "bece-wassce-results"
+  ) {
+    return "BECE / WASSCE Results";
+  }
+
+
+  if (
+    service.slug ===
+    "school-nursing-placement"
+  ) {
+    return "School & Nursing Placement";
+  }
+
+
+  if (
+    service.slug ===
+    "security-service-applications"
+  ) {
+    return "Security Service Applications";
+  }
+
+
+  if (
+    service.slug ===
+    "research-guidance"
+  ) {
+    return "Thesis & Research Guidance";
+  }
+
+
+  return service.name;
+}
+
+
+// =========================================================
+// SERVICE IMAGE
+// =========================================================
+
+function getServiceImage(
+  service:
+    PublicServiceSummary,
+) {
+  if (
+    service.imageUrl
+  ) {
+    return service.imageUrl;
+  }
+
+
+  const value =
+    `${service.slug} ${service.name} ${service.serviceCategorySlug ?? ""}`
+      .toLowerCase();
+
+
+  if (
+    value.includes(
+      "government-worker-loans",
+    ) ||
+    value.includes(
+      "loan",
+    )
+  ) {
+    return "/office-of-seekers.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "study-abroad",
+    ) ||
+    value.includes(
+      "scholarship",
+    )
+  ) {
+    return "/proof-of-someone-acceptance-scholarship.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "print",
+    )
+  ) {
+    return "/printing-and-other-services.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "transcript",
+    ) ||
+    value.includes(
+      "attestation",
+    ) ||
+    value.includes(
+      "proficiency",
+    ) ||
+    value.includes(
+      "academic",
+    )
+  ) {
+    return "/ceo-with-transcrip-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "delivery",
+    )
+  ) {
+    return "/seekers-delivery-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "pickup",
+    ) ||
+    value.includes(
+      "errand",
+    ) ||
+    value.includes(
+      "shop-for-me",
+    )
+  ) {
+    return "/pick-up.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "job",
+    ) ||
+    value.includes(
+      "security",
+    ) ||
+    value.includes(
+      "application",
+    ) ||
+    value.includes(
+      "placement",
+    )
+  ) {
+    return "/passpost-application-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "plagiarism",
+    ) ||
+    value.includes(
+      "research",
+    ) ||
+    value.includes(
+      "practicum",
+    )
+  ) {
+    return "/5927016763990150890_121.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "affidavit",
+    ) ||
+    value.includes(
+      "gazette",
+    ) ||
+    value.includes(
+      "legal",
+    )
+  ) {
+    return "/company-official-flier.jpg";
+  }
+
+
+  if (
+    value.includes(
+      "world education",
+    ) ||
+    value.includes(
+      "wes",
+    )
+  ) {
+    return "/world-education-service.jpg";
+  }
+
+
+  return "/most-services.jpg";
+}
+
+
+// =========================================================
+// GROUP DESCRIPTION
+// =========================================================
+
+function getGroupDescription(
+  id:
+    string,
+) {
+  const value =
+    id.toLowerCase();
+
+
+  if (
+    value.includes(
+      "loan",
+    ) ||
+    value.includes(
+      "financial",
+    )
+  ) {
+    return "Financial application and Government Worker Loan support.";
+  }
+
+
+  if (
+    value.includes(
+      "legal",
+    )
+  ) {
+    return "Affidavit, Gazette and related documentation support.";
+  }
+
+
+  if (
+    value.includes(
+      "study",
+    ) ||
+    value.includes(
+      "abroad",
+    )
+  ) {
+    return "Study-abroad, institution, programme and scholarship-related guidance.";
+  }
+
+
+  if (
+    value.includes(
+      "career",
+    ) ||
+    value.includes(
+      "job",
+    )
+  ) {
+    return "Career, employment and job-seeker support.";
+  }
+
+
+  if (
+    value.includes(
+      "practicum",
+    ) ||
+    value.includes(
+      "placement",
+    )
+  ) {
+    return "Teaching practicum, placement and related application services.";
+  }
+
+
+  if (
+    value.includes(
+      "result",
+    ) ||
+    value.includes(
+      "application",
+    )
+  ) {
+    return "Results checking and application-support services.";
+  }
+
+
+  if (
+    value.includes(
+      "academic",
+    )
+  ) {
+    return "Academic assistance and student-support services.";
+  }
+
+
+  if (
+    value.includes(
+      "print",
+    ) ||
+    value.includes(
+      "document",
+    )
+  ) {
+    return "Printing, document handling and related support.";
+  }
+
+
+  return "Available Seekers Connect services in this category.";
+}
+
+
+// =========================================================
+// FALLBACK DESCRIPTION
+// =========================================================
+
+function getFallbackDescription(
+  service:
+    PublicServiceSummary,
+) {
+  const value =
+    `${service.slug} ${service.name}`
+      .toLowerCase();
+
+
+  if (
+    value.includes(
+      "loan",
+    )
+  ) {
+    return "Application support for eligible Government Worker Loan requests.";
+  }
+
+
+  if (
+    value.includes(
+      "study",
+    )
+  ) {
+    return "Study-abroad application, programme search and scholarship guidance.";
+  }
+
+
+  if (
+    value.includes(
+      "printing",
+    )
+  ) {
+    return "Black-and-white, colour and document printing support.";
+  }
+
+
+  if (
+    value.includes(
+      "affidavit",
+    )
+  ) {
+    return "Support for affidavit preparation and documentation requests.";
+  }
+
+
+  if (
+    value.includes(
+      "gazette",
+    )
+  ) {
+    return "Support for Gazette publication and related correction processes.";
+  }
+
+
+  if (
+    value.includes(
+      "plagiarism",
+    )
+  ) {
+    return "Submit academic work for plagiarism-checking support.";
+  }
+
+
+  if (
+    value.includes(
+      "research",
+    )
+  ) {
+    return "Research guidance, methodological support and academic consultation.";
+  }
+
+
+  if (
+    value.includes(
+      "job",
+    )
+  ) {
+    return "Submit your programme, skills and employment interests for job-seeker support.";
+  }
+
+
+  if (
+    value.includes(
+      "practicum",
+    )
+  ) {
+    return "Teaching practicum form and placement-related support.";
+  }
+
+
+  if (
+    value.includes(
+      "results",
+    )
+  ) {
+    return "Support for BECE and WASSCE results-related requests.";
+  }
+
+
+  if (
+    value.includes(
+      "placement",
+    )
+  ) {
+    return "School and nursing placement support.";
+  }
+
+
+  if (
+    value.includes(
+      "security",
+    )
+  ) {
+    return "Application support for Police, Fire, Immigration, Prisons and related services.";
+  }
+
+
+  return "Request this service through Seekers Connect 247.";
+}
+
+
+// =========================================================
+// CATEGORY
+// =========================================================
+
+function readableCategory(
+  value:
+    string,
+) {
+  return value
+    .replaceAll(
+      "-",
+      " ",
+    )
+    .replace(
+      /\b\w/g,
+      (
+        character,
+      ) =>
+        character.toUpperCase(),
+    );
+}
+
+
+// =========================================================
+// ANCHOR
+// =========================================================
+
+function normalizeAnchor(
+  value:
+    string,
+) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9]+/g,
+      "-",
+    )
+    .replace(
+      /^-+|-+$/g,
+      "",
+    );
 }
